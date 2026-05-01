@@ -1,14 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/app/i18n';
 import LanguageSwitcher from '@/app/i18n/LanguageSwitcher';
 
 export default function Home() {
+  const router = useRouter();
   const [activeStep, setActiveStep] = useState(0);
   const [activeTestimonial, setActiveTestimonial] = useState(0);
   const { t, locale, setLocale } = useTranslation('landing');
+  const [checking, setChecking] = useState(true);
+
+  // Проверка авторизации при загрузке
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          // Пользователь уже авторизован, редирект на дашборд
+          router.push('/dashboard');
+          return;
+        }
+      } catch (err) {
+        // Ошибка или не авторизован - продолжаем
+      }
+      setChecking(false);
+    };
+
+    checkAuth();
+  }, [router]);
 
   const steps = [
     {
@@ -104,6 +126,18 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [testimonials.length]);
 
+  // Показываем загрузку пока проверяем авторизацию
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00CC00] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Загрузка...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-100">
       {/* Header */}
@@ -143,9 +177,9 @@ export default function Home() {
               currentLocale={locale} 
               onLocaleChange={setLocale} 
             />
-            <button className="px-6 py-2 bg-[#00CC00] text-white rounded-full font-medium hover:bg-[#00b300] transition-colors">
+            <a href="/login" className="px-6 py-2 bg-[#00CC00] text-white rounded-full font-medium hover:bg-[#00b300] transition-colors">
               {t.header?.authButton || 'Войти'}
-            </button>
+            </a>
           </div>
         </div>
       </header>
@@ -236,12 +270,12 @@ export default function Home() {
             {t.hero?.subtitle || 'Платформа для волонтёров и организаторов социальных проектов в Кыргызстане'}
           </p>
           <div className="flex gap-4 justify-center">
-            <button className="px-8 py-4 bg-[#00CC00] text-white rounded-full font-bold hover:bg-[#00b300] transition-colors shadow-lg">
+            <a href="/register" className="px-8 py-4 bg-[#00CC00] text-white rounded-full font-bold hover:bg-[#00b300] transition-colors shadow-lg inline-block">
               {t.hero?.findProjectButton || 'Найти проект'}
-            </button>
-            <button className="px-8 py-4 bg-white text-[#00CC00] border-2 border-[#00CC00] rounded-full font-bold hover:bg-emerald-50 transition-colors">
+            </a>
+            <a href="/register" className="px-8 py-4 bg-white text-[#00CC00] border-2 border-[#00CC00] rounded-full font-bold hover:bg-emerald-50 transition-colors inline-block">
               {t.hero?.createProjectButton || 'Создать проект'}
-            </button>
+            </a>
           </div>
         </div>
       </section>
