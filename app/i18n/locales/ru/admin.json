@@ -1,0 +1,61 @@
+{
+  "login": {
+    "title": "Вход в админ-панель",
+    "subtitle": "Введите учетные данные администратора",
+    "email": "Email администратора",
+    "emailPlaceholder": "admin@volonterkr.kg",
+    "password": "Пароль",
+    "passwordPlaceholder": "••••••••",
+    "loginButton": "Войти",
+    "loggingIn": "Вход...",
+    "verifyingCode": "Проверка кода...",
+    "codeTitle": "Двухфакторная аутентификация",
+    "codeSubtitle": "Введите код из Telegram",
+    "codeDescription": "Мы отправили 6-значный код в ваш Telegram",
+    "codePlaceholder": "000000",
+    "verifyButton": "Подтвердить",
+    "resendCode": "Отправить код повторно",
+    "backToLogin": "Вернуться к входу",
+    "errors": {
+      "invalidCredentials": "Неверный email или пароль",
+      "invalidCode": "Неверный код подтверждения",
+      "codeExpired": "Код истек. Запросите новый",
+      "serverError": "Ошибка сервера. Попробуйте позже",
+      "telegramError": "Ошибка отправки кода в Telegram",
+      "notAdmin": "У вас нет прав администратора"
+    }
+  },
+  "dashboard": {
+    "title": "Панель администратора",
+    "welcome": "Добро пожаловать",
+    "statistics": {
+      "title": "Статистика",
+      "totalUsers": "Всего пользователей",
+      "activeProjects": "Активных проектов",
+      "pendingVerifications": "Ожидают проверки",
+      "totalVolunteers": "Волонтеров",
+      "totalOrganizers": "Организаторов"
+    },
+    "recentActivity": {
+      "title": "Последняя активность",
+      "noActivity": "Нет активности"
+    },
+    "quickActions": {
+      "title": "Быстрые действия",
+      "manageUsers": "Управление пользователями",
+      "verifyOrganizers": "Проверка организаторов",
+      "manageProjects": "Управление проектами",
+      "viewReports": "Просмотр отчетов",
+      "systemSettings": "Настройки системы"
+    }
+  },
+  "nav": {
+    "dashboard": "Главная",
+    "users": "Пользователи",
+    "projects": "Проекты",
+    "verifications": "Проверки",
+    "reports": "Отчеты",
+    "settings": "Настройки",
+    "logout": "Выйти"
+  }
+}

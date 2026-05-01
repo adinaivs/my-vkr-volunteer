@@ -1,0 +1,61 @@
+{
+  "login": {
+    "title": "Админ-панелге кирүү",
+    "subtitle": "Администратордун маалыматтарын киргизиңиз",
+    "email": "Администратордун email",
+    "emailPlaceholder": "admin@volonterkr.kg",
+    "password": "Сырсөз",
+    "passwordPlaceholder": "••••••••",
+    "loginButton": "Кирүү",
+    "loggingIn": "Кирүү...",
+    "verifyingCode": "Кодду текшерүү...",
+    "codeTitle": "Эки факторлуу аутентификация",
+    "codeSubtitle": "Telegram'дан кодду киргизиңиз",
+    "codeDescription": "Биз сиздин Telegram'га 6 сандуу код жибердик",
+    "codePlaceholder": "000000",
+    "verifyButton": "Ырастоо",
+    "resendCode": "Кодду кайра жиберүү",
+    "backToLogin": "Кирүүгө кайтуу",
+    "errors": {
+      "invalidCredentials": "Туура эмес email же сырсөз",
+      "invalidCode": "Туура эмес ырастоо коду",
+      "codeExpired": "Коддун мөөнөтү бүттү. Жаңысын сураңыз",
+      "serverError": "Сервер катасы. Кийинчерээк аракет кылыңыз",
+      "telegramError": "Telegram'га код жиберүүдө ката",
+      "notAdmin": "Сизде администратор укуктары жок"
+    }
+  },
+  "dashboard": {
+    "title": "Администратор панели",
+    "welcome": "Кош келиңиз",
+    "statistics": {
+      "title": "Статистика",
+      "totalUsers": "Бардык колдонуучулар",
+      "activeProjects": "Активдүү долбоорлор",
+      "pendingVerifications": "Текшерүүнү күтүүдө",
+      "totalVolunteers": "Ыктыярчылар",
+      "totalOrganizers": "Уюштуруучулар"
+    },
+    "recentActivity": {
+      "title": "Акыркы активдүүлүк",
+      "noActivity": "Активдүүлүк жок"
+    },
+    "quickActions": {
+      "title": "Тез аракеттер",
+      "manageUsers": "Колдонуучуларды башкаруу",
+      "verifyOrganizers": "Уюштуруучуларды текшерүү",
+      "manageProjects": "Долбоорлорду башкаруу",
+      "viewReports": "Отчетторду көрүү",
+      "systemSettings": "Системанын жөндөөлөрү"
+    }
+  },
+  "nav": {
+    "dashboard": "Башкы",
+    "users": "Колдонуучулар",
+    "projects": "Долбоорлор",
+    "verifications": "Текшерүүлөр",
+    "reports": "Отчеттор",
+    "settings": "Жөндөөлөр",
+    "logout": "Чыгуу"
+  }
+}

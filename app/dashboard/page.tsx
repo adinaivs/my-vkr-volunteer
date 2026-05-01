@@ -27,6 +27,21 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
+  // Redirect volunteers to their dashboard
+  if (user.role === 'volunteer') {
+    redirect('/volunteer/dashboard');
+  }
+
+  // Redirect admins to their dashboard
+  if (user.role === 'admin') {
+    redirect('/admin/dashboard');
+  }
+
+  // Redirect organizers to their dashboard
+  if (user.role === 'organizer') {
+    redirect('/organizer/dashboard');
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">

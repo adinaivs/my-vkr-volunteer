@@ -13,7 +13,10 @@ const guestOnlyPaths = ['/', '/login', '/register', '/forgot-password'];
 const publicPaths = ['/api/auth'];
 
 // Защищенные пути (требуют авторизации)
-const protectedPaths = ['/dashboard'];
+const protectedPaths = ['/dashboard', '/volunteer', '/organizer'];
+
+// Пути админа
+const adminPaths = ['/admin/dashboard', '/admin/users', '/admin/projects', '/admin/verifications', '/admin/reports', '/admin/settings'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -35,20 +38,58 @@ export async function middleware(request: NextRequest) {
   // Проверяем сессию
   const token = request.cookies.get('session')?.value;
   let isAuthenticated = false;
+  let userRole: string | null = null;
 
   if (token) {
     try {
-      await jwtVerify(token, JWT_SECRET);
+      const { payload } = await jwtVerify(token, JWT_SECRET);
       isAuthenticated = true;
+      userRole = payload.role as string;
     } catch (error) {
       // Токен невалидный, удаляем его
       isAuthenticated = false;
     }
   }
 
+  // Проверка доступа к админ-панели
+  const isAdminPath = adminPaths.some(path => pathname.startsWith(path));
+  const isAdminLoginPath = pathname === '/admin/login';
+
+  if (isAdminPath) {
+    // Требуется авторизация как админ
+    if (!isAuthenticated || userRole !== 'admin') {
+      return NextResponse.redirect(new URL('/admin/login', request.url));
+    }
+    return NextResponse.next();
+  }
+
+  if (isAdminLoginPath) {
+    // Если админ уже авторизован, редирект на дашборд
+    if (isAuthenticated && userRole === 'admin') {
+      return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+    }
+    return NextResponse.next();
+  }
+
   // Если пользователь авторизован
   if (isAuthenticated) {
-    // Проверяем, пытается ли он зайти на страницы для гостей
+    // Админ не может заходить на обычные страницы
+    if (userRole === 'admin') {
+      const isGuestOnlyPath = guestOnlyPaths.some(path => {
+        if (path === '/') {
+          return pathname === '/';
+        }
+        return pathname.startsWith(path);
+      });
+
+      const isUserProtectedPath = protectedPaths.some(path => pathname.startsWith(path));
+
+      if (isGuestOnlyPath || isUserProtectedPath) {
+        return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+      }
+    }
+
+    // Обычные пользователи не могут заходить на страницы для гостей
     const isGuestOnlyPath = guestOnlyPaths.some(path => {
       if (path === '/') {
         return pathname === '/';

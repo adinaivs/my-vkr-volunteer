@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import AiSupportButton from '@/app/components/AiSupportButton';
 import Image from 'next/image';
 
 export default function VolunteerRegisterPage() {
@@ -327,6 +328,9 @@ export default function VolunteerRegisterPage() {
             </div>
           </div>
       </div>
+
+      {/* AI Support Button */}
+      <AiSupportButton />
     </div>
   );
 }

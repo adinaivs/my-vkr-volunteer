@@ -5,6 +5,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/app/i18n';
 import LanguageSwitcher from '@/app/i18n/LanguageSwitcher';
+import AiSupportButton from '@/app/components/AiSupportButton';
 
 export default function Home() {
   const router = useRouter();
@@ -1076,6 +1077,9 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      {/* AI Support Button */}
+      <AiSupportButton />
     </div>
   );
 }

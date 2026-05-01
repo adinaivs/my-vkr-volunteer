@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import AiSupportButton from '@/app/components/AiSupportButton';
 
 export default function OrganizerRegisterPage() {
   const router = useRouter();
@@ -468,6 +469,9 @@ export default function OrganizerRegisterPage() {
           </div>
         </div>
       </div>
+
+      {/* AI Support Button */}
+      <AiSupportButton />
     </div>
   );
 }

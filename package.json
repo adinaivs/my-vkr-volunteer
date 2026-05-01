@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "create-admin": "node scripts/create-admin.js",
+    "setup-telegram": "node scripts/setup-telegram.js"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
@@ -14,6 +16,7 @@
     "@types/nodemailer": "^8.0.0",
     "bcryptjs": "^3.0.3",
     "cookie": "^1.1.1",
+    "jose": "^6.2.3",
     "jsonwebtoken": "^9.0.3",
     "next": "16.2.4",
     "next-auth": "^4.24.14",
