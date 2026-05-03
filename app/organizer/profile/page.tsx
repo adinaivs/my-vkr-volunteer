@@ -24,6 +24,9 @@ interface OrganizerProfile {
   legalAddress: string;
   actualAddress: string;
   verificationStatus: string;
+  isRejected: boolean;
+  rejectionReason?: string;
+  rejectedAt?: string;
 }
 
 export default function OrganizerProfile() {
@@ -65,15 +68,25 @@ export default function OrganizerProfile() {
           legalAddress: '',
           actualAddress: '',
         });
-        // TODO: Загрузить профиль организатора
-        setProfile({
-          organizationName: 'Название организации',
-          inn: '1234567890123',
-          okpo: '12345678',
-          legalAddress: 'Юридический адрес',
-          actualAddress: 'Фактический адрес',
-          verificationStatus: 'pending',
-        });
+        
+        // Загружаем профиль организатора из данных пользователя
+        if (data.user.organizerProfile) {
+          setProfile({
+            organizationName: data.user.organizerProfile.organizationName,
+            inn: data.user.organizerProfile.inn,
+            okpo: data.user.organizerProfile.okpo,
+            legalAddress: data.user.organizerProfile.legalAddress,
+            actualAddress: data.user.organizerProfile.actualAddress,
+            verificationStatus: data.user.organizerProfile.isApprovedByAdmin 
+              ? 'verified' 
+              : data.user.organizerProfile.isRejected 
+                ? 'rejected' 
+                : 'pending',
+            isRejected: data.user.organizerProfile.isRejected,
+            rejectionReason: data.user.organizerProfile.rejectionReason,
+            rejectedAt: data.user.organizerProfile.rejectedAt,
+          });
+        }
       } catch (error) {
         router.push('/login');
       } finally {
@@ -210,6 +223,45 @@ export default function OrganizerProfile() {
                   Ваш аккаунт находится на проверке администраторами. Это может занять 1-3 рабочих дня. 
                   Уведомление о результате придёт на email.
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Rejection Alert */}
+        {profile?.isRejected && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-6 mb-6">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-red-900 mb-1">Ваша заявка отклонена</h3>
+                {profile.rejectionReason && (
+                  <div className="bg-red-100 rounded-lg p-3 mb-3 mt-2">
+                    <p className="text-sm font-medium text-red-900 mb-1">Причина отклонения:</p>
+                    <p className="text-sm text-red-800">{profile.rejectionReason}</p>
+                  </div>
+                )}
+                {profile.rejectedAt && (
+                  <p className="text-red-600 text-xs mb-3">
+                    Отклонено: {new Date(profile.rejectedAt).toLocaleDateString('ru-RU')}
+                  </p>
+                )}
+                <p className="text-sm text-red-800 mb-4">
+                  Вы можете исправить данные и отправить заявку повторно.
+                </p>
+                <a
+                  href="/organizer/profile/edit"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Редактировать данные
+                </a>
               </div>
             </div>
           </div>

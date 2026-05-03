@@ -21,6 +21,7 @@ export default function OrganizerRegisterPage() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -97,11 +98,35 @@ export default function OrganizerRegisterPage() {
     setLoading(true);
 
     try {
-      // TODO: Загрузка файла на сервер (пока пропускаем)
+      // Загрузка файла на сервер
       let verificationDocUrl = null;
       if (formData.verificationDoc) {
-        // В будущем здесь будет загрузка файла
-        console.log('Файл для загрузки:', formData.verificationDoc.name);
+        console.log('Загрузка файла:', formData.verificationDoc.name);
+        setUploadingFile(true);
+        
+        try {
+          const uploadFormData = new FormData();
+          uploadFormData.append('file', formData.verificationDoc);
+
+          const uploadResponse = await fetch('/api/upload', {
+            method: 'POST',
+            body: uploadFormData,
+          });
+
+          if (!uploadResponse.ok) {
+            const uploadError = await uploadResponse.json();
+            throw new Error(uploadError.error || 'Ошибка при загрузке файла');
+          }
+
+          const uploadData = await uploadResponse.json();
+          verificationDocUrl = uploadData.url;
+          console.log('Файл загружен:', verificationDocUrl);
+        } catch (uploadErr: any) {
+          setUploadingFile(false);
+          throw new Error(`Ошибка загрузки файла: ${uploadErr.message}`);
+        } finally {
+          setUploadingFile(false);
+        }
       }
 
       const nameParts = formData.representativeName.trim().split(' ');
@@ -316,13 +341,42 @@ export default function OrganizerRegisterPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Свидетельство о регистрации
                 </label>
-                <label className="w-full flex items-center justify-center px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
-                  <svg className="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  <span className="text-sm text-gray-600">
-                    {formData.verificationDoc ? formData.verificationDoc.name : 'Загрузить файл'}
-                  </span>
+                <label className={`w-full flex items-center justify-center px-4 py-3 bg-gray-50 border-2 border-dashed rounded-xl transition-colors cursor-pointer ${
+                  formData.verificationDoc 
+                    ? 'border-[#00CC00] bg-green-50' 
+                    : 'border-gray-300 hover:border-[#00CC00] hover:bg-gray-100'
+                }`}>
+                  {formData.verificationDoc ? (
+                    <>
+                      <svg className="w-5 h-5 mr-2 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-sm text-[#00CC00] font-medium truncate max-w-xs">
+                        {formData.verificationDoc.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setFormData({ ...formData, verificationDoc: null });
+                        }}
+                        className="ml-2 text-red-500 hover:text-red-700"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                      <span className="text-sm text-gray-600">
+                        Нажмите для загрузки файла
+                      </span>
+                    </>
+                  )}
                   <input
                     type="file"
                     accept="image/*,.pdf"
@@ -445,10 +499,10 @@ export default function OrganizerRegisterPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || uploadingFile}
                   className="flex-1 py-3.5 bg-[#00CC00] text-white rounded-xl font-semibold hover:bg-[#00b300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#00CC00]/20"
                 >
-                  {loading ? 'Регистрация...' : 'Зарегистрироваться'}
+                  {uploadingFile ? 'Загрузка файла...' : loading ? 'Регистрация...' : 'Зарегистрироваться'}
                 </button>
               </div>
 

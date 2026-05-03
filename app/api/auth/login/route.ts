@@ -27,6 +27,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ВАЖНО: Администраторы должны входить через /admin/login
+    if (user.role === 'admin') {
+      return NextResponse.json(
+        { error: 'Администраторы должны входить через страницу входа администратора' },
+        { status: 403 }
+      );
+    }
+
     // Проверка статуса
     if (user.status !== 'active') {
       return NextResponse.json(

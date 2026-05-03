@@ -6,6 +6,7 @@ import Link from 'next/link';
 import OrganizerNav from '../components/OrganizerNav';
 import OrganizerSidebar from '../components/OrganizerSidebar';
 import AiSupportButton from '@/app/components/AiSupportButton';
+import ApprovalStatus from '../components/ApprovalStatus';
 
 interface User {
   id: string;
@@ -14,6 +15,14 @@ interface User {
   lastName: string;
   role: string;
   avatarUrl?: string;
+  organizerProfile?: {
+    isApprovedByAdmin: boolean;
+    isRejected: boolean;
+    approvedAt?: string | null;
+    rejectedAt?: string | null;
+    rejectionReason?: string | null;
+    freePostsRemaining: number;
+  };
 }
 
 export default function OrganizerDashboard() {
@@ -67,6 +76,17 @@ export default function OrganizerDashboard() {
 
       {/* Main Content */}
       <main className="lg:ml-[272px] px-4 sm:px-6 lg:px-8 pt-20 lg:pt-[88px] pb-20 lg:pb-8">
+        {/* Approval Status */}
+        {user.organizerProfile && (
+          <ApprovalStatus
+            isApproved={user.organizerProfile.isApprovedByAdmin}
+            isRejected={user.organizerProfile.isRejected}
+            approvedAt={user.organizerProfile.approvedAt}
+            rejectedAt={user.organizerProfile.rejectedAt}
+            rejectionReason={user.organizerProfile.rejectionReason}
+          />
+        )}
+
         {/* Welcome Section */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -77,6 +97,24 @@ export default function OrganizerDashboard() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Free Posts Remaining */}
+          <div className="bg-gradient-to-br from-[#00CC00] to-emerald-500 rounded-2xl p-6 shadow-lg text-white">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+            <div className="text-3xl font-bold mb-1">
+              {user.organizerProfile?.freePostsRemaining ?? 0}
+            </div>
+            <div className="text-sm text-emerald-50">Бесплатных публикаций осталось</div>
+            <div className="mt-3 text-xs text-emerald-100">
+              Используются только при публикации проекта
+            </div>
+          </div>
+
           {/* Total Projects */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-4">

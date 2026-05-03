@@ -1,4 +1,5 @@
-// Prisma Schema для платформы волонтёрских проектов
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client-js"
@@ -9,10 +10,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================
-// 1. ПОЛЬЗОВАТЕЛИ И РОЛИ
-// ============================================
-
+// Enums
 enum UserRole {
   volunteer
   organizer
@@ -26,33 +24,91 @@ enum UserStatus {
   deleted
 }
 
-model User {
-  id           String   @id @default(uuid()) @db.Uuid
-  email        String   @unique @db.VarChar(255)
-  phone        String   @unique @db.VarChar(20)
-  passwordHash String   @map("password_hash") @db.VarChar(255)
-  role         UserRole
-  firstName    String   @map("first_name") @db.VarChar(100)
-  lastName     String   @map("last_name") @db.VarChar(100)
-  city         String   @db.VarChar(100)
-  avatarUrl    String?  @map("avatar_url") @db.Text
-  status       UserStatus @default(active)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+enum VerificationStatus {
+  pending
+  verified
+  rejected
+  blocked
+}
 
-  // Relations
-  volunteerProfile       VolunteerProfile?
-  organizerProfile       OrganizerProfile?
-  skills                 UserSkill[]
-  interests              Interest[]
-  projects               Project[]
-  applications           Application[]
-  taskAssignmentsAsVolunteer TaskAssignment[] @relation("VolunteerAssignments")
-  taskAssignmentsAsAssigner  TaskAssignment[] @relation("AssignerAssignments")
-  applicationsReviewed   Application[] @relation("ReviewedApplications")
-  userAchievements       UserAchievement[]
-  payments               Payment[]
-  aiChats                AiChat[]
+enum ProjectStatus {
+  draft
+  moderation
+  published
+  completed
+  rejected
+  blocked
+}
+
+enum TaskStatus {
+  pending
+  in_progress
+  completed
+  overdue
+  cancelled
+}
+
+enum TaskAssignmentStatus {
+  assigned
+  completed
+  confirmed
+  rejected
+  cancelled
+}
+
+enum ApplicationStatus {
+  pending
+  approved
+  rejected
+  cancelled
+}
+
+enum ConditionType {
+  projects_count
+  category_projects_count
+  perfect_month
+  organizer
+}
+
+enum PaymentStatus {
+  pending
+  succeeded
+  failed
+  refunded
+}
+
+enum MessageSender {
+  user
+  ai
+}
+
+// Models
+model User {
+  id            String     @id @default(uuid()) @db.Uuid
+  email         String     @unique @db.VarChar(255)
+  phone         String     @unique @db.VarChar(20)
+  passwordHash  String     @map("password_hash") @db.VarChar(255)
+  role          UserRole
+  firstName     String     @map("first_name") @db.VarChar(100)
+  lastName      String     @map("last_name") @db.VarChar(100)
+  city          String     @db.VarChar(100)
+  avatarUrl     String?    @map("avatar_url")
+  status        UserStatus @default(active)
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  volunteerProfile    VolunteerProfile?
+  organizerProfile    OrganizerProfile?
+  skills              UserSkill[]
+  interests           Interest[]
+  projects            Project[]
+  taskAssignments     TaskAssignment[]     @relation("VolunteerAssignments")
+  assignedTasks       TaskAssignment[]     @relation("AssignedBy")
+  applications        Application[]
+  reviewedApplications Application[]       @relation("ReviewedBy")
+  achievements        UserAchievement[]
+  payments            Payment[]
+  aiChats             AiChat[]
 
   @@map("users")
 }
@@ -60,8 +116,8 @@ model User {
 model VolunteerProfile {
   id                String   @id @default(uuid()) @db.Uuid
   userId            String   @unique @map("user_id") @db.Uuid
-  bio               String?  @db.Text
-  availableTime     Json?    @map("available_time") @db.JsonB
+  bio               String?
+  availableTime     Json?    @map("available_time")
   trustScore        Decimal  @default(0) @map("trust_score") @db.Decimal(5, 2)
   completedTasks    Int      @default(0) @map("completed_tasks")
   completedProjects Int      @default(0) @map("completed_projects")
@@ -71,27 +127,25 @@ model VolunteerProfile {
   @@map("volunteer_profiles")
 }
 
-enum VerificationStatus {
-  pending
-  verified
-  rejected
-  blocked
-}
-
 model OrganizerProfile {
-  id                   String             @id @default(uuid()) @db.Uuid
-  userId               String             @unique @map("user_id") @db.Uuid
-  organizationName     String             @map("organization_name") @db.VarChar(255)
-  inn                  String             @db.VarChar(14)
-  okpo                 String             @db.VarChar(8)
-  legalAddress         String             @map("legal_address") @db.Text
-  actualAddress        String             @map("actual_address") @db.Text
-  verificationStatus   VerificationStatus @default(pending) @map("verification_status")
-  verificationDocUrl   String?            @map("verification_doc_url") @db.Text
-  verificationComment  String?            @map("verification_comment") @db.Text
-  verifiedAt           DateTime?          @map("verified_at") @db.Timestamp(6)
-  freePostsRemaining   Int                @default(3) @map("free_posts_remaining")
-  totalPaidPosts       Int                @default(0) @map("total_paid_posts")
+  id                   String              @id @default(uuid()) @db.Uuid
+  userId               String              @unique @map("user_id") @db.Uuid
+  organizationName     String              @map("organization_name") @db.VarChar(255)
+  inn                  String              @db.VarChar(14)
+  okpo                 String              @db.VarChar(8)
+  legalAddress         String              @map("legal_address")
+  actualAddress        String              @map("actual_address")
+  verificationStatus   VerificationStatus  @default(pending) @map("verification_status")
+  verificationDocUrl   String?             @map("verification_doc_url")
+  verificationComment  String?             @map("verification_comment")
+  verifiedAt           DateTime?           @map("verified_at") @db.Timestamp(6)
+  freePostsRemaining   Int                 @default(3) @map("free_posts_remaining")
+  totalPaidPosts       Int                 @default(0) @map("total_paid_posts")
+  isApprovedByAdmin    Boolean             @default(false) @map("is_approved_by_admin")
+  approvedAt           DateTime?           @map("approved_at") @db.Timestamp(6)
+  isRejected           Boolean             @default(false) @map("is_rejected")
+  rejectedAt           DateTime?           @map("rejected_at") @db.Timestamp(6)
+  rejectionReason      String?             @map("rejection_reason")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -102,8 +156,8 @@ model Skill {
   id   String @id @default(uuid()) @db.Uuid
   name String @unique @db.VarChar(100)
 
-  userSkills UserSkill[]
-  tasks      Task[]
+  users UserSkill[]
+  tasks Task[]
 
   @@map("skills")
 }
@@ -130,35 +184,22 @@ model Interest {
   @@map("interests")
 }
 
-// ============================================
-// 2. ПРОЕКТЫ И МОДЕРАЦИЯ
-// ============================================
-
 model Category {
   id   String @id @default(uuid()) @db.Uuid
   slug String @db.VarChar(100)
   icon String @db.VarChar(50)
 
-  projects  Project[]
   interests Interest[]
+  projects  Project[]
 
   @@map("categories")
-}
-
-enum ProjectStatus {
-  draft
-  moderation
-  published
-  completed
-  rejected
-  blocked
 }
 
 model Project {
   id                String        @id @default(uuid()) @db.Uuid
   organizerId       String        @map("organizer_id") @db.Uuid
   title             String        @db.VarChar(255)
-  description       String        @db.Text
+  description       String
   categoryId        String        @map("category_id") @db.Uuid
   startDate         DateTime      @map("start_date") @db.Date
   endDate           DateTime      @map("end_date") @db.Date
@@ -166,12 +207,15 @@ model Project {
   maxVolunteers     Int           @map("max_volunteers")
   currentVolunteers Int           @default(0) @map("current_volunteers")
   status            ProjectStatus @default(draft)
-  rejectionReason   String?       @map("rejection_reason") @db.Text
+  rejectionReason   String?       @map("rejection_reason")
   isPaid            Boolean       @default(false) @map("is_paid")
   paymentId         String?       @unique @map("payment_id") @db.Uuid
   publishedAt       DateTime?     @map("published_at") @db.Timestamp(6)
   createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamp(6)
+  moderatedAt       DateTime?     @map("moderated_at") @db.Timestamp(6)
+  moderatedBy       String?       @map("moderated_by") @db.Uuid
+  imageUrl          String?       @map("image_url")
 
   organizer    User          @relation(fields: [organizerId], references: [id], onDelete: Cascade)
   category     Category      @relation(fields: [categoryId], references: [id])
@@ -182,23 +226,11 @@ model Project {
   @@map("projects")
 }
 
-// ============================================
-// 3. ЗАДАЧИ И НАЗНАЧЕНИЯ
-// ============================================
-
-enum TaskStatus {
-  pending
-  in_progress
-  completed
-  overdue
-  cancelled
-}
-
 model Task {
   id                  String     @id @default(uuid()) @db.Uuid
   projectId           String     @map("project_id") @db.Uuid
   title               String     @db.VarChar(255)
-  description         String     @db.Text
+  description         String
   requiredSkillId     String?    @map("required_skill_id") @db.Uuid
   requiredVolunteers  Int        @map("required_volunteers")
   currentVolunteers   Int        @default(0) @map("current_volunteers")
@@ -206,84 +238,54 @@ model Task {
   status              TaskStatus @default(pending)
   createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
 
-  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  requiredSkill   Skill?           @relation(fields: [requiredSkillId], references: [id])
-  taskAssignments TaskAssignment[]
+  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  skill       Skill?           @relation(fields: [requiredSkillId], references: [id])
+  assignments TaskAssignment[]
 
   @@map("tasks")
 }
 
-enum TaskAssignmentStatus {
-  assigned
-  completed
-  confirmed
-  rejected
-  cancelled
-}
-
 model TaskAssignment {
-  id          String               @id @default(uuid()) @db.Uuid
-  taskId      String               @map("task_id") @db.Uuid
-  volunteerId String               @map("volunteer_id") @db.Uuid
-  assignedBy  String               @map("assigned_by") @db.Uuid
-  status      TaskAssignmentStatus @default(assigned)
-  completedAt DateTime?            @map("completed_at") @db.Timestamp(6)
-  confirmedAt DateTime?            @map("confirmed_at") @db.Timestamp(6)
-  feedback    String?              @db.Text
+  id          String                 @id @default(uuid()) @db.Uuid
+  taskId      String                 @map("task_id") @db.Uuid
+  volunteerId String                 @map("volunteer_id") @db.Uuid
+  assignedBy  String                 @map("assigned_by") @db.Uuid
+  status      TaskAssignmentStatus   @default(assigned)
+  completedAt DateTime?              @map("completed_at") @db.Timestamp(6)
+  confirmedAt DateTime?              @map("confirmed_at") @db.Timestamp(6)
+  feedback    String?
   rating      Int?
-  createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamp(6)
+  createdAt   DateTime               @default(now()) @map("created_at") @db.Timestamp(6)
 
   task      Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
   volunteer User @relation("VolunteerAssignments", fields: [volunteerId], references: [id], onDelete: Cascade)
-  assigner  User @relation("AssignerAssignments", fields: [assignedBy], references: [id])
+  assigner  User @relation("AssignedBy", fields: [assignedBy], references: [id])
 
   @@map("task_assignments")
-}
-
-// ============================================
-// 4. ЗАЯВКИ НА УЧАСТИЕ
-// ============================================
-
-enum ApplicationStatus {
-  pending
-  approved
-  rejected
-  cancelled
 }
 
 model Application {
   id              String            @id @default(uuid()) @db.Uuid
   projectId       String            @map("project_id") @db.Uuid
   volunteerId     String            @map("volunteer_id") @db.Uuid
-  message         String?           @db.Text
+  message         String?
   status          ApplicationStatus @default(pending)
   reviewedBy      String?           @map("reviewed_by") @db.Uuid
   reviewedAt      DateTime?         @map("reviewed_at") @db.Timestamp(6)
-  rejectionReason String?           @map("rejection_reason") @db.Text
+  rejectionReason String?           @map("rejection_reason")
   createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
 
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   volunteer User    @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
-  reviewer  User?   @relation("ReviewedApplications", fields: [reviewedBy], references: [id])
+  reviewer  User?   @relation("ReviewedBy", fields: [reviewedBy], references: [id])
 
   @@map("applications")
-}
-
-// ============================================
-// 5. ДОСТИЖЕНИЯ И НАГРАДЫ (ГЕЙМИФИКАЦИЯ)
-// ============================================
-
-enum ConditionType {
-  projects_count
-  category_projects_count
-  perfect_month
-  organizer
 }
 
 model Achievement {
   id             String        @id @default(uuid()) @db.Uuid
   name           String        @db.VarChar(100)
-  description    String        @db.Text
+  description    String
   icon           String        @db.VarChar(255)
   conditionType  ConditionType @map("condition_type")
   conditionValue Int           @map("condition_value")
@@ -312,8 +314,8 @@ model AchievementReward {
 model Partner {
   id          String  @id @default(uuid()) @db.Uuid
   name        String  @db.VarChar(255)
-  logoUrl     String? @map("logo_url") @db.Text
-  contactInfo String? @map("contact_info") @db.Text
+  logoUrl     String? @map("logo_url")
+  contactInfo String? @map("contact_info")
   isActive    Boolean @default(true) @map("is_active")
 
   rewards AchievementReward[]
@@ -335,17 +337,6 @@ model UserAchievement {
   @@map("user_achievements")
 }
 
-// ============================================
-// 6. ПЛАТЕЖИ И МОНЕТИЗАЦИЯ
-// ============================================
-
-enum PaymentStatus {
-  pending
-  succeeded
-  failed
-  refunded
-}
-
 model Payment {
   id              String        @id @default(uuid()) @db.Uuid
   userId          String        @map("user_id") @db.Uuid
@@ -354,19 +345,15 @@ model Payment {
   amount          Decimal       @db.Decimal(10, 2)
   status          PaymentStatus @default(pending)
   paymentMethod   String        @map("payment_method") @db.VarChar(50)
-  callbackData    Json?         @map("callback_data") @db.JsonB
+  callbackData    Json?         @map("callback_data")
   createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
   paidAt          DateTime?     @map("paid_at") @db.Timestamp(6)
 
-  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  project Project?
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projects Project[]
 
   @@map("payments")
 }
-
-// ============================================
-// 7. ИИ-ПОДДЕРЖКА И ЧАТЫ
-// ============================================
 
 model AiChat {
   id        String   @id @default(uuid()) @db.Uuid
@@ -374,32 +361,23 @@ model AiChat {
   userId    String?  @map("user_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
 
-  user     User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user     User?       @relation(fields: [userId], references: [id])
   messages AiMessage[]
 
   @@map("ai_chats")
-}
-
-enum MessageSender {
-  user
-  ai
 }
 
 model AiMessage {
   id        String        @id @default(uuid()) @db.Uuid
   chatId    String        @map("chat_id") @db.Uuid
   sender    MessageSender
-  message   String        @db.Text
+  message   String
   createdAt DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
 
   chat AiChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@map("ai_messages")
 }
-
-// ============================================
-// 8. ВСПОМОГАТЕЛЬНЫЕ ТАБЛИЦЫ
-// ============================================
 
 model PasswordResetToken {
   email     String   @id @db.VarChar(255)
@@ -411,23 +389,22 @@ model PasswordResetToken {
 }
 
 model EmailVerificationToken {
-  email            String   @id @db.VarChar(255)
-  code             String   @db.VarChar(6)
-  firstName        String   @map("first_name") @db.VarChar(100)
-  lastName         String   @map("last_name") @db.VarChar(100)
-  phone            String   @db.VarChar(20)
-  passwordHash     String   @map("password_hash") @db.VarChar(255)
-  city             String   @db.VarChar(100)
-  role             UserRole
-  // Поля для организатора (опциональные)
-  organizationName String?  @map("organization_name") @db.VarChar(255)
-  inn              String?  @db.VarChar(14)
-  okpo             String?  @db.VarChar(8)
-  legalAddress     String?  @map("legal_address") @db.Text
-  actualAddress    String?  @map("actual_address") @db.Text
-  verificationDocUrl String? @map("verification_doc_url") @db.Text
-  expiresAt        DateTime @map("expires_at") @db.Timestamp(6)
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  email               String   @id @db.VarChar(255)
+  code                String   @db.VarChar(6)
+  passwordHash        String   @map("password_hash") @db.VarChar(255)
+  role                UserRole
+  firstName           String   @map("first_name") @db.VarChar(100)
+  lastName            String   @map("last_name") @db.VarChar(100)
+  phone               String   @db.VarChar(20)
+  city                String   @db.VarChar(100)
+  organizationName    String?  @map("organization_name") @db.VarChar(255)
+  inn                 String?  @db.VarChar(14)
+  okpo                String?  @db.VarChar(8)
+  legalAddress        String?  @map("legal_address")
+  actualAddress       String?  @map("actual_address")
+  verificationDocUrl  String?  @map("verification_doc_url")
+  expiresAt           DateTime @map("expires_at") @db.Timestamp(6)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamp(6)
 
   @@map("email_verification_tokens")
 }
@@ -435,7 +412,7 @@ model EmailVerificationToken {
 model Setting {
   id    String @id @default(uuid()) @db.Uuid
   key   String @unique @db.VarChar(255)
-  value String @db.Text
+  value String
 
   @@map("settings")
 }

@@ -77,8 +77,10 @@ export async function POST(request: NextRequest) {
           actualAddress: verificationToken.actualAddress || 'Не указан',
           verificationStatus: 'pending',
           verificationDocUrl: verificationToken.verificationDocUrl,
+          isApprovedByAdmin: false, // Явно устанавливаем false
         },
       });
+      console.log('Created organizer profile for user:', user.id);
     }
 
     // Удаление токена верификации

@@ -21,12 +21,14 @@ export async function GET(request: NextRequest) {
       totalOrganizers,
       activeProjects,
       pendingVerifications,
+      pendingOrganizerApprovals,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { role: 'volunteer' } }),
       prisma.user.count({ where: { role: 'organizer' } }),
       prisma.project.count({ where: { status: 'published' } }),
       prisma.organizerProfile.count({ where: { verificationStatus: 'pending' } }),
+      prisma.organizerProfile.count({ where: { isApprovedByAdmin: false } }),
     ]);
 
     return NextResponse.json({
@@ -35,6 +37,7 @@ export async function GET(request: NextRequest) {
       totalOrganizers,
       activeProjects,
       pendingVerifications,
+      pendingOrganizerApprovals,
     });
   } catch (error) {
     console.error('Statistics error:', error);
