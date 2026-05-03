@@ -67,6 +67,12 @@ export async function POST(request: NextRequest) {
         },
       });
     } else if (user.role === 'organizer') {
+      // Получаем настройку количества бесплатных публикаций
+      const freePostsSetting = await prisma.setting.findUnique({
+        where: { key: 'default_free_posts' },
+      });
+      const defaultFreePosts = freePostsSetting ? parseInt(freePostsSetting.value) : 3;
+      
       await prisma.organizerProfile.create({
         data: {
           userId: user.id,
@@ -78,9 +84,10 @@ export async function POST(request: NextRequest) {
           verificationStatus: 'pending',
           verificationDocUrl: verificationToken.verificationDocUrl,
           isApprovedByAdmin: false, // Явно устанавливаем false
+          freePostsRemaining: defaultFreePosts, // Устанавливаем из настроек
         },
       });
-      console.log('Created organizer profile for user:', user.id);
+      console.log('Created organizer profile for user:', user.id, 'with', defaultFreePosts, 'free posts');
     }
 
     // Удаление токена верификации

@@ -26,11 +26,29 @@ export async function POST(
 
     const { id } = await params;
 
-    // Получаем настройку количества бесплатных публикаций
-    const freePostsSetting = await prisma.setting.findUnique({
-      where: { key: 'default_free_posts' },
+    // Получаем текущий профиль организатора
+    const currentProfile = await prisma.organizerProfile.findUnique({
+      where: { userId: id },
     });
-    const defaultFreePosts = freePostsSetting ? parseInt(freePostsSetting.value) : 3;
+
+    if (!currentProfile) {
+      return NextResponse.json(
+        { error: 'Профиль организатора не найден' },
+        { status: 404 }
+      );
+    }
+
+    // Получаем настройку количества бесплатных публикаций только если у организатора еще нет установленного значения
+    // или если значение равно дефолтному из схемы (3)
+    let freePostsToSet = currentProfile.freePostsRemaining;
+    
+    // Если у организатора дефолтное значение из схемы, обновляем его на актуальное из настроек
+    if (currentProfile.freePostsRemaining === 3) {
+      const freePostsSetting = await prisma.setting.findUnique({
+        where: { key: 'default_free_posts' },
+      });
+      freePostsToSet = freePostsSetting ? parseInt(freePostsSetting.value) : 3;
+    }
 
     // Обновляем статус организатора
     const organizerProfile = await prisma.organizerProfile.update({
@@ -41,7 +59,7 @@ export async function POST(
         isRejected: false,
         rejectedAt: null,
         rejectionReason: null,
-        freePostsRemaining: defaultFreePosts,
+        freePostsRemaining: freePostsToSet,
       },
       include: {
         user: {
