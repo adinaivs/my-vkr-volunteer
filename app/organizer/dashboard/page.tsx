@@ -7,6 +7,8 @@ import OrganizerNav from '../components/OrganizerNav';
 import OrganizerSidebar from '../components/OrganizerSidebar';
 import AiSupportButton from '@/app/components/AiSupportButton';
 import ApprovalStatus from '../components/ApprovalStatus';
+import DynamicContent from '@/app/components/DynamicContent';
+import { SidebarProvider } from '@/app/contexts/SidebarContext';
 
 interface User {
   id: string;
@@ -70,22 +72,23 @@ export default function OrganizerDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <OrganizerSidebar user={user} />
-      <OrganizerNav user={user} />
+    <SidebarProvider>
+      <div className="min-h-screen bg-green-50">
+        <OrganizerSidebar user={user} />
+        <OrganizerNav user={user} />
 
-      {/* Main Content */}
-      <main className="lg:ml-[272px] px-4 sm:px-6 lg:px-8 pt-20 lg:pt-[88px] pb-20 lg:pb-8">
-        {/* Approval Status */}
-        {user.organizerProfile && (
-          <ApprovalStatus
-            isApproved={user.organizerProfile.isApprovedByAdmin}
-            isRejected={user.organizerProfile.isRejected}
-            approvedAt={user.organizerProfile.approvedAt}
-            rejectedAt={user.organizerProfile.rejectedAt}
-            rejectionReason={user.organizerProfile.rejectionReason}
-          />
-        )}
+        {/* Main Content */}
+        <DynamicContent>
+          {/* Approval Status */}
+          {user.organizerProfile && (
+            <ApprovalStatus
+              isApproved={user.organizerProfile.isApprovedByAdmin}
+              isRejected={user.organizerProfile.isRejected}
+              approvedAt={user.organizerProfile.approvedAt}
+              rejectedAt={user.organizerProfile.rejectedAt}
+              rejectionReason={user.organizerProfile.rejectionReason}
+            />
+          )}
 
         {/* Welcome Section */}
         <div className="mb-8">
@@ -96,82 +99,89 @@ export default function OrganizerDashboard() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {/* Free Posts Remaining */}
-          <div className="bg-gradient-to-br from-[#00CC00] to-emerald-500 rounded-2xl p-6 shadow-lg text-white">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-gradient-to-br from-[#00CC00] to-emerald-500 rounded-xl p-4 shadow-lg text-white">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-            </div>
-            <div className="text-3xl font-bold mb-1">
-              {user.organizerProfile?.freePostsRemaining ?? 0}
-            </div>
-            <div className="text-sm text-emerald-50">Бесплатных публикаций осталось</div>
-            <div className="mt-3 text-xs text-emerald-100">
-              Используются только при публикации проекта
+              <div>
+                <div className="text-2xl font-bold">
+                  {user.organizerProfile?.freePostsRemaining ?? 0}
+                </div>
+                <div className="text-xs text-emerald-50">Бесплатных публикаций</div>
+              </div>
             </div>
           </div>
 
           {/* Total Projects */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-white rounded-xl p-4 shadow-xl border border-gray-300">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-900">0</div>
+                <div className="text-xs text-gray-600">Всего проектов</div>
+              </div>
             </div>
-            <div className="text-3xl font-bold text-gray-900 mb-1">0</div>
-            <div className="text-sm text-gray-600">Всего проектов</div>
           </div>
 
           {/* Active Projects */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-white rounded-xl p-4 shadow-xl border border-gray-300">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-900">0</div>
+                <div className="text-xs text-gray-600">Активных проектов</div>
+              </div>
             </div>
-            <div className="text-3xl font-bold text-gray-900 mb-1">0</div>
-            <div className="text-sm text-gray-600">Активных проектов</div>
           </div>
 
           {/* Total Volunteers */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-white rounded-xl p-4 shadow-xl border border-gray-300">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-900">0</div>
+                <div className="text-xs text-gray-600">Волонтёров</div>
+              </div>
             </div>
-            <div className="text-3xl font-bold text-gray-900 mb-1">0</div>
-            <div className="text-sm text-gray-600">Волонтёров</div>
           </div>
 
           {/* Pending Applications */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-white rounded-xl p-4 shadow-xl border border-gray-300">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-900">0</div>
+                <div className="text-xs text-gray-600">Заявок на рассмотрении</div>
+              </div>
             </div>
-            <div className="text-3xl font-bold text-gray-900 mb-1">0</div>
-            <div className="text-sm text-gray-600">Заявок на рассмотрении</div>
           </div>
         </div>
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Activity Chart */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-2xl p-6 shadow-xl border border-gray-300">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Активность волонтёров</h3>
             <div className="h-64 flex items-center justify-center text-gray-400">
               <div className="text-center">
@@ -184,7 +194,7 @@ export default function OrganizerDashboard() {
           </div>
 
           {/* Projects Status */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-2xl p-6 shadow-xl border border-gray-300">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Статус проектов</h3>
             <div className="h-64 flex items-center justify-center text-gray-400">
               <div className="text-center">
@@ -199,7 +209,7 @@ export default function OrganizerDashboard() {
         </div>
 
         {/* Recent Activity */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-8">
+        <div className="bg-white rounded-2xl p-6 shadow-xl border border-gray-300 mb-8">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-gray-900">Последняя активность</h3>
             <Link href="/organizer/projects" className="text-sm text-[#00CC00] font-medium hover:underline">
@@ -243,7 +253,7 @@ export default function OrganizerDashboard() {
 
           <Link 
             href="/organizer/volunteers"
-            className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow group"
+            className="bg-white rounded-2xl p-6 shadow-xl border border-gray-300 hover:shadow-2xl transition-shadow group"
           >
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -258,7 +268,7 @@ export default function OrganizerDashboard() {
 
           <Link 
             href="/organizer/reports"
-            className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow group"
+            className="bg-white rounded-2xl p-6 shadow-xl border border-gray-300 hover:shadow-2xl transition-shadow group"
           >
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -271,10 +281,11 @@ export default function OrganizerDashboard() {
             <p className="text-sm text-gray-600">Скачать отчёты по проектам</p>
           </Link>
         </div>
-      </main>
+      </DynamicContent>
 
       {/* AI Support Button */}
       <AiSupportButton />
     </div>
+    </SidebarProvider>
   );
 }

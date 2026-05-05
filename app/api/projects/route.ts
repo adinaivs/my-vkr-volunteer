@@ -178,17 +178,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Если это бесплатная публикация, уменьшаем счетчик
-    if (!isPaid && user.organizerProfile.freePostsRemaining > 0) {
-      await prisma.organizerProfile.update({
-        where: { userId: user.id },
-        data: {
-          freePostsRemaining: {
-            decrement: 1,
-          },
-        },
-      });
-    }
+    // Счетчик бесплатных публикаций уменьшается только после одобрения админом
 
     // Создаем задачи проекта, если они есть
     if (tasks && tasks.length > 0) {

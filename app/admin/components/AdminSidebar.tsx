@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSidebar } from '@/app/contexts/SidebarContext';
 
 interface User {
   firstName: string;
@@ -15,7 +16,7 @@ interface AdminSidebarProps {
 }
 
 export default function AdminSidebar({ user }: AdminSidebarProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed, setCollapsed } = useSidebar();
   const pathname = usePathname();
 
   const navItems = [
@@ -51,7 +52,7 @@ export default function AdminSidebar({ user }: AdminSidebarProps) {
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className={`hidden lg:flex flex-col fixed left-2 bottom-2 bg-white rounded-2xl shadow-[0_0_15px_rgba(0,0,0,0.1)] transition-all duration-300 ${collapsed ? 'w-20' : 'w-64'}`} style={{ top: '80px' }}>
+      <aside className={`hidden lg:flex flex-col fixed left-2 bottom-2 bg-white rounded-2xl shadow-xl border border-gray-300 transition-all duration-300 ${collapsed ? 'w-20' : 'w-64'}`} style={{ top: '80px' }}>
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           {navItems.map((item) => (
@@ -75,43 +76,66 @@ export default function AdminSidebar({ user }: AdminSidebarProps) {
 
         {/* User Profile */}
         <div className="p-4 border-t border-gray-100">
-          <div className={`flex items-center gap-3 p-3 rounded-xl ${collapsed ? 'justify-center' : ''}`}>
-            {user.avatarUrl ? (
-              <img src={user.avatarUrl} alt={user.firstName} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-[#00CC00] flex items-center justify-center text-white font-bold flex-shrink-0">
-                {user.firstName?.[0]}{user.lastName?.[0]}
-              </div>
-            )}
-            {!collapsed && (
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900 truncate">
-                  {user.firstName} {user.lastName}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 p-3 rounded-xl flex-1 min-w-0">
+              {user.avatarUrl ? (
+                <img src={user.avatarUrl} alt={user.firstName} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-[#00CC00] flex items-center justify-center text-white font-bold flex-shrink-0">
+                  {user.firstName?.[0]}{user.lastName?.[0]}
                 </div>
-                <div className="text-xs text-gray-500">Администратор</div>
-              </div>
+              )}
+              {!collapsed && (
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-gray-900 truncate">
+                    {user.firstName} {user.lastName}
+                  </div>
+                  <div className="text-xs text-gray-500">Администратор</div>
+                </div>
+              )}
+            </div>
+            
+            {/* Collapse Toggle */}
+            {!collapsed && (
+              <button
+                onClick={() => setCollapsed(!collapsed)}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+                title="Свернуть"
+              >
+                <svg 
+                  className="w-5 h-5" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                </svg>
+              </button>
             )}
           </div>
           
-          {/* Collapse Toggle */}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className={`mt-2 w-full flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors`}
-          >
-            <svg 
-              className={`w-5 h-5 transition-transform ${collapsed ? 'rotate-180' : ''}`} 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
+          {/* Collapse Toggle for collapsed state */}
+          {collapsed && (
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="mt-2 w-full flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Развернуть"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-            </svg>
-          </button>
+              <svg 
+                className="w-5 h-5 rotate-180" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+              </svg>
+            </button>
+          )}
         </div>
       </aside>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-300 shadow-xl z-50">
         <div className="flex items-center justify-around">
           {navItems.slice(0, 4).map((item) => (
             <Link

@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminSidebar from '../components/AdminSidebar';
 import AdminNav from '../components/AdminNav';
+import DynamicContent from '@/app/components/DynamicContent';
+import { SidebarProvider } from '@/app/contexts/SidebarContext';
 
 interface User {
   id: string;
@@ -203,15 +205,16 @@ export default function AdminOrganizersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {currentUser && (
-        <>
-          <AdminNav user={currentUser} />
-          <AdminSidebar user={currentUser} />
-        </>
-      )}
+    <SidebarProvider>
+      <div className="min-h-screen bg-green-50">
+        {currentUser && (
+          <>
+            <AdminNav user={currentUser} />
+            <AdminSidebar user={currentUser} />
+          </>
+        )}
 
-      <main className="lg:ml-[272px] px-4 sm:px-6 lg:px-8 pt-20 lg:pt-[88px] pb-20 lg:pb-8">
+        <DynamicContent>
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
@@ -273,7 +276,7 @@ export default function AdminOrganizersPage() {
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00CC00] mx-auto"></div>
             </div>
           ) : organizers.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+            <div className="bg-white rounded-xl shadow-xl border border-gray-300 p-12 text-center">
               <p className="text-gray-500">Нет организаторов для отображения</p>
             </div>
           ) : (
@@ -281,7 +284,7 @@ export default function AdminOrganizersPage() {
               {organizers.map((organizer) => (
                 <div
                   key={organizer.id}
-                  className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+                  className="bg-white rounded-xl shadow-xl border border-gray-300 p-6 hover:shadow-2xl transition-shadow"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -459,7 +462,7 @@ export default function AdminOrganizersPage() {
             </div>
           )}
         </div>
-      </main>
+      </DynamicContent>
 
       {/* Reject Modal */}
       {selectedOrganizer && (
@@ -502,5 +505,6 @@ export default function AdminOrganizersPage() {
         </div>
       )}
     </div>
+    </SidebarProvider>
   );
 }

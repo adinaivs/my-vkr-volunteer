@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import VolunteerNav from '../components/VolunteerNav';
 import VolunteerSidebar from '../components/VolunteerSidebar';
-import AiSupportButton from '../components/AiSupportButton';
+import AiSupportButton from '@/app/components/AiSupportButton';
+import DynamicContent from '@/app/components/DynamicContent';
+import { SidebarProvider } from '@/app/contexts/SidebarContext';
 
 interface User {
   id: string;
@@ -60,12 +62,13 @@ export default function MyProjects() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <VolunteerSidebar user={user} />
-      <VolunteerNav user={user} />
+    <SidebarProvider>
+      <div className="min-h-screen bg-green-50">
+        <VolunteerSidebar user={user} />
+        <VolunteerNav user={user} />
 
-      {/* Main Content */}
-      <main className="lg:ml-[272px] px-4 sm:px-6 lg:px-8 pt-20 lg:pt-[88px] pb-20 lg:pb-8">
+        {/* Main Content */}
+        <DynamicContent>
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Мои проекты</h1>
@@ -160,10 +163,11 @@ export default function MyProjects() {
             )}
           </div>
         </div>
-      </main>
+      </DynamicContent>
 
       {/* AI Support Button */}
       <AiSupportButton />
     </div>
+    </SidebarProvider>
   );
 }

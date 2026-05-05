@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 interface ApprovalStatusProps {
@@ -19,6 +19,29 @@ export default function ApprovalStatus({
   rejectionReason 
 }: ApprovalStatusProps) {
   const [isVisible, setIsVisible] = useState(true);
+
+  // Генерируем уникальный ключ для каждого статуса
+  const getStorageKey = () => {
+    if (isApproved) return `approval-status-approved-${approvedAt}`;
+    if (isRejected) return `approval-status-rejected-${rejectedAt}`;
+    return 'approval-status-pending';
+  };
+
+  // Проверяем localStorage при монтировании компонента
+  useEffect(() => {
+    const storageKey = getStorageKey();
+    const isDismissed = localStorage.getItem(storageKey);
+    if (isDismissed === 'true') {
+      setIsVisible(false);
+    }
+  }, [isApproved, isRejected, approvedAt, rejectedAt]);
+
+  // Обработчик закрытия с сохранением в localStorage
+  const handleDismiss = () => {
+    const storageKey = getStorageKey();
+    localStorage.setItem(storageKey, 'true');
+    setIsVisible(false);
+  };
 
   // Если сообщение закрыто, не показываем ничего
   if (!isVisible) {
@@ -48,7 +71,7 @@ export default function ApprovalStatus({
             )}
           </div>
           <button
-            onClick={() => setIsVisible(false)}
+            onClick={handleDismiss}
             className="text-green-400 hover:text-green-600 transition-colors flex-shrink-0"
             aria-label="Закрыть"
           >
@@ -100,7 +123,7 @@ export default function ApprovalStatus({
             </Link>
           </div>
           <button
-            onClick={() => setIsVisible(false)}
+            onClick={handleDismiss}
             className="text-red-400 hover:text-red-600 transition-colors flex-shrink-0"
             aria-label="Закрыть"
           >
@@ -134,7 +157,7 @@ export default function ApprovalStatus({
           </p>
         </div>
         <button
-          onClick={() => setIsVisible(false)}
+          onClick={handleDismiss}
           className="text-orange-400 hover:text-orange-600 transition-colors flex-shrink-0"
           aria-label="Закрыть"
         >

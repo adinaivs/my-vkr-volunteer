@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import VolunteerNav from '../components/VolunteerNav';
 import VolunteerSidebar from '../components/VolunteerSidebar';
-import AiSupportButton from '../components/AiSupportButton';
+import AiSupportButton from '@/app/components/AiSupportButton';
+import DynamicContent from '@/app/components/DynamicContent';
+import { SidebarProvider } from '@/app/contexts/SidebarContext';
 
 interface User {
   id: string;
@@ -102,12 +104,13 @@ export default function VolunteerProfile() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <VolunteerSidebar user={user} />
-      <VolunteerNav user={user} />
+    <SidebarProvider>
+      <div className="min-h-screen bg-green-50">
+        <VolunteerSidebar user={user} />
+        <VolunteerNav user={user} />
 
-      {/* Main Content */}
-      <main className="lg:ml-[272px] max-w-5xl px-4 sm:px-6 lg:px-8 pt-20 lg:pt-[88px] pb-20 lg:pb-8">
+        {/* Main Content */}
+        <DynamicContent maxWidth="max-w-5xl">
         {/* Profile Header */}
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-6">
           <div className="h-32 bg-gradient-to-r from-[#00CC00] to-emerald-500"></div>
@@ -333,10 +336,11 @@ export default function VolunteerProfile() {
             <p className="text-gray-600">Участвуйте в проектах, чтобы получить первые награды!</p>
           </div>
         </div>
-      </main>
+      </DynamicContent>
 
       {/* AI Support Button */}
       <AiSupportButton />
     </div>
+    </SidebarProvider>
   );
 }

@@ -69,42 +69,45 @@ export async function POST(
       );
     }
 
-    // Одобряем проект и уменьшаем счетчик бесплатных публикаций
-    const [updatedProject] = await prisma.$transaction([
-      prisma.project.update({
-        where: { id },
-        data: {
-          status: 'published',
-          publishedAt: new Date(),
-          moderatedAt: new Date(),
-          moderatedBy: user.id,
-          rejectionReason: null, // Очищаем причину отклонения, если была
-        },
-        include: {
-          category: true,
-          organizer: {
-            select: {
-              firstName: true,
-              lastName: true,
-              email: true,
-              organizerProfile: {
-                select: {
-                  organizationName: true,
-                  freePostsRemaining: true,
-                },
+    // Одобряем проект
+    const updatedProject = await prisma.project.update({
+      where: { id },
+      data: {
+        status: 'published',
+        publishedAt: new Date(),
+        moderatedAt: new Date(),
+        moderatedBy: user.id,
+        rejectionReason: null, // Очищаем причину отклонения, если была
+      },
+      include: {
+        category: true,
+        organizer: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+            organizerProfile: {
+              select: {
+                organizationName: true,
+                freePostsRemaining: true,
               },
             },
           },
         },
-      }),
-      // Уменьшаем счетчик бесплатных публикаций только если они еще есть
-      prisma.organizerProfile.update({
+      },
+    });
+
+    // Уменьшаем счетчик бесплатных публикаций только для бесплатных проектов
+    if (!project.isPaid && organizerProfile.freePostsRemaining > 0) {
+      await prisma.organizerProfile.update({
         where: { userId: project.organizerId },
         data: {
-          freePostsRemaining: Math.max(0, organizerProfile.freePostsRemaining - 1),
+          freePostsRemaining: {
+            decrement: 1,
+          },
         },
-      }),
-    ]);
+      });
+    }
 
     // TODO: Отправить уведомление организатору о публикации проекта
     console.log(`Проект "${project.title}" одобрен администратором ${user.email}`);

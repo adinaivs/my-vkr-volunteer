@@ -14,7 +14,7 @@ interface VolunteerNavProps {
 
 export default function VolunteerNav({ user }: VolunteerNavProps) {
   return (
-    <header className="bg-white fixed top-0 left-0 right-0 z-50 lg:mx-2 lg:mt-2 lg:rounded-2xl shadow-[0_0_15px_rgba(0,0,0,0.1)]">
+    <header className="bg-white fixed top-0 left-0 right-0 z-50 lg:mx-2 lg:mt-2 lg:rounded-2xl shadow-xl border border-gray-300">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo - всегда показывается */}
