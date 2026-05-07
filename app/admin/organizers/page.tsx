@@ -52,6 +52,19 @@ export default function AdminOrganizersPage() {
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'name-asc' | 'name-desc'>('date-desc');
   const [showFilters, setShowFilters] = useState(false);
 
+  // Блокировка скролла при открытии модального окна
+  useEffect(() => {
+    if (selectedOrganizer) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [selectedOrganizer]);
+
   console.log('AdminOrganizersPage rendered');
   console.log('Current user:', currentUser);
   console.log('Organizers count:', organizers.length);
@@ -153,7 +166,7 @@ export default function AdminOrganizersPage() {
 
   const handleReject = async (userId: string) => {
     if (!rejectReason.trim()) {
-      alert('Пожалуйста, укажите причину отклонения');
+      toast.error('Пожалуйста, укажите причину отклонения');
       return;
     }
 
@@ -166,17 +179,17 @@ export default function AdminOrganizersPage() {
       });
 
       if (response.ok) {
-        alert('Организатор отклонен');
+        toast.success('Организатор отклонен');
         fetchOrganizers();
         setSelectedOrganizer(null);
         setRejectReason('');
       } else {
         const data = await response.json();
-        alert(data.error || 'Ошибка при отклонении');
+        toast.error(data.error || 'Ошибка при отклонении');
       }
     } catch (error) {
       console.error('Error rejecting organizer:', error);
-      alert('Ошибка при отклонении организатора');
+      toast.error('Ошибка при отклонении организатора');
     } finally {
       setActionLoading(false);
     }

@@ -90,6 +90,19 @@ export default function AdminProjectsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
 
+  // Блокировка скролла при открытии модальных окон
+  useEffect(() => {
+    if (showDetailsModal || selectedProject) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showDetailsModal, selectedProject]);
+
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -270,18 +283,18 @@ export default function AdminProjectsPage() {
       });
 
       if (response.ok) {
-        alert('Проект отклонен');
+        toast.success('Проект отклонен');
         fetchProjects();
         setShowDetailsModal(false);
         setSelectedProject(null);
         setRejectReason('');
       } else {
         const data = await response.json();
-        alert(data.error || 'Ошибка при отклонении');
+        toast.error(data.error || 'Ошибка при отклонении');
       }
     } catch (error) {
       console.error('Error rejecting project:', error);
-      alert('Ошибка при отклонении проекта');
+      toast.error('Ошибка при отклонении проекта');
     } finally {
       setActionLoading(false);
     }

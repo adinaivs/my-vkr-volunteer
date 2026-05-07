@@ -47,6 +47,19 @@ export default function OrganizerVolunteers() {
   const [selectedVolunteer, setSelectedVolunteer] = useState<Volunteer | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
 
+  // Блокировка скролла при открытии модального окна
+  useEffect(() => {
+    if (showDetailsModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showDetailsModal]);
+
   useEffect(() => {
     const checkAuth = async () => {
       try {

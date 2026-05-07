@@ -73,6 +73,8 @@ export default function ProjectDetail() {
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasApplied, setHasApplied] = useState(false);
+  const [applicationStatus, setApplicationStatus] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -119,9 +121,28 @@ export default function ProjectDetail() {
         const tasksData = await tasksRes.json();
         setTasks(tasksData.tasks || []);
       }
+
+      // Проверяем, подавал ли волонтер уже заявку на этот проект
+      await checkApplicationStatus();
     } catch (error) {
       console.error('Ошибка загрузки проекта:', error);
       router.push('/volunteer/projects');
+    }
+  };
+
+  const checkApplicationStatus = async () => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/apply`);
+      if (response.ok) {
+        const data = await response.json();
+        // Если есть заявка, устанавливаем статус
+        if (data.hasApplied) {
+          setHasApplied(true);
+          setApplicationStatus(data.status);
+        }
+      }
+    } catch (error) {
+      console.error('Ошибка проверки статуса заявки:', error);
     }
   };
 
@@ -216,14 +237,33 @@ export default function ProjectDetail() {
                   {/* Apply Button */}
                   <button
                     onClick={handleApply}
-                    disabled={!isActive || spotsLeft === 0}
+                    disabled={!isActive || spotsLeft === 0 || hasApplied}
                     className={`w-full py-3 rounded-lg font-semibold text-base transition-colors ${
-                      isActive && spotsLeft > 0
+                      hasApplied
+                        ? applicationStatus === 'approved'
+                          ? 'bg-green-100 text-green-700 cursor-not-allowed'
+                          : applicationStatus === 'rejected'
+                          ? 'bg-red-100 text-red-700 cursor-not-allowed'
+                          : 'bg-orange-100 text-orange-700 cursor-not-allowed'
+                        : isActive && spotsLeft > 0
                         ? 'bg-[#00CC00] text-white hover:bg-[#00b300]'
                         : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     }`}
                   >
-                    {!isActive ? 'Проект завершен' : spotsLeft === 0 ? 'Мест нет' : 'Подать заявку'}
+                    {hasApplied 
+                      ? applicationStatus === 'pending' 
+                        ? '⏳ Ожидание ответа' 
+                        : applicationStatus === 'approved'
+                        ? '✓ Заявка одобрена'
+                        : applicationStatus === 'rejected'
+                        ? '✗ Заявка отклонена'
+                        : '⏳ Ожидание ответа'
+                      : !isActive 
+                      ? 'Проект завершен' 
+                      : spotsLeft === 0 
+                      ? 'Мест нет' 
+                      : 'Подать заявку'
+                    }
                   </button>
                 </div>
               </div>

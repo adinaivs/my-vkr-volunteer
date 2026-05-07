@@ -6,6 +6,7 @@ import AdminSidebar from '../components/AdminSidebar';
 import AdminNav from '../components/AdminNav';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
+import { useToast } from '@/app/components/ToastContainer';
 
 // Переводы
 const translations = {
@@ -92,6 +93,7 @@ interface FreePostsSetting {
 
 export default function AdminDashboardPage() {
   const router = useRouter();
+  const toast = useToast();
   const [locale, setLocale] = useState<'ru' | 'kg'>('ru');
   const t = translations[locale];
   const [user, setUser] = useState<User | null>(null);
@@ -152,7 +154,7 @@ export default function AdminDashboardPage() {
 
   const handleSaveFreePosts = async () => {
     if (tempFreePosts < 0) {
-      alert('Количество бесплатных публикаций не может быть отрицательным');
+      toast.error('Количество бесплатных публикаций не может быть отрицательным');
       return;
     }
 
@@ -170,14 +172,14 @@ export default function AdminDashboardPage() {
         const data = await response.json();
         setFreePostsSetting(data.defaultFreePosts);
         setEditingFreePosts(false);
-        alert('Настройка успешно сохранена');
+        toast.success('Настройка успешно сохранена');
       } else {
         const error = await response.json();
-        alert(error.error || 'Ошибка при сохранении настройки');
+        toast.error(error.error || 'Ошибка при сохранении настройки');
       }
     } catch (error) {
       console.error('Error saving free posts setting:', error);
-      alert('Ошибка при сохранении настройки');
+      toast.error('Ошибка при сохранении настройки');
     } finally {
       setSavingFreePosts(false);
     }

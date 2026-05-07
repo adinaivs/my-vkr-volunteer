@@ -2,6 +2,52 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 
+// GET - Проверка статуса заявки волонтера на проект
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
+    }
+
+    const { id: projectId } = await params;
+
+    // Проверяем, есть ли заявка от этого волонтера на этот проект
+    const application = await prisma.application.findFirst({
+      where: {
+        projectId,
+        volunteerId: session.userId,
+      },
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+
+    if (application) {
+      return NextResponse.json({
+        hasApplied: true,
+        status: application.status,
+        appliedAt: application.createdAt,
+      });
+    }
+
+    return NextResponse.json({
+      hasApplied: false,
+    });
+  } catch (error) {
+    console.error('Error checking application status:', error);
+    return NextResponse.json(
+      { error: 'Ошибка при проверке статуса заявки' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

@@ -111,6 +111,19 @@ export default function ProjectDetailsPage() {
   const [showMapModal, setShowMapModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Блокировка скролла при открытии модального окна карты
+  useEffect(() => {
+    if (showMapModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showMapModal]);
+
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -232,14 +245,14 @@ export default function ProjectDetailsPage() {
         await fetchProject();
         
         const actionText = action === 'approve' ? 'одобрена' : 'отклонена';
-        alert(`Заявка ${actionText}`);
+        toast.success(`Заявка ${actionText}`);
       } else {
         const data = await response.json();
-        alert(data.error || 'Ошибка при обработке заявки');
+        toast.error(data.error || 'Ошибка при обработке заявки');
       }
     } catch (error) {
       console.error('Error handling application:', error);
-      alert('Произошла ошибка при обработке заявки');
+      toast.error('Произошла ошибка при обработке заявки');
     }
   };
 

@@ -7,6 +7,7 @@ import OrganizerSidebar from '../components/OrganizerSidebar';
 import AiSupportButton from '@/app/components/AiSupportButton';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
+import { useToast } from '@/app/components/ToastContainer';
 
 interface User {
   id: string;
@@ -25,6 +26,7 @@ interface ReportHistory {
 
 export default function OrganizerReports() {
   const router = useRouter();
+  const toast = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -59,7 +61,7 @@ export default function OrganizerReports() {
 
   const handleGenerateReport = async (format: 'pdf' | 'excel') => {
     if (!startDate || !endDate) {
-      alert('Пожалуйста, выберите период для отчёта');
+      toast.error('Пожалуйста, выберите период для отчёта');
       return;
     }
 
@@ -68,7 +70,7 @@ export default function OrganizerReports() {
     // TODO: Implement actual report generation
     setTimeout(() => {
       setGenerating(false);
-      alert(`Отчёт в формате ${format.toUpperCase()} будет готов через несколько секунд`);
+      toast.success(`Отчёт в формате ${format.toUpperCase()} будет готов через несколько секунд`);
     }, 2000);
   };
 

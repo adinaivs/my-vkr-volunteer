@@ -73,6 +73,19 @@ export default function OrganizerProjects() {
   const [filterCategory, setFilterCategory] = useState<string>('all'); // Фильтр по категории
   const [showFilters, setShowFilters] = useState(false); // Показать/скрыть расширенные фильтры
 
+  // Блокировка скролла при открытии модальных окон
+  useEffect(() => {
+    if (showCreateModal || showEditModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showCreateModal, showEditModal]);
+
   useEffect(() => {
     const checkAuth = async () => {
       try {

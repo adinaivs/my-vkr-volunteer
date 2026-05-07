@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import VolunteerNav from '../../../components/VolunteerNav';
 import AiSupportButton from '@/app/components/AiSupportButton';
+import { useToast } from '@/app/components/ToastContainer';
 
 interface User {
   id: string;
@@ -52,6 +53,7 @@ export default function ApplyToProject() {
   const router = useRouter();
   const params = useParams();
   const projectId = params.id as string;
+  const toast = useToast();
   
   const [user, setUser] = useState<User | null>(null);
   const [project, setProject] = useState<Project | null>(null);
@@ -142,12 +144,12 @@ export default function ApplyToProject() {
     e.preventDefault();
     
     if (!motivation.trim()) {
-      alert('Пожалуйста, укажите причину участия');
+      toast.error('Пожалуйста, укажите причину участия');
       return;
     }
 
     if (!phone.trim() || !email.trim()) {
-      alert('Пожалуйста, заполните контактные данные');
+      toast.error('Пожалуйста, заполните контактные данные');
       return;
     }
 
@@ -170,15 +172,15 @@ export default function ApplyToProject() {
       });
 
       if (response.ok) {
-        alert('Заявка успешно отправлена! Организатор свяжется с вами в ближайшее время.');
+        toast.success('Заявка успешно отправлена! Организатор свяжется с вами в ближайшее время.');
         router.push(`/volunteer/projects/${projectId}`);
       } else {
         const data = await response.json();
-        alert(data.error || 'Ошибка при отправке заявки');
+        toast.error(data.error || 'Ошибка при отправке заявки');
       }
     } catch (error) {
       console.error('Ошибка при подаче заявки:', error);
-      alert('Произошла ошибка при отправке заявки');
+      toast.error('Произошла ошибка при отправке заявки');
     } finally {
       setSubmitting(false);
     }
