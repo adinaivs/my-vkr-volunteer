@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import OrganizerNav from '../components/OrganizerNav';
 import OrganizerSidebar from '../components/OrganizerSidebar';
 import AiSupportButton from '@/app/components/AiSupportButton';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
+import LocationPicker from '@/app/components/LocationPicker';
+import { useToast } from '@/app/components/ToastContainer';
 
 interface User {
   id: string;
@@ -27,6 +28,7 @@ interface Task {
 
 export default function OrganizerProjects() {
   const router = useRouter();
+  const toast = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -39,6 +41,8 @@ export default function OrganizerProjects() {
     startDate: '',
     endDate: '',
     location: '',
+    latitude: null as number | null,
+    longitude: null as number | null,
     maxVolunteers: '',
     requiredSkills: [] as string[],
   });
@@ -58,10 +62,8 @@ export default function OrganizerProjects() {
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingProject, setEditingProject] = useState<any>(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<any>(null);
-  const [projectTasks, setProjectTasks] = useState<any[]>([]);
-  const [loadingTasks, setLoadingTasks] = useState(false);
+  const [editStep, setEditStep] = useState(1); // Шаги редактирования: 1 - Информация, 2 - Задачи, 3 - Отправка
+  const [isSubmitting, setIsSubmitting] = useState(false); // Состояние отправки проекта
   
   // Новые состояния для фильтрации и отображения
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid'); // Режим отображения
@@ -121,6 +123,22 @@ export default function OrganizerProjects() {
       fetchProjects();
     }
   }, [user]);
+
+  // Обработка параметра edit из URL
+  useEffect(() => {
+    if (typeof window !== 'undefined' && projects.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const editId = params.get('edit');
+      if (editId) {
+        const projectToEdit = projects.find(p => p.id === editId);
+        if (projectToEdit && (projectToEdit.status === 'draft' || projectToEdit.status === 'rejected')) {
+          handleEditProject(projectToEdit);
+          // Очищаем параметр из URL
+          window.history.replaceState({}, '', '/organizer/projects');
+        }
+      }
+    }
+  }, [projects]);
 
   // Функция фильтрации и сортировки проектов
   const getFilteredAndSortedProjects = () => {
@@ -234,6 +252,12 @@ export default function OrganizerProjects() {
       formData.append('startDate', projectData.startDate);
       formData.append('endDate', projectData.endDate);
       formData.append('location', projectData.location);
+      if (projectData.latitude !== null) {
+        formData.append('latitude', projectData.latitude.toString());
+      }
+      if (projectData.longitude !== null) {
+        formData.append('longitude', projectData.longitude.toString());
+      }
       formData.append('maxVolunteers', projectData.maxVolunteers);
       formData.append('isPaid', 'false');
 
@@ -257,25 +281,27 @@ export default function OrganizerProjects() {
       if (!response.ok) {
         // Проверяем, если организатор не подтвержден
         if (result.code === 'ORGANIZER_NOT_APPROVED') {
-          alert(result.message || 'Ваш аккаунт еще не подтвержден администратором');
+          toast.warning(result.message || 'Ваш аккаунт еще не подтвержден администратором');
           setShowCreateModal(false);
           resetForm();
           return;
         }
         
-        alert(result.error || 'Ошибка при сохранении черновика');
+        toast.error(result.error || 'Ошибка при сохранении черновика');
         return;
       }
 
-      alert('Проект сохранён как черновик');
+      toast.success('Проект сохранён как черновик');
       setShowCreateModal(false);
       resetForm();
       
-      // Перезагружаем страницу, чтобы показать новый проект
-      window.location.reload();
+      // Перезагружаем страницу через 2 секунды, чтобы пользователь успел прочитать сообщение
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
     } catch (error) {
       console.error('Error saving draft:', error);
-      alert('Произошла ошибка при сохранении черновика');
+      toast.error('Произошла ошибка при сохранении черновика');
     }
   };
 
@@ -283,11 +309,24 @@ export default function OrganizerProjects() {
     if (createStep === 1) {
       // Validate project data
       if (!projectData.title || !projectData.category || !projectData.description) {
-        alert('Пожалуйста, заполните все обязательные поля');
+        toast.error('Пожалуйста, заполните все обязательные поля');
         return;
       }
       setCreateStep(2);
     } else if (createStep === 2) {
+      // Проверяем, что все волонтёры распределены по задачам
+      const totalVolunteersInTasks = tasks.reduce((sum, task) => sum + task.requiredVolunteers, 0);
+      const maxVolunteers = parseInt(projectData.maxVolunteers) || 0;
+      
+      if (totalVolunteersInTasks !== maxVolunteers) {
+        if (totalVolunteersInTasks < maxVolunteers) {
+          toast.error(`Необходимо распределить всех волонтёров по задачам. Осталось: ${maxVolunteers - totalVolunteersInTasks}`);
+        } else {
+          toast.error(`Превышено максимальное количество волонтёров. Уменьшите на: ${totalVolunteersInTasks - maxVolunteers}`);
+        }
+        return;
+      }
+      
       // Move to payment/success step
       setCreateStep(3);
     }
@@ -295,7 +334,19 @@ export default function OrganizerProjects() {
 
   const handleAddTask = () => {
     if (!currentTask.title || !currentTask.description) {
-      alert('Пожалуйста, заполните название и описание задачи');
+      toast.error('Пожалуйста, заполните название и описание задачи');
+      return;
+    }
+
+    const requiredVolunteersForTask = parseInt(currentTask.requiredVolunteers) || 1;
+    const maxVolunteers = parseInt(projectData.maxVolunteers) || 0;
+    
+    // Подсчитываем текущую сумму волонтёров по всем задачам
+    const currentTotalVolunteers = tasks.reduce((sum, task) => sum + task.requiredVolunteers, 0);
+    
+    // Проверяем, не превысит ли добавление новой задачи максимум
+    if (currentTotalVolunteers + requiredVolunteersForTask > maxVolunteers) {
+      toast.error(`Сумма волонтёров по задачам (${currentTotalVolunteers + requiredVolunteersForTask}) превышает максимальное количество волонтёров проекта (${maxVolunteers})`);
       return;
     }
 
@@ -304,7 +355,7 @@ export default function OrganizerProjects() {
       title: currentTask.title,
       description: currentTask.description,
       requiredSkill: currentTask.requiredSkill,
-      requiredVolunteers: parseInt(currentTask.requiredVolunteers) || 1,
+      requiredVolunteers: requiredVolunteersForTask,
       deadline: currentTask.deadline,
     };
 
@@ -322,8 +373,25 @@ export default function OrganizerProjects() {
     setTasks(tasks.filter(t => t.id !== taskId));
   };
 
+  const handleEditTask = (taskId: string) => {
+    const taskToEdit = tasks.find(t => t.id === taskId);
+    if (taskToEdit) {
+      setCurrentTask({
+        title: taskToEdit.title,
+        description: taskToEdit.description,
+        requiredSkill: taskToEdit.requiredSkill,
+        requiredVolunteers: taskToEdit.requiredVolunteers.toString(),
+        deadline: taskToEdit.deadline,
+      });
+      // Удаляем задачу из списка, чтобы после редактирования добавить заново
+      setTasks(tasks.filter(t => t.id !== taskId));
+    }
+  };
+
   const handleSubmitProject = async () => {
     try {
+      setIsSubmitting(true);
+      
       // Создаем FormData для отправки файла
       const formData = new FormData();
       formData.append('title', projectData.title);
@@ -332,6 +400,12 @@ export default function OrganizerProjects() {
       formData.append('startDate', projectData.startDate);
       formData.append('endDate', projectData.endDate);
       formData.append('location', projectData.location);
+      if (projectData.latitude !== null) {
+        formData.append('latitude', projectData.latitude.toString());
+      }
+      if (projectData.longitude !== null) {
+        formData.append('longitude', projectData.longitude.toString());
+      }
       formData.append('maxVolunteers', projectData.maxVolunteers);
       formData.append('isPaid', 'false');
 
@@ -356,13 +430,13 @@ export default function OrganizerProjects() {
       if (!projectResponse.ok) {
         // Проверяем, если организатор не подтвержден
         if (projectResult.code === 'ORGANIZER_NOT_APPROVED') {
-          alert(projectResult.message || 'Ваш аккаунт еще не подтвержден администратором');
+          toast.warning(projectResult.message || 'Ваш аккаунт еще не подтвержден администратором');
           setShowCreateModal(false);
           resetForm();
           return;
         }
         
-        alert(projectResult.error || 'Ошибка при создании проекта');
+        toast.error(projectResult.error || 'Ошибка при создании проекта');
         return;
       }
 
@@ -376,19 +450,23 @@ export default function OrganizerProjects() {
       const publishResult = await publishResponse.json();
 
       if (!publishResponse.ok) {
-        alert(publishResult.error || 'Ошибка при отправке на модерацию');
+        toast.error(publishResult.error || 'Ошибка при отправке на модерацию');
         return;
       }
 
-      alert('Проект успешно отправлен на модерацию! Администратор проверит его в течение 1-3 дней.');
+      toast.success('Проект успешно отправлен на модерацию! Администратор проверит его в течение 1-3 дней.');
       setShowCreateModal(false);
       resetForm();
       
-      // Перезагружаем страницу, чтобы показать новый проект
-      window.location.reload();
+      // Перезагружаем страницу через 2 секунды, чтобы пользователь успел прочитать сообщение
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
     } catch (error) {
       console.error('Error submitting project:', error);
-      alert('Произошла ошибка при отправке проекта');
+      toast.error('Произошла ошибка при отправке проекта');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -402,6 +480,8 @@ export default function OrganizerProjects() {
       startDate: '',
       endDate: '',
       location: '',
+      latitude: null,
+      longitude: null,
       maxVolunteers: '',
       requiredSkills: [],
     });
@@ -415,52 +495,82 @@ export default function OrganizerProjects() {
     });
   };
 
+  const handleDeleteProject = async (projectId: string) => {
+    toast.confirm(
+      'Вы уверены, что хотите удалить этот проект? Это действие нельзя отменить.',
+      async () => {
+        try {
+          const response = await fetch(`/api/projects/${projectId}`, {
+            method: 'DELETE',
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            toast.success('Проект успешно удален');
+            router.push('/organizer/projects');
+          } else {
+            toast.error(data.error || 'Ошибка при удалении проекта');
+          }
+        } catch (error) {
+          console.error('Error deleting project:', error);
+          toast.error('Произошла ошибка при удалении проекта');
+        }
+      },
+      'error'
+    );
+  };
+
   const handleResubmitProject = async (projectId: string) => {
-    if (!confirm('Отправить проект на модерацию повторно? Убедитесь, что вы внесли все необходимые изменения.')) {
-      return;
-    }
+    toast.confirm(
+      'Отправить проект на модерацию повторно? Убедитесь, что вы внесли все необходимые изменения.',
+      async () => {
+        try {
+          const response = await fetch(`/api/projects/${projectId}/resubmit`, {
+            method: 'POST',
+          });
 
-    try {
-      const response = await fetch(`/api/projects/${projectId}/resubmit`, {
-        method: 'POST',
-      });
+          const data = await response.json();
 
-      const data = await response.json();
-
-      if (response.ok) {
-        alert('Проект успешно отправлен на модерацию! Администратор проверит его в течение 1-3 дней.');
-        fetchProjects(); // Перезагружаем список проектов
-      } else {
-        alert(data.error || 'Ошибка при отправке проекта на модерацию');
-      }
-    } catch (error) {
-      console.error('Error resubmitting project:', error);
-      alert('Произошла ошибка при отправке проекта');
-    }
+          if (response.ok) {
+            toast.success('Проект успешно отправлен на модерацию! Администратор проверит его в течение 1-3 дней.');
+            fetchProjects();
+          } else {
+            toast.error(data.error || 'Ошибка при отправке проекта на модерацию');
+          }
+        } catch (error) {
+          console.error('Error resubmitting project:', error);
+          toast.error('Произошла ошибка при отправке проекта');
+        }
+      },
+      'info'
+    );
   };
 
   const handlePublishDraft = async (projectId: string) => {
-    if (!confirm('Отправить черновик на модерацию? Убедитесь, что все данные заполнены корректно.')) {
-      return;
-    }
+    toast.confirm(
+      'Отправить черновик на модерацию? Убедитесь, что все данные заполнены корректно.',
+      async () => {
+        try {
+          const response = await fetch(`/api/projects/${projectId}/publish`, {
+            method: 'POST',
+          });
 
-    try {
-      const response = await fetch(`/api/projects/${projectId}/publish`, {
-        method: 'POST',
-      });
+          const data = await response.json();
 
-      const data = await response.json();
-
-      if (response.ok) {
-        alert('Проект успешно отправлен на модерацию! Администратор проверит его в течение 1-3 дней.');
-        fetchProjects(); // Перезагружаем список проектов
-      } else {
-        alert(data.error || 'Ошибка при отправке проекта на модерацию');
-      }
-    } catch (error) {
-      console.error('Error publishing draft:', error);
-      alert('Произошла ошибка при отправке проекта');
-    }
+          if (response.ok) {
+            toast.success('Проект успешно отправлен на модерацию! Администратор проверит его в течение 1-3 дней.');
+            fetchProjects();
+          } else {
+            toast.error(data.error || 'Ошибка при отправке проекта на модерацию');
+          }
+        } catch (error) {
+          console.error('Error publishing draft:', error);
+          toast.error('Произошла ошибка при отправке проекта');
+        }
+      },
+      'info'
+    );
   };
 
   const handleEditProject = async (project: any) => {
@@ -471,24 +581,54 @@ export default function OrganizerProjects() {
         const data = await response.json();
         setEditingProject(data.project);
         
+        // Извлекаем уникальные навыки из задач проекта
+        const tasksResponse = await fetch(`/api/projects/${project.id}/tasks`);
+        let projectRequiredSkills: string[] = [];
+        let formattedTasks: Task[] = [];
+        
+        if (tasksResponse.ok) {
+          const tasksData = await tasksResponse.json();
+          formattedTasks = tasksData.tasks.map((task: any) => ({
+            id: task.id,
+            title: task.title,
+            description: task.description,
+            requiredSkill: task.requiredSkill?.name || '',
+            requiredVolunteers: task.requiredVolunteers,
+            deadline: task.deadline ? new Date(task.deadline).toISOString().split('T')[0] : '',
+          }));
+          
+          // Собираем уникальные навыки из задач
+          const skillsSet = new Set<string>();
+          tasksData.tasks.forEach((task: any) => {
+            if (task.requiredSkill?.name) {
+              skillsSet.add(task.requiredSkill.name);
+            }
+          });
+          projectRequiredSkills = Array.from(skillsSet);
+        }
+        
         // Заполняем форму данными проекта
         setProjectData({
           title: data.project.title,
           category: data.project.categoryId,
           description: data.project.description,
-          image: null, // Изображение не загружаем, только если пользователь выберет новое
+          image: null,
           startDate: new Date(data.project.startDate).toISOString().split('T')[0],
           endDate: new Date(data.project.endDate).toISOString().split('T')[0],
           location: data.project.location,
+          latitude: data.project.latitude ? parseFloat(data.project.latitude) : null,
+          longitude: data.project.longitude ? parseFloat(data.project.longitude) : null,
           maxVolunteers: data.project.maxVolunteers.toString(),
-          requiredSkills: [],
+          requiredSkills: projectRequiredSkills,
         });
         
+        setTasks(formattedTasks);
+        setEditStep(1);
         setShowEditModal(true);
       }
     } catch (error) {
       console.error('Error loading project:', error);
-      alert('Ошибка при загрузке данных проекта');
+      toast.error('Ошибка при загрузке данных проекта');
     }
   };
 
@@ -504,11 +644,22 @@ export default function OrganizerProjects() {
       formData.append('startDate', projectData.startDate);
       formData.append('endDate', projectData.endDate);
       formData.append('location', projectData.location);
+      if (projectData.latitude !== null) {
+        formData.append('latitude', projectData.latitude.toString());
+      }
+      if (projectData.longitude !== null) {
+        formData.append('longitude', projectData.longitude.toString());
+      }
       formData.append('maxVolunteers', projectData.maxVolunteers);
 
       // Добавляем изображение, если оно есть
       if (projectData.image) {
         formData.append('image', projectData.image);
+      }
+
+      // Добавляем новые задачи, если они есть
+      if (tasks.length > 0) {
+        formData.append('tasks', JSON.stringify(tasks));
       }
 
       const response = await fetch(`/api/projects/${editingProject.id}`, {
@@ -519,72 +670,18 @@ export default function OrganizerProjects() {
       const result = await response.json();
 
       if (!response.ok) {
-        alert(result.error || 'Ошибка при обновлении проекта');
+        toast.error(result.error || 'Ошибка при обновлении проекта');
         return;
       }
 
-      alert('Проект успешно обновлен! Теперь вы можете отправить его на модерацию.');
+      toast.success('Проект успешно обновлен! Теперь вы можете отправить его на модерацию.');
       setShowEditModal(false);
       setEditingProject(null);
       resetForm();
       fetchProjects(); // Перезагружаем список проектов
     } catch (error) {
       console.error('Error updating project:', error);
-      alert('Произошла ошибка при обновлении проекта');
-    }
-  };
-
-  const handleViewDetails = async (project: any) => {
-    setSelectedProject(project);
-    setShowDetailsModal(true);
-    
-    // Загружаем задачи проекта
-    await fetchProjectTasks(project.id);
-  };
-
-  const fetchProjectTasks = async (projectId: string) => {
-    try {
-      setLoadingTasks(true);
-      const response = await fetch(`/api/projects/${projectId}/tasks`);
-      if (response.ok) {
-        const data = await response.json();
-        setProjectTasks(data.tasks || []);
-      } else {
-        setProjectTasks([]);
-      }
-    } catch (error) {
-      console.error('Error fetching tasks:', error);
-      setProjectTasks([]);
-    } finally {
-      setLoadingTasks(false);
-    }
-  };
-
-  const getTaskStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-700';
-      case 'in_progress':
-        return 'bg-blue-100 text-blue-700';
-      case 'overdue':
-        return 'bg-red-100 text-red-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
-  };
-
-  const getTaskStatusText = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'Завершена';
-      case 'in_progress':
-        return 'В процессе';
-      case 'overdue':
-        return 'Просрочена';
-      case 'pending':
-        return 'Ожидает';
-      default:
-        return 'Неизвестно';
+      toast.error('Произошла ошибка при обновлении проекта');
     }
   };
 
@@ -621,7 +718,7 @@ export default function OrganizerProjects() {
             onClick={() => {
               // Проверяем, подтвержден ли организатор
               if (!isApproved) {
-                alert('Ваш аккаунт еще не подтвержден администратором. Для создания проектов необходимо дождаться подтверждения вашего аккаунта. Обычно это занимает 1-2 рабочих дня.');
+                toast.warning('Ваш аккаунт еще не подтвержден администратором. Для создания проектов необходимо дождаться подтверждения вашего аккаунта. Обычно это занимает 1-2 рабочих дня.');
                 return;
               }
               setShowCreateModal(true);
@@ -731,7 +828,7 @@ export default function OrganizerProjects() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Фильтр по статусу */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Статус
                   </label>
                   <select
@@ -750,7 +847,7 @@ export default function OrganizerProjects() {
 
                 {/* Сортировка */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Сортировка
                   </label>
                   <select
@@ -769,7 +866,7 @@ export default function OrganizerProjects() {
 
                 {/* Фильтр по категории */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Категория
                   </label>
                   <select
@@ -819,7 +916,7 @@ export default function OrganizerProjects() {
               <button
                 onClick={() => {
                   if (!isApproved) {
-                    alert('Ваш аккаунт еще не подтвержден администратором. Для создания проектов необходимо дождаться подтверждения вашего аккаунта. Обычно это занимает 1-2 рабочих дня.');
+                    toast.warning('Ваш аккаунт еще не подтвержден администратором. Для создания проектов необходимо дождаться подтверждения вашего аккаунта. Обычно это занимает 1-2 рабочих дня.');
                     return;
                   }
                   setShowCreateModal(true);
@@ -840,7 +937,7 @@ export default function OrganizerProjects() {
                   <div 
                     key={project.id} 
                     className="bg-white border border-gray-300 rounded-lg p-4 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer"
-                    onClick={() => handleViewDetails(project)}
+                    onClick={() => router.push(`/organizer/projects/${project.id}`)}
                   >
                     <div className="flex items-center gap-4">
                       {/* Изображение проекта */}
@@ -924,7 +1021,7 @@ export default function OrganizerProjects() {
                   <div 
                     key={project.id} 
                     className="bg-white border border-gray-300 rounded-xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer"
-                    onClick={() => handleViewDetails(project)}
+                    onClick={() => router.push(`/organizer/projects/${project.id}`)}
                   >
                     {/* Изображение */}
                     {project.imageUrl ? (
@@ -1064,13 +1161,13 @@ export default function OrganizerProjects() {
 
             {/* Step 1: Project Information */}
             {createStep === 1 && (
-              <div className="max-h-[70vh] overflow-y-auto pr-2">
+              <div className="max-h-[70vh] overflow-y-auto px-8 py-2">
                 <h3 className="text-2xl font-bold text-gray-900 mb-6">Информация о проекте</h3>
                 
-                <div className="space-y-6">
+                <div className="space-y-4">
                   {/* Project Title */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Название проекта *
                     </label>
                     <input
@@ -1079,19 +1176,19 @@ export default function OrganizerProjects() {
                       placeholder="Например: Помощь детскому дому"
                       value={projectData.title}
                       onChange={(e) => setProjectData({ ...projectData, title: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                      className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
                     />
                   </div>
 
                   {/* Category */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Категория проекта *
                     </label>
                     <select 
                       value={projectData.category}
                       onChange={(e) => setProjectData({ ...projectData, category: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                      className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
                     >
                       <option value="">Выберите категорию</option>
                       {categories.map((cat) => (
@@ -1104,28 +1201,28 @@ export default function OrganizerProjects() {
 
                   {/* Description */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Описание проекта *
                     </label>
                     <textarea
                       required
-                      rows={5}
+                      rows={4}
                       placeholder="Опишите цели, задачи и ожидаемые результаты проекта..."
                       value={projectData.description}
                       onChange={(e) => setProjectData({ ...projectData, description: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent resize-none"
+                      className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00] resize-none"
                     />
                   </div>
 
                   {/* Image Upload */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Фотография проекта
                     </label>
                     <div className="flex items-center gap-4">
                       <label className="flex-1 cursor-pointer">
-                        <div className="w-full px-4 py-3 bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl hover:border-[#00CC00] transition-colors flex items-center justify-center gap-2">
-                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="w-full px-3 py-2 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg hover:border-[#00CC00] transition-colors flex items-center justify-center gap-2">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
                           <span className="text-sm text-gray-600">
@@ -1143,9 +1240,9 @@ export default function OrganizerProjects() {
                   </div>
 
                   {/* Dates */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
                         Дата начала *
                       </label>
                       <input
@@ -1153,12 +1250,12 @@ export default function OrganizerProjects() {
                         required
                         value={projectData.startDate}
                         onChange={(e) => setProjectData({ ...projectData, startDate: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                        className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
                         Дата окончания *
                       </label>
                       <input
@@ -1166,29 +1263,33 @@ export default function OrganizerProjects() {
                         required
                         value={projectData.endDate}
                         onChange={(e) => setProjectData({ ...projectData, endDate: e.target.value })}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                        className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
                       />
                     </div>
                   </div>
 
                   {/* Location */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Локация *
                     </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Например: Бишкек, ул. Чуй 123"
+                    <LocationPicker
                       value={projectData.location}
-                      onChange={(e) => setProjectData({ ...projectData, location: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                      onChange={(location, lat, lon) => {
+                        setProjectData({ 
+                          ...projectData, 
+                          location,
+                          latitude: lat || null,
+                          longitude: lon || null
+                        });
+                      }}
+                      placeholder="Например: Бишкек, ул. Чуй 123"
                     />
                   </div>
 
                   {/* Max Volunteers */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Максимальное количество волонтёров *
                     </label>
                     <input
@@ -1198,13 +1299,13 @@ export default function OrganizerProjects() {
                       placeholder="Например: 10"
                       value={projectData.maxVolunteers}
                       onChange={(e) => setProjectData({ ...projectData, maxVolunteers: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                      className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
                     />
                   </div>
 
                   {/* Required Skills */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Требуемые навыки
                     </label>
                     <div className="flex gap-2 mb-3">
@@ -1215,7 +1316,7 @@ export default function OrganizerProjects() {
                             e.target.value = '';
                           }
                         }}
-                        className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                        className="flex-1 px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
                       >
                         <option value="">Выберите навык</option>
                         {skills.map((skill) => (
@@ -1270,9 +1371,45 @@ export default function OrganizerProjects() {
 
             {/* Step 2: Tasks */}
             {createStep === 2 && (
-              <div className="max-h-[70vh] overflow-y-auto pr-2">
+              <div className="max-h-[70vh] overflow-y-auto px-8 py-2">
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">Задачи проекта</h3>
-                <p className="text-gray-600 mb-6">Добавьте задачи, которые нужно выполнить в рамках проекта</p>
+                <p className="text-gray-600 mb-4">Добавьте задачи, которые нужно выполнить в рамках проекта</p>
+
+                {/* Индикатор распределения волонтёров */}
+                {projectData.maxVolunteers && (
+                  <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-blue-900">
+                        Распределение волонтёров
+                      </span>
+                      <span className="text-sm font-bold text-blue-900">
+                        {tasks.reduce((sum, task) => sum + task.requiredVolunteers, 0)} / {projectData.maxVolunteers}
+                      </span>
+                    </div>
+                    <div className="w-full bg-blue-200 rounded-full h-3">
+                      <div 
+                        className={`h-3 rounded-full transition-all ${
+                          tasks.reduce((sum, task) => sum + task.requiredVolunteers, 0) > parseInt(projectData.maxVolunteers)
+                            ? 'bg-red-500'
+                            : tasks.reduce((sum, task) => sum + task.requiredVolunteers, 0) === parseInt(projectData.maxVolunteers)
+                            ? 'bg-green-500'
+                            : 'bg-blue-500'
+                        }`}
+                        style={{ 
+                          width: `${Math.min((tasks.reduce((sum, task) => sum + task.requiredVolunteers, 0) / parseInt(projectData.maxVolunteers)) * 100, 100)}%` 
+                        }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-blue-700 mt-2">
+                      {tasks.reduce((sum, task) => sum + task.requiredVolunteers, 0) === parseInt(projectData.maxVolunteers)
+                        ? '✓ Все волонтёры распределены'
+                        : tasks.reduce((sum, task) => sum + task.requiredVolunteers, 0) > parseInt(projectData.maxVolunteers)
+                        ? '⚠ Превышено максимальное количество волонтёров'
+                        : `Осталось распределить: ${parseInt(projectData.maxVolunteers) - tasks.reduce((sum, task) => sum + task.requiredVolunteers, 0)} волонтёр(ов)`
+                      }
+                    </p>
+                  </div>
+                )}
 
                 {/* Task List */}
                 {tasks.length > 0 && (
@@ -1318,7 +1455,7 @@ export default function OrganizerProjects() {
                   <h4 className="font-bold text-gray-900 mb-4">Добавить задачу</h4>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
                         Название задачи *
                       </label>
                       <input
@@ -1326,12 +1463,12 @@ export default function OrganizerProjects() {
                         placeholder="Например: Уборка территории"
                         value={currentTask.title}
                         onChange={(e) => setCurrentTask({ ...currentTask, title: e.target.value })}
-                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                        className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
                         Описание задачи *
                       </label>
                       <textarea
@@ -1339,31 +1476,31 @@ export default function OrganizerProjects() {
                         placeholder="Опишите, что нужно сделать..."
                         value={currentTask.description}
                         onChange={(e) => setCurrentTask({ ...currentTask, description: e.target.value })}
-                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent resize-none"
+                        className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00] resize-none"
                       />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
                           Требуемый навык
                         </label>
                         <select
                           value={currentTask.requiredSkill}
                           onChange={(e) => setCurrentTask({ ...currentTask, requiredSkill: e.target.value })}
-                          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                          className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
                         >
                           <option value="">Не требуется</option>
-                          {skills.map((skill) => (
-                            <option key={skill.id} value={skill.name}>
-                              {skill.name}
+                          {projectData.requiredSkills.map((skill) => (
+                            <option key={skill} value={skill}>
+                              {skill}
                             </option>
                           ))}
                         </select>
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
                           Количество волонтёров *
                         </label>
                         <input
@@ -1372,20 +1509,37 @@ export default function OrganizerProjects() {
                           placeholder="1"
                           value={currentTask.requiredVolunteers}
                           onChange={(e) => setCurrentTask({ ...currentTask, requiredVolunteers: e.target.value })}
-                          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                          className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
                           Дедлайн
                         </label>
                         <input
                           type="date"
                           value={currentTask.deadline}
-                          onChange={(e) => setCurrentTask({ ...currentTask, deadline: e.target.value })}
-                          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                          min={projectData.startDate}
+                          max={projectData.endDate}
+                          onChange={(e) => {
+                            const selectedDate = e.target.value;
+                            // Проверяем, что дата находится в диапазоне проекта
+                            if (projectData.startDate && projectData.endDate) {
+                              if (selectedDate < projectData.startDate || selectedDate > projectData.endDate) {
+                                toast.error(`Дедлайн задачи должен быть между ${new Date(projectData.startDate).toLocaleDateString('ru-RU')} и ${new Date(projectData.endDate).toLocaleDateString('ru-RU')}`);
+                                return;
+                              }
+                            }
+                            setCurrentTask({ ...currentTask, deadline: selectedDate });
+                          }}
+                          className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
                         />
+                        {projectData.startDate && projectData.endDate && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Период проекта: {new Date(projectData.startDate).toLocaleDateString('ru-RU')} - {new Date(projectData.endDate).toLocaleDateString('ru-RU')}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -1441,7 +1595,7 @@ export default function OrganizerProjects() {
 
             {/* Step 3: Payment/Success */}
             {createStep === 3 && (
-              <div className="max-h-[70vh] overflow-y-auto pr-2">
+              <div className="max-h-[70vh] overflow-y-auto px-8 py-2">
                 {freePostsRemaining > 0 ? (
                   // Has free posts
                   <div className="text-center py-8">
@@ -1503,9 +1657,17 @@ export default function OrganizerProjects() {
                       <button
                         type="button"
                         onClick={handleSubmitProject}
-                        className="px-8 py-3 bg-[#00CC00] text-white rounded-xl font-bold hover:bg-[#00b300] transition-colors shadow-lg"
+                        disabled={isSubmitting}
+                        className="px-8 py-3 bg-[#00CC00] text-white rounded-xl font-bold hover:bg-[#00b300] transition-colors shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
-                        Отправить на модерацию
+                        {isSubmitting ? (
+                          <>
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                            <span>Отправка...</span>
+                          </>
+                        ) : (
+                          'Отправить на модерацию'
+                        )}
                       </button>
                     </div>
                   </div>
@@ -1582,312 +1744,61 @@ export default function OrganizerProjects() {
       {/* AI Support Button */}
       <AiSupportButton />
 
-      {/* Project Details Modal */}
-      {showDetailsModal && selectedProject && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto"
-          onClick={() => {
-            setShowDetailsModal(false);
-            setSelectedProject(null);
-            setProjectTasks([]);
-          }}
-        >
-          <div 
-            className="bg-white rounded-xl p-6 max-w-3xl w-full shadow-2xl transform transition-all my-8"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Заголовок */}
-            <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
-              <h3 className="text-xl font-bold text-gray-900">Детали проекта</h3>
-              <button
-                onClick={() => {
-                  setShowDetailsModal(false);
-                  setSelectedProject(null);
-                  setProjectTasks([]);
-                }}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="max-h-[65vh] overflow-y-auto pr-2">
-              {/* Изображение проекта */}
-              {selectedProject.imageUrl && (
-                <div className="mb-4">
-                  <img 
-                    src={selectedProject.imageUrl} 
-                    alt={selectedProject.title}
-                    className="w-full h-48 object-cover rounded-lg"
-                  />
-                </div>
-              )}
-
-              {/* Основная информация */}
-              <div className="space-y-3 mb-4">
-                <div>
-                  <h4 className="text-xs font-medium text-gray-500 mb-1">Название</h4>
-                  <p className="text-base font-semibold text-gray-900">{selectedProject.title}</p>
-                </div>
-
-                <div>
-                  <h4 className="text-xs font-medium text-gray-500 mb-1">Описание</h4>
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{selectedProject.description}</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-500 mb-1">Локация</h4>
-                    <div className="flex items-center gap-1.5 text-sm text-gray-700">
-                      <svg className="w-3.5 h-3.5 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      {selectedProject.location}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-500 mb-1">Волонтёры</h4>
-                    <div className="flex items-center gap-1.5 text-sm text-gray-700">
-                      <svg className="w-3.5 h-3.5 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                      </svg>
-                      {selectedProject.currentVolunteers} / {selectedProject.maxVolunteers}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-500 mb-1">Начало</h4>
-                    <div className="flex items-center gap-1.5 text-sm text-gray-700">
-                      <svg className="w-3.5 h-3.5 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      {new Date(selectedProject.startDate).toLocaleDateString('ru-RU')}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-500 mb-1">Окончание</h4>
-                    <div className="flex items-center gap-1.5 text-sm text-gray-700">
-                      <svg className="w-3.5 h-3.5 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      {new Date(selectedProject.endDate).toLocaleDateString('ru-RU')}
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="text-xs font-medium text-gray-500 mb-1">Статус</h4>
-                  <div>
-                    {selectedProject.status === 'moderation' && (
-                      <span className="px-2.5 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded-full inline-flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        На проверке
-                      </span>
-                    )}
-                    {selectedProject.status === 'published' && (
-                      <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full inline-flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Опубликован
-                      </span>
-                    )}
-                    {selectedProject.status === 'draft' && (
-                      <span className="px-2.5 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full">
-                        Черновик
-                      </span>
-                    )}
-                    {selectedProject.status === 'completed' && (
-                      <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                        Завершён
-                      </span>
-                    )}
-                    {selectedProject.status === 'rejected' && (
-                      <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full inline-flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                        Отклонен
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Задачи проекта */}
-              <div className="border-t border-gray-200 pt-4">
-                <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-1.5">
-                  <svg className="w-4 h-4 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                  Задачи проекта
-                </h4>
-
-                {loadingTasks ? (
-                  <div className="text-center py-6">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#00CC00] mx-auto"></div>
-                    <p className="mt-2 text-xs text-gray-600">Загрузка...</p>
-                  </div>
-                ) : projectTasks.length === 0 ? (
-                  <div className="text-center py-6 bg-gray-50 rounded-lg">
-                    <svg className="w-10 h-10 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                    <p className="text-gray-500 text-xs">Задачи не добавлены</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-80 overflow-y-auto">
-                    {projectTasks.map((task, index) => (
-                      <div key={task.id} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                        <div className="flex items-start justify-between mb-1.5">
-                          <div className="flex items-start gap-2 flex-1">
-                            <span className="flex-shrink-0 w-5 h-5 bg-[#00CC00] text-white rounded-full flex items-center justify-center text-xs font-bold">
-                              {index + 1}
-                            </span>
-                            <div className="flex-1">
-                              <h5 className="text-sm font-medium text-gray-900">{task.title}</h5>
-                            </div>
-                          </div>
-                          <span className={`px-2 py-0.5 text-xs rounded-full ${getTaskStatusBadge(task.status)}`}>
-                            {getTaskStatusText(task.status)}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-600 mb-2 ml-7">{task.description}</p>
-                        <div className="flex flex-wrap gap-1.5 text-xs ml-7">
-                          {task.requiredSkill && (
-                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
-                              {task.requiredSkill.name}
-                            </span>
-                          )}
-                          <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full">
-                            {task.currentVolunteers}/{task.requiredVolunteers} волонтёров
-                          </span>
-                          <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full">
-                            До {new Date(task.deadline).toLocaleDateString('ru-RU')}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Кнопки действий */}
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="flex flex-col gap-2">
-                {/* Кнопки для отклоненных проектов */}
-                {selectedProject.status === 'rejected' && (
-                  <>
-                    <div className="mb-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-xs font-medium text-red-900 mb-1">Причина отклонения:</p>
-                      <p className="text-sm text-red-700">{selectedProject.rejectionReason || 'Не указана'}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowDetailsModal(false);
-                          handleEditProject(selectedProject);
-                        }}
-                        className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
-                      >
-                        Редактировать
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowDetailsModal(false);
-                          handleResubmitProject(selectedProject.id);
-                        }}
-                        className="flex-1 px-4 py-2 bg-[#00CC00] text-white rounded-lg font-medium hover:bg-[#00b300] transition-colors"
-                      >
-                        Отправить повторно
-                      </button>
-                    </div>
-                  </>
-                )}
-
-                {/* Кнопки для черновиков */}
-                {selectedProject.status === 'draft' && (
-                  <>
-                    <div className="mb-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                      <p className="text-sm text-gray-700">Черновик проекта. Отредактируйте и опубликуйте его.</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowDetailsModal(false);
-                          handleEditProject(selectedProject);
-                        }}
-                        className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
-                      >
-                        Редактировать
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowDetailsModal(false);
-                          handlePublishDraft(selectedProject.id);
-                        }}
-                        className="flex-1 px-4 py-2 bg-[#00CC00] text-white rounded-lg font-medium hover:bg-[#00b300] transition-colors"
-                      >
-                        Опубликовать
-                      </button>
-                    </div>
-                  </>
-                )}
-
-                {/* Кнопка закрытия для всех остальных статусов */}
-                {selectedProject.status !== 'rejected' && selectedProject.status !== 'draft' && (
-                  <button
-                    onClick={() => {
-                      setShowDetailsModal(false);
-                      setSelectedProject(null);
-                      setProjectTasks([]);
-                    }}
-                    className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
-                  >
-                    Закрыть
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Edit Project Modal */}
       {showEditModal && editingProject && (
         <div 
           className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto"
           onClick={() => {
-            setShowEditModal(false);
-            setEditingProject(null);
-            resetForm();
+            if (editStep === 1) {
+              setShowEditModal(false);
+              setEditingProject(null);
+              setEditStep(1);
+              resetForm();
+            }
           }}
         >
           <div 
             className="bg-white rounded-2xl p-8 max-w-4xl w-full shadow-2xl transform transition-all my-8"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-gray-900">Редактировать проект</h3>
+            {/* Step Indicator */}
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4 flex-1">
+                <div className={`flex items-center gap-2 ${editStep >= 1 ? 'text-[#00CC00]' : 'text-gray-400'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
+                    editStep >= 1 ? 'bg-[#00CC00] text-white' : 'bg-gray-200'
+                  }`}>
+                    1
+                  </div>
+                  <span className="text-sm font-medium hidden sm:block">Информация</span>
+                </div>
+                <div className={`h-0.5 flex-1 ${editStep >= 2 ? 'bg-[#00CC00]' : 'bg-gray-200'}`}></div>
+                <div className={`flex items-center gap-2 ${editStep >= 2 ? 'text-[#00CC00]' : 'text-gray-400'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
+                    editStep >= 2 ? 'bg-[#00CC00] text-white' : 'bg-gray-200'
+                  }`}>
+                    2
+                  </div>
+                  <span className="text-sm font-medium hidden sm:block">Задачи</span>
+                </div>
+                <div className={`h-0.5 flex-1 ${editStep >= 3 ? 'bg-[#00CC00]' : 'bg-gray-200'}`}></div>
+                <div className={`flex items-center gap-2 ${editStep >= 3 ? 'text-[#00CC00]' : 'text-gray-400'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
+                    editStep >= 3 ? 'bg-[#00CC00] text-white' : 'bg-gray-200'
+                  }`}>
+                    3
+                  </div>
+                  <span className="text-sm font-medium hidden sm:block">Отправка</span>
+                </div>
+              </div>
               <button
                 onClick={() => {
                   setShowEditModal(false);
                   setEditingProject(null);
+                  setEditStep(1);
                   resetForm();
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="ml-4 text-gray-400 hover:text-gray-600"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1895,11 +1806,14 @@ export default function OrganizerProjects() {
               </button>
             </div>
 
-            <div className="max-h-[70vh] overflow-y-auto pr-2">
+            {/* Step 1: Project Information */}
+            {editStep === 1 && (
+              <div className="max-h-[70vh] overflow-y-auto px-8 py-2">
+                <h3 className="text-2xl font-bold text-gray-900 mb-6">Информация о проекте</h3>
               <div className="space-y-6">
                 {/* Project Title */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Название проекта *
                   </label>
                   <input
@@ -1908,19 +1822,19 @@ export default function OrganizerProjects() {
                     placeholder="Например: Помощь детскому дому"
                     value={projectData.title}
                     onChange={(e) => setProjectData({ ...projectData, title: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                    className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
                   />
                 </div>
 
                 {/* Category */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Категория проекта *
                   </label>
                   <select 
                     value={projectData.category}
                     onChange={(e) => setProjectData({ ...projectData, category: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                    className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
                   >
                     <option value="">Выберите категорию</option>
                     {categories.map((cat) => (
@@ -1933,7 +1847,7 @@ export default function OrganizerProjects() {
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Описание проекта *
                   </label>
                   <textarea
@@ -1942,13 +1856,13 @@ export default function OrganizerProjects() {
                     placeholder="Опишите цели, задачи и ожидаемые результаты проекта..."
                     value={projectData.description}
                     onChange={(e) => setProjectData({ ...projectData, description: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent resize-none"
+                    className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00] resize-none"
                   />
                 </div>
 
                 {/* Image Upload */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Фотография проекта
                   </label>
                   {editingProject.imageUrl && !projectData.image && (
@@ -1982,9 +1896,9 @@ export default function OrganizerProjects() {
                 </div>
 
                 {/* Dates */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Дата начала *
                     </label>
                     <input
@@ -1992,12 +1906,12 @@ export default function OrganizerProjects() {
                       required
                       value={projectData.startDate}
                       onChange={(e) => setProjectData({ ...projectData, startDate: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                      className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Дата окончания *
                     </label>
                     <input
@@ -2005,29 +1919,33 @@ export default function OrganizerProjects() {
                       required
                       value={projectData.endDate}
                       onChange={(e) => setProjectData({ ...projectData, endDate: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                      className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
                     />
                   </div>
                 </div>
 
                 {/* Location */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Локация *
                   </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Например: Бишкек, ул. Чуй 123"
+                  <LocationPicker
                     value={projectData.location}
-                    onChange={(e) => setProjectData({ ...projectData, location: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                    onChange={(location, lat, lon) => {
+                      setProjectData({ 
+                        ...projectData, 
+                        location,
+                        latitude: lat || null,
+                        longitude: lon || null
+                      });
+                    }}
+                    placeholder="Например: Бишкек, ул. Чуй 123"
                   />
                 </div>
 
                 {/* Max Volunteers */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Максимальное количество волонтёров *
                   </label>
                   <input
@@ -2037,52 +1955,386 @@ export default function OrganizerProjects() {
                     placeholder="Например: 10"
                     value={projectData.maxVolunteers}
                     onChange={(e) => setProjectData({ ...projectData, maxVolunteers: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                    className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
                   />
                 </div>
-              </div>
 
-              {/* Info Box */}
-              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                {/* Required Skills */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Требуемые навыки
+                  </label>
+                  <div className="flex gap-2 mb-3">
+                    <select
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          handleAddSkill(e.target.value);
+                          e.target.value = '';
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
+                    >
+                      <option value="">Выберите навык</option>
+                      {skills.map((skill) => (
+                        <option key={skill.id} value={skill.name}>
+                          {skill.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-blue-900 mb-1">
-                      Внесите необходимые изменения
-                    </p>
-                    <p className="text-sm text-blue-700">
-                      После сохранения изменений вы сможете отправить проект на модерацию повторно.
-                    </p>
-                  </div>
+                  {projectData.requiredSkills.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {projectData.requiredSkills.map((skill) => (
+                        <span
+                          key={skill}
+                          className="inline-flex items-center gap-1 px-3 py-1 bg-[#00CC00]/10 text-[#00CC00] rounded-full text-sm font-medium"
+                        >
+                          {skill}
+                          <button
+                            onClick={() => handleRemoveSkill(skill)}
+                            className="hover:opacity-70"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-3 mt-8 pt-6 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={handleUpdateProject}
+                    className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+                  >
+                    Сохранить как черновик
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditStep(2)}
+                    className="flex-1 px-6 py-3 bg-[#00CC00] text-white rounded-xl font-medium hover:bg-[#00b300] transition-colors"
+                  >
+                    Далее →
+                  </button>
                 </div>
               </div>
+            )}
 
-              {/* Buttons */}
-              <div className="flex gap-3 mt-8 pt-6 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowEditModal(false);
-                    setEditingProject(null);
-                    resetForm();
-                  }}
-                  className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
-                >
-                  Отмена
-                </button>
-                <button
-                  type="button"
-                  onClick={handleUpdateProject}
-                  className="flex-1 px-6 py-3 bg-[#00CC00] text-white rounded-xl font-medium hover:bg-[#00b300] transition-colors"
-                >
-                  Сохранить изменения
-                </button>
+            {/* Step 2: Tasks */}
+            {editStep === 2 && (
+              <div className="max-h-[70vh] overflow-y-auto px-8 py-2">
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">Задачи проекта</h3>
+                <p className="text-gray-600 mb-4">Редактируйте существующие задачи или добавьте новые</p>
+
+                {/* Индикатор распределения волонтёров */}
+                {projectData.maxVolunteers && (
+                  <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-blue-900">
+                        Распределение волонтёров
+                      </span>
+                      <span className="text-sm font-bold text-blue-900">
+                        {tasks.reduce((sum, task) => sum + task.requiredVolunteers, 0)} / {projectData.maxVolunteers}
+                      </span>
+                    </div>
+                    <div className="w-full bg-blue-200 rounded-full h-3">
+                      <div 
+                        className={`h-3 rounded-full transition-all ${
+                          tasks.reduce((sum, task) => sum + task.requiredVolunteers, 0) > parseInt(projectData.maxVolunteers)
+                            ? 'bg-red-500'
+                            : tasks.reduce((sum, task) => sum + task.requiredVolunteers, 0) === parseInt(projectData.maxVolunteers)
+                            ? 'bg-green-500'
+                            : 'bg-blue-500'
+                        }`}
+                        style={{ 
+                          width: `${Math.min((tasks.reduce((sum, task) => sum + task.requiredVolunteers, 0) / parseInt(projectData.maxVolunteers)) * 100, 100)}%` 
+                        }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-blue-700 mt-2">
+                      {tasks.reduce((sum, task) => sum + task.requiredVolunteers, 0) === parseInt(projectData.maxVolunteers)
+                        ? '✓ Все волонтёры распределены'
+                        : tasks.reduce((sum, task) => sum + task.requiredVolunteers, 0) > parseInt(projectData.maxVolunteers)
+                        ? '⚠ Превышено максимальное количество волонтёров'
+                        : `Осталось распределить: ${parseInt(projectData.maxVolunteers) - tasks.reduce((sum, task) => sum + task.requiredVolunteers, 0)} волонтёр(ов)`
+                      }
+                    </p>
+                  </div>
+                )}
+
+                {/* Task List */}
+                {tasks.length > 0 && (
+                  <div className="mb-6 space-y-3">
+                    {tasks.map((task) => (
+                      <div key={task.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-bold text-gray-900 mb-1">{task.title}</h4>
+                            <p className="text-sm text-gray-600 mb-2">{task.description}</p>
+                            <div className="flex flex-wrap gap-2 text-xs">
+                              {task.requiredSkill && (
+                                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                                  {task.requiredSkill}
+                                </span>
+                              )}
+                              <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full">
+                                {task.requiredVolunteers} волонтёр(ов)
+                              </span>
+                              {task.deadline && (
+                                <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full">
+                                  До {new Date(task.deadline).toLocaleDateString('ru-RU')}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex gap-2 ml-4">
+                            <button
+                              onClick={() => handleEditTask(task.id)}
+                              className="text-blue-500 hover:text-blue-700"
+                              title="Редактировать"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleRemoveTask(task.id)}
+                              className="text-red-500 hover:text-red-700"
+                              title="Удалить"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add Task Form */}
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-6">
+                  <h4 className="font-bold text-gray-900 mb-4">Добавить задачу</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Название задачи *
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Например: Уборка территории"
+                        value={currentTask.title}
+                        onChange={(e) => setCurrentTask({ ...currentTask, title: e.target.value })}
+                        className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Описание задачи *
+                      </label>
+                      <textarea
+                        rows={3}
+                        placeholder="Опишите, что нужно сделать..."
+                        value={currentTask.description}
+                        onChange={(e) => setCurrentTask({ ...currentTask, description: e.target.value })}
+                        className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00] resize-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                          Требуемый навык
+                        </label>
+                        <select
+                          value={currentTask.requiredSkill}
+                          onChange={(e) => setCurrentTask({ ...currentTask, requiredSkill: e.target.value })}
+                          className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
+                        >
+                          <option value="">Не требуется</option>
+                          {projectData.requiredSkills.map((skill) => (
+                            <option key={skill} value={skill}>
+                              {skill}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                          Количество волонтёров *
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          placeholder="1"
+                          value={currentTask.requiredVolunteers}
+                          onChange={(e) => setCurrentTask({ ...currentTask, requiredVolunteers: e.target.value })}
+                          className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                          Дедлайн
+                        </label>
+                        <input
+                          type="date"
+                          value={currentTask.deadline}
+                          min={projectData.startDate}
+                          max={projectData.endDate}
+                          onChange={(e) => {
+                            const selectedDate = e.target.value;
+                            // Проверяем, что дата находится в диапазоне проекта
+                            if (projectData.startDate && projectData.endDate) {
+                              if (selectedDate < projectData.startDate || selectedDate > projectData.endDate) {
+                                toast.error(`Дедлайн задачи должен быть между ${new Date(projectData.startDate).toLocaleDateString('ru-RU')} и ${new Date(projectData.endDate).toLocaleDateString('ru-RU')}`);
+                                return;
+                              }
+                            }
+                            setCurrentTask({ ...currentTask, deadline: selectedDate });
+                          }}
+                          className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
+                        />
+                        {projectData.startDate && projectData.endDate && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Период проекта: {new Date(projectData.startDate).toLocaleDateString('ru-RU')} - {new Date(projectData.endDate).toLocaleDateString('ru-RU')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleAddTask}
+                      className="w-full px-4 py-3 bg-[#00CC00] text-white rounded-xl font-medium hover:bg-[#00b300] transition-colors"
+                    >
+                      {currentTask.title && tasks.some(t => t.title === currentTask.title) ? 'Обновить задачу' : 'Добавить задачу'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-3 pt-6 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => setEditStep(1)}
+                    className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+                  >
+                    ← Назад
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Проверяем, что все волонтёры распределены по задачам
+                      const totalVolunteersInTasks = tasks.reduce((sum, task) => sum + task.requiredVolunteers, 0);
+                      const maxVolunteers = parseInt(projectData.maxVolunteers) || 0;
+                      
+                      if (totalVolunteersInTasks !== maxVolunteers) {
+                        if (totalVolunteersInTasks < maxVolunteers) {
+                          toast.error(`Необходимо распределить всех волонтёров по задачам. Осталось: ${maxVolunteers - totalVolunteersInTasks}`);
+                        } else {
+                          toast.error(`Превышено максимальное количество волонтёров. Уменьшите на: ${totalVolunteersInTasks - maxVolunteers}`);
+                        }
+                        return;
+                      }
+                      
+                      setEditStep(3);
+                    }}
+                    className="flex-1 px-6 py-3 bg-[#00CC00] text-white rounded-xl font-medium hover:bg-[#00b300] transition-colors"
+                  >
+                    Далее →
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Step 3: Submit */}
+            {editStep === 3 && (
+              <div className="max-h-[70vh] overflow-y-auto pr-2 pl-1">
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">Отправка на модерацию</h3>
+                <p className="text-gray-600 mb-6">Проверьте информацию перед отправкой</p>
+
+                {/* Summary */}
+                <div className="space-y-4 mb-6">
+                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                    <h4 className="font-bold text-gray-900 mb-2">Информация о проекте</h4>
+                    <div className="space-y-1 text-sm">
+                      <p><span className="text-gray-600">Название:</span> <span className="font-medium">{projectData.title}</span></p>
+                      <p><span className="text-gray-600">Локация:</span> <span className="font-medium">{projectData.location}</span></p>
+                      <p><span className="text-gray-600">Волонтёры:</span> <span className="font-medium">{projectData.maxVolunteers}</span></p>
+                      <p><span className="text-gray-600">Период:</span> <span className="font-medium">{new Date(projectData.startDate).toLocaleDateString('ru-RU')} - {new Date(projectData.endDate).toLocaleDateString('ru-RU')}</span></p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                    <h4 className="font-bold text-gray-900 mb-2">Задачи ({tasks.length})</h4>
+                    {tasks.length > 0 ? (
+                      <ul className="space-y-1 text-sm">
+                        {tasks.map((task, index) => (
+                          <li key={task.id} className="text-gray-700">
+                            {index + 1}. {task.title}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-gray-500">Задачи не добавлены</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Info Box */}
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-blue-900 mb-1">
+                        Готово к отправке
+                      </p>
+                      <p className="text-sm text-blue-700">
+                        После отправки проект будет проверен администратором в течение 1-3 дней.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-3 pt-6 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => setEditStep(2)}
+                    className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+                  >
+                    ← Назад
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await handleUpdateProject();
+                      if (editingProject.status === 'draft') {
+                        await handlePublishDraft(editingProject.id);
+                      } else if (editingProject.status === 'rejected') {
+                        await handleResubmitProject(editingProject.id);
+                      }
+                    }}
+                    className="flex-1 px-6 py-3 bg-[#00CC00] text-white rounded-xl font-medium hover:bg-[#00b300] transition-colors"
+                  >
+                    Отправить на модерацию
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -2090,4 +2342,7 @@ export default function OrganizerProjects() {
     </SidebarProvider>
   );
 }
+
+
+
 

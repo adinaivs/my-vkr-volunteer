@@ -6,6 +6,7 @@ import AdminSidebar from '../components/AdminSidebar';
 import AdminNav from '../components/AdminNav';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
+import { useToast } from '@/app/components/ToastContainer';
 
 interface User {
   id: string;
@@ -69,6 +70,7 @@ interface Task {
 
 export default function AdminProjectsPage() {
   const router = useRouter();
+  const toast = useToast();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,6 +134,9 @@ export default function AdminProjectsPage() {
   // Функция фильтрации и сортировки проектов
   const getFilteredAndSortedProjects = () => {
     let filtered = [...projects];
+
+    // Исключаем черновики - они не должны отображаться у админа
+    filtered = filtered.filter(project => project.status !== 'draft');
 
     // Фильтр по поисковому запросу
     if (searchQuery.trim()) {
@@ -221,36 +226,38 @@ export default function AdminProjectsPage() {
   };
 
   const handleApprove = async (projectId: string) => {
-    if (!confirm('Вы уверены, что хотите одобрить этот проект?')) {
-      return;
-    }
+    toast.confirm(
+      'Вы уверены, что хотите одобрить этот проект?',
+      async () => {
+        try {
+          setActionLoading(true);
+          const response = await fetch(`/api/admin/projects/${projectId}/approve`, {
+            method: 'POST',
+          });
 
-    try {
-      setActionLoading(true);
-      const response = await fetch(`/api/admin/projects/${projectId}/approve`, {
-        method: 'POST',
-      });
-
-      if (response.ok) {
-        alert('Проект успешно одобрен и опубликован!');
-        fetchProjects();
-        setShowDetailsModal(false);
-        setSelectedProject(null);
-      } else {
-        const data = await response.json();
-        alert(data.error || 'Ошибка при одобрении');
-      }
-    } catch (error) {
-      console.error('Error approving project:', error);
-      alert('Ошибка при одобрении проекта');
-    } finally {
-      setActionLoading(false);
-    }
+          if (response.ok) {
+            toast.success('Проект успешно одобрен и опубликован!');
+            fetchProjects();
+            setShowDetailsModal(false);
+            setSelectedProject(null);
+          } else {
+            const data = await response.json();
+            toast.error(data.error || 'Ошибка при одобрении');
+          }
+        } catch (error) {
+          console.error('Error approving project:', error);
+          toast.error('Ошибка при одобрении проекта');
+        } finally {
+          setActionLoading(false);
+        }
+      },
+      'info'
+    );
   };
 
   const handleReject = async (projectId: string) => {
     if (!rejectReason.trim()) {
-      alert('Пожалуйста, укажите причину отклонения');
+      toast.error('Пожалуйста, укажите причину отклонения');
       return;
     }
 
@@ -555,142 +562,67 @@ export default function AdminProjectsPage() {
             <>
               {/* Режим списка */}
               {viewMode === 'list' && (
-                <div className="grid gap-4">
+                <div className="space-y-3">
                   {getFilteredAndSortedProjects().map((project) => (
-                <div
-                  key={project.id}
-                  className="bg-white rounded-xl shadow-xl border border-gray-300 p-6 hover:shadow-2xl transition-shadow"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-3">
-                        <h3 className="text-xl font-semibold text-gray-900">
-                          {project.title}
-                        </h3>
-                        {getStatusBadge(project.status)}
-                      </div>
-
-                      <p className="text-gray-600 mb-4 line-clamp-2">
-                        {project.description}
-                      </p>
-
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                        <div>
-                          <p className="text-sm text-gray-500">Организатор</p>
-                          <p className="font-medium text-gray-900">
-                            {project.organizer.organizerProfile?.organizationName || 
-                             `${project.organizer.firstName} ${project.organizer.lastName}`}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">Категория</p>
-                          <p className="font-medium text-gray-900">
-                            {project.category.icon} {project.category.slug}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">Локация</p>
-                          <p className="font-medium text-gray-900">{project.location}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">Волонтёры</p>
-                          <p className="font-medium text-gray-900">
-                            {project.currentVolunteers} / {project.maxVolunteers}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4 text-sm text-gray-600">
-                        <div className="flex items-center gap-1">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          {new Date(project.startDate).toLocaleDateString('ru-RU')} - {new Date(project.endDate).toLocaleDateString('ru-RU')}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Создан: {new Date(project.createdAt).toLocaleDateString('ru-RU')}
-                        </div>
-                      </div>
-
-                      {/* Причина отклонения */}
-                      {project.status === 'rejected' && project.rejectionReason && (
-                        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                          <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    <div 
+                      key={project.id} 
+                      className="bg-white border border-gray-300 rounded-lg p-4 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer"
+                      onClick={() => {
+                        setSelectedProject(project);
+                        setShowDetailsModal(true);
+                        fetchProjectTasks(project.id);
+                      }}
+                    >
+                      <div className="flex items-center gap-4">
+                        {/* Изображение проекта */}
+                        {project.imageUrl && (
+                          <img 
+                            src={project.imageUrl} 
+                            alt={project.title}
+                            className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
+                          />
+                        )}
+                        
+                        {/* Информация о проекте */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="text-lg font-semibold text-gray-900 truncate">{project.title}</h3>
+                            {getStatusBadge(project.status)}
+                          </div>
+                          <p className="text-sm text-gray-600 mb-2 line-clamp-1">{project.description}</p>
+                          <div className="flex flex-wrap gap-3 text-xs text-gray-600">
+                            <div className="flex items-center gap-1">
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                               </svg>
+                              {project.location}
                             </div>
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-red-900 mb-1">
-                                Причина отклонения
-                              </p>
-                              <p className="text-sm text-red-700">
-                                {project.rejectionReason}
-                              </p>
-                              {project.moderatedAt && (
-                                <p className="text-xs text-red-600 mt-2">
-                                  Отклонено: {new Date(project.moderatedAt).toLocaleString('ru-RU')}
-                                </p>
-                              )}
+                            <div className="flex items-center gap-1">
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                              </svg>
+                              {project.currentVolunteers}/{project.maxVolunteers}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              {new Date(project.startDate).toLocaleDateString('ru-RU')}
                             </div>
                           </div>
                         </div>
-                      )}
-                    </div>
 
-                    <div className="flex flex-col gap-2 ml-4">
-                      <button
-                        onClick={() => {
-                          setSelectedProject(project);
-                          setShowDetailsModal(true);
-                          fetchProjectTasks(project.id);
-                        }}
-                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                      >
-                        Подробнее
-                      </button>
-                      
-                      {project.status === 'moderation' && (
-                        <>
-                          <button
-                            onClick={() => handleApprove(project.id)}
-                            disabled={actionLoading}
-                            className="px-4 py-2 bg-[#00CC00] text-white rounded-lg hover:bg-[#00b300] transition-colors disabled:opacity-50"
-                          >
-                            ✓ Одобрить
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedProject(project);
-                              setRejectReason('');
-                            }}
-                            disabled={actionLoading}
-                            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
-                          >
-                            ✗ Отклонить
-                          </button>
-                        </>
-                      )}
-
-                      {project.status === 'rejected' && (
-                        <button
-                          onClick={() => handleApprove(project.id)}
-                          disabled={actionLoading}
-                          className="px-4 py-2 bg-[#00CC00] text-white rounded-lg hover:bg-[#00b300] transition-colors disabled:opacity-50"
-                        >
-                          ✓ Одобрить
-                        </button>
-                      )}
+                        {/* Стрелка */}
+                        <div className="flex-shrink-0">
+                          <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
-              </div>
-            )}
+              )}
 
             {/* Режим блоков */}
             {viewMode === 'grid' && (
@@ -698,99 +630,58 @@ export default function AdminProjectsPage() {
                 {getFilteredAndSortedProjects().map((project) => (
                   <div
                     key={project.id}
-                    className="bg-white rounded-xl shadow-xl border border-gray-300 p-4 hover:shadow-2xl transition-shadow"
+                    className="bg-white border border-gray-300 rounded-xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer"
+                    onClick={() => {
+                      setSelectedProject(project);
+                      setShowDetailsModal(true);
+                      fetchProjectTasks(project.id);
+                    }}
                   >
-                    {/* Заголовок и статус */}
-                    <div className="mb-3">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-1">{project.title}</h3>
-                      {getStatusBadge(project.status)}
-                    </div>
-
-                    {/* Описание */}
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">{project.description}</p>
-
-                    {/* Краткая информация */}
-                    <div className="space-y-2 mb-3 text-xs text-gray-600">
-                      <div className="flex items-center gap-1.5">
-                        <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    {/* Изображение */}
+                    {project.imageUrl ? (
+                      <img 
+                        src={project.imageUrl} 
+                        alt={project.title}
+                        className="w-full h-40 object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-40 bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
+                        <svg className="w-16 h-16 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        <span className="truncate">
-                          {project.organizer.organizerProfile?.organizationName || 
-                           `${project.organizer.firstName} ${project.organizer.lastName}`}
-                        </span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                        </svg>
-                        <span>{project.category.icon} {project.category.slug}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        </svg>
-                        <span className="truncate">{project.location}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span>{new Date(project.startDate).toLocaleDateString('ru-RU')}</span>
-                      </div>
-                    </div>
+                    )}
 
-                    {/* Кнопки действий */}
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => {
-                          setSelectedProject(project);
-                          setShowDetailsModal(true);
-                          fetchProjectTasks(project.id);
-                        }}
-                        className="w-full px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
-                      >
-                        Подробнее
-                      </button>
-                      
-                      {project.status === 'moderation' && (
-                        <>
-                          <button
-                            onClick={() => handleApprove(project.id)}
-                            disabled={actionLoading}
-                            className="w-full px-3 py-2 bg-[#00CC00] text-white rounded-lg hover:bg-[#00b300] transition-colors disabled:opacity-50 text-sm"
-                          >
-                            ✓ Одобрить
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedProject(project);
-                              setRejectReason('');
-                            }}
-                            disabled={actionLoading}
-                            className="w-full px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 text-sm"
-                          >
-                            ✗ Отклонить
-                          </button>
-                        </>
-                      )}
+                    {/* Контент */}
+                    <div className="p-5">
+                      {/* Заголовок и статус */}
+                      <div className="flex items-start justify-between gap-3 mb-4">
+                        <h3 className="text-lg font-bold text-gray-900 flex-1">{project.title}</h3>
+                        {getStatusBadge(project.status)}
+                      </div>
 
-                      {project.status === 'rejected' && (
-                        <>
-                          <button
-                            onClick={() => handleApprove(project.id)}
-                            disabled={actionLoading}
-                            className="w-full px-3 py-2 bg-[#00CC00] text-white rounded-lg hover:bg-[#00b300] transition-colors disabled:opacity-50 text-sm"
-                          >
-                            ✓ Одобрить
-                          </button>
-                          {project.rejectionReason && (
-                            <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
-                              <p className="text-xs text-red-700 line-clamp-2">{project.rejectionReason}</p>
-                            </div>
-                          )}
-                        </>
-                      )}
+                      {/* Локация и дата */}
+                      <div className="space-y-2 text-sm text-gray-600 mb-4">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          </svg>
+                          <span className="truncate">{project.location}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span>{new Date(project.startDate).toLocaleDateString('ru-RU')}</span>
+                        </div>
+                      </div>
+
+                      {/* Стрелка */}
+                      <div className="flex items-center justify-end">
+                        <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        </svg>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -960,17 +851,111 @@ export default function AdminProjectsPage() {
                   <button
                     onClick={() => handleApprove(selectedProject.id)}
                     disabled={actionLoading}
-                    className="flex-1 px-4 py-2 bg-[#00CC00] text-white rounded-lg font-medium hover:bg-[#00b300] transition-colors disabled:opacity-50 text-sm"
+                    className="flex-1 px-3 py-1.5 bg-[#00CC00] text-white rounded-lg text-sm font-medium hover:bg-[#00b300] transition-colors disabled:opacity-50"
                   >
-                    ✓ Одобрить
+                    Одобрить
                   </button>
                   <button
                     onClick={() => setShowDetailsModal(false)}
                     disabled={actionLoading}
-                    className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors disabled:opacity-50 text-sm"
+                    className="flex-1 px-3 py-1.5 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors disabled:opacity-50"
                   >
-                    ✗ Отклонить
+                    Отклонить
                   </button>
+                  <button
+                    onClick={async () => {
+                      toast.confirm(
+                        'Вы уверены, что хотите удалить этот проект? Это действие нельзя отменить.',
+                        async () => {
+                          try {
+                            setActionLoading(true);
+                            const response = await fetch(`/api/admin/projects/${selectedProject.id}`, {
+                              method: 'DELETE',
+                            });
+
+                            if (response.ok) {
+                              toast.success('Проект успешно удален');
+                              setShowDetailsModal(false);
+                              setSelectedProject(null);
+                              fetchProjects();
+                            } else {
+                              const data = await response.json();
+                              toast.error(data.error || 'Ошибка при удалении проекта');
+                            }
+                          } catch (error) {
+                            console.error('Error deleting project:', error);
+                            toast.error('Ошибка при удалении проекта');
+                          } finally {
+                            setActionLoading(false);
+                          }
+                        },
+                        'error'
+                      );
+                    }}
+                    disabled={actionLoading}
+                    className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Удалить
+                  </button>
+                </div>
+              )}
+
+              {/* Кнопка удаления для админа (для остальных статусов) */}
+              {selectedProject.status !== 'moderation' && (
+                <div className="pt-4 border-t border-gray-200">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setShowDetailsModal(false);
+                        setSelectedProject(null);
+                      }}
+                      disabled={actionLoading}
+                      className="flex-1 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors disabled:opacity-50"
+                    >
+                      Закрыть
+                    </button>
+                    <button
+                      onClick={async () => {
+                        toast.confirm(
+                          'Вы уверены, что хотите удалить этот проект? Это действие нельзя отменить.',
+                          async () => {
+                            try {
+                              setActionLoading(true);
+                              const response = await fetch(`/api/admin/projects/${selectedProject.id}`, {
+                                method: 'DELETE',
+                              });
+
+                              if (response.ok) {
+                                toast.success('Проект успешно удален');
+                                setShowDetailsModal(false);
+                                setSelectedProject(null);
+                                fetchProjects();
+                              } else {
+                                const data = await response.json();
+                                toast.error(data.error || 'Ошибка при удалении проекта');
+                              }
+                            } catch (error) {
+                              console.error('Error deleting project:', error);
+                              toast.error('Ошибка при удалении проекта');
+                            } finally {
+                              setActionLoading(false);
+                            }
+                          },
+                          'error'
+                        );
+                      }}
+                      disabled={actionLoading}
+                      className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center gap-1"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Удалить
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

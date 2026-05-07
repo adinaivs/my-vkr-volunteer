@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useTranslation } from '@/app/i18n';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
+  const { t, isLoading: translationsLoading } = useTranslation('auth');
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,17 +27,28 @@ export default function ForgotPasswordPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || 'Ошибка при отправке кода');
+        setError(data.error || t.forgotPassword?.errors?.sendError || 'Ошибка при отправке кода');
         setLoading(false);
         return;
       }
 
       router.push(`/forgot-password/verify?email=${encodeURIComponent(email)}`);
     } catch (err) {
-      setError('Ошибка при отправке кода');
+      setError(t.forgotPassword?.errors?.sendError || 'Ошибка при отправке кода');
       setLoading(false);
     }
   };
+
+  if (translationsLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00CC00] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Загрузка...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4 relative overflow-hidden">
@@ -65,10 +78,10 @@ export default function ForgotPasswordPage() {
               </svg>
             </div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              Восстановление пароля
+              {t.forgotPassword?.title || 'Восстановление пароля'}
             </h2>
             <p className="text-sm text-gray-600">
-              Введите email, на который зарегистрирован аккаунт
+              {t.forgotPassword?.subtitle || 'Введите email, на который зарегистрирован аккаунт'}
             </p>
           </div>
 
@@ -81,7 +94,7 @@ export default function ForgotPasswordPage() {
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email
+                {t.forgotPassword?.email || 'Email'}
               </label>
               <input
                 id="email"
@@ -89,7 +102,7 @@ export default function ForgotPasswordPage() {
                 type="email"
                 required
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-sm"
-                placeholder="your@email.com"
+                placeholder={t.forgotPassword?.emailPlaceholder || 'your@email.com'}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -100,12 +113,12 @@ export default function ForgotPasswordPage() {
               disabled={loading}
               className="w-full py-3.5 bg-[#00CC00] text-white rounded-xl font-semibold hover:bg-[#00b300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#00CC00]/20"
             >
-              {loading ? 'Отправка...' : 'Отправить код'}
+              {loading ? (t.forgotPassword?.sending || 'Отправка...') : (t.forgotPassword?.sendCode || 'Отправить код')}
             </button>
 
             <div className="text-center">
               <Link href="/login" className="text-sm text-[#00CC00] font-semibold hover:underline">
-                Вернуться к входу
+                {t.forgotPassword?.backToLogin || 'Вернуться к входу'}
               </Link>
             </div>
           </form>

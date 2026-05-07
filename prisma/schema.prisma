@@ -204,6 +204,8 @@ model Project {
   startDate         DateTime      @map("start_date") @db.Date
   endDate           DateTime      @map("end_date") @db.Date
   location          String        @db.VarChar(255)
+  latitude          Decimal?      @db.Decimal(10, 8)
+  longitude         Decimal?      @db.Decimal(11, 8)
   maxVolunteers     Int           @map("max_volunteers")
   currentVolunteers Int           @default(0) @map("current_volunteers")
   status            ProjectStatus @default(draft)
@@ -238,9 +240,10 @@ model Task {
   status              TaskStatus @default(pending)
   createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
 
-  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  skill       Skill?           @relation(fields: [requiredSkillId], references: [id])
-  assignments TaskAssignment[]
+  project      Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  skill        Skill?           @relation(fields: [requiredSkillId], references: [id])
+  assignments  TaskAssignment[]
+  applications Application[]
 
   @@map("tasks")
 }
@@ -268,15 +271,18 @@ model Application {
   id              String            @id @default(uuid()) @db.Uuid
   projectId       String            @map("project_id") @db.Uuid
   volunteerId     String            @map("volunteer_id") @db.Uuid
+  taskId          String?           @map("task_id") @db.Uuid
   message         String?
   status          ApplicationStatus @default(pending)
   reviewedBy      String?           @map("reviewed_by") @db.Uuid
   reviewedAt      DateTime?         @map("reviewed_at") @db.Timestamp(6)
   rejectionReason String?           @map("rejection_reason")
+  appliedAt       DateTime          @default(now()) @map("applied_at") @db.Timestamp(6)
   createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
 
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   volunteer User    @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
+  task      Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
   reviewer  User?   @relation("ReviewedBy", fields: [reviewedBy], references: [id])
 
   @@map("applications")

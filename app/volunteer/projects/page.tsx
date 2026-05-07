@@ -208,9 +208,9 @@ export default function ProjectsCatalog() {
         </div>
 
         {/* Единый контейнер для поиска и фильтров */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-4 p-4">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-300 mb-6 p-6">
           {/* Верхняя панель: Поиск + Кнопки отображения + Сброс */}
-          <div className="flex flex-col md:flex-row gap-3 mb-3">
+          <div className="flex flex-col md:flex-row gap-4 mb-4">
             {/* Поисковая строка */}
             <div className="flex-1 relative">
               <input
@@ -218,10 +218,10 @@ export default function ProjectsCatalog() {
                 placeholder="Поиск по названию и описанию..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
               />
               <svg 
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" 
+                className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" 
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
@@ -234,27 +234,27 @@ export default function ProjectsCatalog() {
             <div className="flex gap-2">
               <button
                 onClick={() => setViewMode('list')}
-                className={`p-2 rounded-lg border transition-colors ${
+                className={`p-3 rounded-xl border transition-colors ${
                   viewMode === 'list'
                     ? 'bg-[#00CC00] text-white border-[#00CC00]'
                     : 'bg-white text-gray-600 border-gray-200 hover:border-[#00CC00]'
                 }`}
                 title="Список"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
               <button
                 onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-lg border transition-colors ${
+                className={`p-3 rounded-xl border transition-colors ${
                   viewMode === 'grid'
                     ? 'bg-[#00CC00] text-white border-[#00CC00]'
                     : 'bg-white text-gray-600 border-gray-200 hover:border-[#00CC00]'
                 }`}
                 title="Блоки"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                 </svg>
               </button>
@@ -267,10 +267,10 @@ export default function ProjectsCatalog() {
                   setSearchQuery('');
                   setSortBy('date-desc');
                 }}
-                className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-200 transition-colors flex items-center gap-1.5"
+                className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl border border-gray-200 hover:bg-gray-200 transition-colors flex items-center gap-2"
                 title="Сбросить фильтры"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 <span className="hidden sm:inline">Сбросить</span>
@@ -279,21 +279,21 @@ export default function ProjectsCatalog() {
           </div>
 
           {/* Разделитель */}
-          <div className="border-t border-gray-100 my-3"></div>
+          <div className="border-t border-gray-100 my-4"></div>
 
           {/* Кнопка показать/скрыть фильтры */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="w-full px-3 py-1.5 text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-between text-xs font-medium rounded-lg"
+            className="w-full px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-between text-sm font-medium rounded-lg"
           >
-            <div className="flex items-center gap-1.5">
-              <svg className="w-4 h-4 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
               <span>{showFilters ? 'Скрыть фильтры' : 'Показать фильтры'}</span>
             </div>
             <svg 
-              className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} 
+              className={`w-5 h-5 transition-transform ${showFilters ? 'rotate-180' : ''}`} 
               fill="none" 
               stroke="currentColor" 
               viewBox="0 0 24 24"
@@ -304,17 +304,17 @@ export default function ProjectsCatalog() {
 
           {/* Панель фильтров */}
           {showFilters && (
-            <div className="pt-3">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Фильтр по категории */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Категория
                   </label>
                   <select
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent text-sm"
                   >
                     <option value="all">Все категории</option>
                     {categories.map((cat) => (
@@ -327,32 +327,32 @@ export default function ProjectsCatalog() {
 
                 {/* Сортировка */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Сортировка
                   </label>
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
-                    className="w-full px-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent text-sm"
                   >
                     <option value="date-desc">Дата: сначала новые</option>
                     <option value="date-asc">Дата: сначала старые</option>
                     <option value="name-asc">Название: А-Я</option>
                     <option value="name-desc">Название: Я-А</option>
-                    <option value="volunteers-desc">Волонтёры: ↓</option>
-                    <option value="volunteers-asc">Волонтёры: ↑</option>
+                    <option value="volunteers-desc">Волонтёры: по убыванию</option>
+                    <option value="volunteers-asc">Волонтёры: по возрастанию</option>
                   </select>
                 </div>
 
                 {/* Фильтр по городу */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Город
                   </label>
                   <select
                     value={selectedCity}
                     onChange={(e) => setSelectedCity(e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent text-sm"
                   >
                     {cities.map((city) => (
                       <option key={city} value={city === 'Все города' ? 'all' : city}>
@@ -368,212 +368,127 @@ export default function ProjectsCatalog() {
 
         {/* Projects Grid or List */}
         {filteredProjects.length > 0 ? (
-          <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
-            {filteredProjects.map((project) => {
-              const startDate = new Date(project.startDate);
-              const endDate = new Date(project.endDate);
-              const spotsLeft = project.maxVolunteers - project.currentVolunteers;
-              
-              if (viewMode === 'list') {
-                // Режим списка
-                return (
-                  <div key={project.id} className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow">
-                    <div className="flex flex-col md:flex-row">
-                      {/* Project Image */}
-                      <div className="relative w-full md:w-48 h-32 md:h-auto bg-gradient-to-br from-[#00CC00] to-emerald-600 flex-shrink-0">
-                        {project.imageUrl ? (
-                          <img 
-                            src={project.imageUrl} 
-                            alt={project.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <svg className="w-12 h-12 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                          </div>
-                        )}
-                        <div className="absolute top-2 left-2">
-                          <span className="px-2 py-0.5 bg-white/90 backdrop-blur-sm text-gray-900 rounded-full text-xs font-medium">
-                            {project.category.name}
-                          </span>
+          <div>
+            {/* Режим списка */}
+            {viewMode === 'list' && (
+              <div className="space-y-3">
+                {filteredProjects.map((project) => (
+                  <div 
+                    key={project.id} 
+                    onClick={() => router.push(`/volunteer/projects/${project.id}`)}
+                    className="bg-white border border-gray-300 rounded-lg p-4 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer"
+                  >
+                    <div className="flex items-center gap-4">
+                      {/* Изображение проекта */}
+                      {project.imageUrl && (
+                        <img 
+                          src={project.imageUrl} 
+                          alt={project.title}
+                          className="w-20 h-20 object-cover rounded-lg flex-shrink-0 border border-gray-200"
+                        />
+                      )}
+                      
+                      {/* Информация о проекте */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-lg font-semibold text-gray-900 truncate">{project.title}</h3>
                         </div>
-                      </div>
-
-                      {/* Project Info */}
-                      <div className="flex-1 p-4">
-                        <h3 className="text-base font-bold text-gray-900 mb-1.5">
-                          {project.title}
-                        </h3>
-                        
-                        <p className="text-gray-600 text-xs mb-3 line-clamp-2">
-                          {project.description}
-                        </p>
-
-                        <div className="grid grid-cols-2 gap-2 mb-3">
-                          {/* Organizer */}
-                          <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                            </svg>
-                            <span className="truncate">
-                              {project.organizer.organizerProfile?.organizationName || 
-                               `${project.organizer.firstName} ${project.organizer.lastName}`}
-                            </span>
-                          </div>
-
-                          {/* Location */}
-                          <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                        <p className="text-sm text-gray-600 mb-2 line-clamp-1">{project.description}</p>
+                        <div className="flex flex-wrap gap-3 text-xs text-gray-600">
+                          <div className="flex items-center gap-1">
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                             </svg>
-                            <span>{project.location}</span>
+                            {project.location}
                           </div>
-
-                          {/* Dates */}
-                          <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            <span>
-                              {startDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} - {endDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
-                            </span>
-                          </div>
-
-                          {/* Volunteers */}
-                          <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                          <div className="flex items-center gap-1">
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                             </svg>
-                            <span>{project.currentVolunteers} / {project.maxVolunteers}</span>
-                            {spotsLeft <= 5 && spotsLeft > 0 && (
-                              <span className="text-orange-600 font-medium">({spotsLeft})</span>
-                            )}
+                            {project.currentVolunteers}/{project.maxVolunteers}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            {new Date(project.startDate).toLocaleDateString('ru-RU')}
                           </div>
                         </div>
+                      </div>
 
-                        {/* Action Button */}
-                        <Link
-                          href={`/volunteer/projects/${project.id}`}
-                          className={`inline-block px-4 py-1.5 text-xs rounded-lg font-medium transition-colors ${
-                            spotsLeft > 0
-                              ? 'bg-[#00CC00] text-white hover:bg-[#00b300]'
-                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          }`}
-                        >
-                          {spotsLeft > 0 ? 'Подробнее' : 'Мест нет'}
-                        </Link>
+                      {/* Стрелка */}
+                      <div className="flex-shrink-0">
+                        <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
                       </div>
                     </div>
                   </div>
-                );
-              }
-              
-              // Режим сетки
-              return (
-                <div key={project.id} className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow">
-                  {/* Project Image */}
-                  <div className="relative h-36 bg-gradient-to-br from-[#00CC00] to-emerald-600">
+                ))}
+              </div>
+            )}
+
+            {/* Режим блоков */}
+            {viewMode === 'grid' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredProjects.map((project) => (
+                  <div 
+                    key={project.id} 
+                    onClick={() => router.push(`/volunteer/projects/${project.id}`)}
+                    className="bg-white border border-gray-300 rounded-xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer"
+                  >
+                    {/* Изображение */}
                     {project.imageUrl ? (
                       <img 
                         src={project.imageUrl} 
                         alt={project.title}
-                        className="w-full h-full object-cover"
+                        className="w-full h-40 object-cover border-b border-gray-200"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <svg className="w-12 h-12 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="w-full h-40 bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center border-b border-gray-200">
+                        <svg className="w-16 h-16 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                       </div>
                     )}
-                    {/* Category Badge */}
-                    <div className="absolute top-2 left-2">
-                      <span className="px-2 py-0.5 bg-white/90 backdrop-blur-sm text-gray-900 rounded-full text-xs font-medium">
-                        {project.category.name}
-                      </span>
-                    </div>
-                    {/* Spots Badge */}
-                    {spotsLeft <= 5 && spotsLeft > 0 && (
-                      <div className="absolute top-2 right-2">
-                        <span className="px-2 py-0.5 bg-orange-500 text-white rounded-full text-xs font-medium">
-                          {spotsLeft} мест
-                        </span>
+
+                    {/* Контент */}
+                    <div className="p-5">
+                      {/* Заголовок и статус */}
+                      <div className="flex items-start justify-between gap-3 mb-4">
+                        <h3 className="text-lg font-bold text-gray-900 flex-1">{project.title}</h3>
                       </div>
-                    )}
-                  </div>
 
-                  {/* Project Info */}
-                  <div className="p-4">
-                    <h3 className="text-base font-bold text-gray-900 mb-1.5 line-clamp-2">
-                      {project.title}
-                    </h3>
-                    
-                    <p className="text-gray-600 text-xs mb-3 line-clamp-2">
-                      {project.description}
-                    </p>
+                      {/* Локация и дата */}
+                      <div className="space-y-2 text-sm text-gray-600 mb-4">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          </svg>
+                          <span className="truncate">{project.location}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span>{new Date(project.startDate).toLocaleDateString('ru-RU')}</span>
+                        </div>
+                      </div>
 
-                    {/* Organizer */}
-                    <div className="flex items-center gap-1.5 mb-2 text-xs text-gray-600">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                      </svg>
-                      <span className="truncate">
-                        {project.organizer.organizerProfile?.organizationName || 
-                         `${project.organizer.firstName} ${project.organizer.lastName}`}
-                      </span>
-                    </div>
-
-                    {/* Location */}
-                    <div className="flex items-center gap-1.5 mb-2 text-xs text-gray-600">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      <span>{project.location}</span>
-                    </div>
-
-                    {/* Dates */}
-                    <div className="flex items-center gap-1.5 mb-2 text-xs text-gray-600">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <span>
-                        {startDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} - {endDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
-                      </span>
-                    </div>
-
-                    {/* Volunteers */}
-                    <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-100">
-                      <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                      {/* Стрелка */}
+                      <div className="flex items-center justify-end">
+                        <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                         </svg>
-                        <span>{project.currentVolunteers} / {project.maxVolunteers}</span>
                       </div>
-                      {spotsLeft === 0 && (
-                        <span className="text-xs text-red-600 font-medium">Мест нет</span>
-                      )}
                     </div>
-
-                    {/* Action Button */}
-                    <Link
-                      href={`/volunteer/projects/${project.id}`}
-                      className={`block w-full text-center px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
-                        spotsLeft > 0
-                          ? 'bg-[#00CC00] text-white hover:bg-[#00b300]'
-                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      }`}
-                    >
-                      {spotsLeft > 0 ? 'Подробнее' : 'Мест нет'}
-                    </Link>
                   </div>
-                </div>
-              );
-            })}
+                ))}
+              </div>
+            )}
           </div>
         ) : (
+          /* Empty State */
           <div className="text-center py-12">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

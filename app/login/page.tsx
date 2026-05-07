@@ -4,10 +4,12 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AiSupportButton from '@/app/components/AiSupportButton';
+import { useTranslation } from '@/app/i18n';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t, isLoading: translationsLoading } = useTranslation('auth');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -38,29 +40,29 @@ function LoginForm() {
   }, [router]);
 
   useEffect(() => {
-    if (checking) return;
+    if (checking || translationsLoading) return;
     
     const errorParam = searchParams.get('error');
     const resetParam = searchParams.get('reset');
     
     if (resetParam === 'success') {
-      setSuccessMessage('Пароль успешно изменен. Войдите с новым паролем.');
+      setSuccessMessage(t.login?.success?.passwordReset || 'Пароль успешно изменен. Войдите с новым паролем.');
     }
     
     if (errorParam) {
       switch (errorParam) {
         case 'google_auth_failed':
-          setError('Ошибка авторизации через Google');
+          setError(t.login?.errors?.googleAuthFailed || 'Ошибка авторизации через Google');
           break;
         case 'no_code':
-          setError('Не получен код авторизации');
+          setError(t.login?.errors?.noCode || 'Не получен код авторизации');
           break;
         case 'auth_failed':
-          setError('Ошибка авторизации');
+          setError(t.login?.errors?.authFailed || 'Ошибка авторизации');
           break;
       }
     }
-  }, [searchParams, checking]);
+  }, [searchParams, checking, translationsLoading, t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,7 +81,7 @@ function LoginForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Ошибка при входе');
+        throw new Error(data.error || t.login?.errors?.loginError || 'Ошибка при входе');
       }
 
       router.push('/dashboard');
@@ -94,13 +96,13 @@ function LoginForm() {
     window.location.href = '/api/auth/google';
   };
 
-  // Показываем загрузку пока проверяем авторизацию
-  if (checking) {
+  // Показываем загрузку пока проверяем авторизацию или загружаем переводы
+  if (checking || translationsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00CC00] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Загрузка...</p>
+          <p className="mt-4 text-gray-600">{t.login?.loading || 'Загрузка...'}</p>
         </div>
       </div>
     );
@@ -129,10 +131,10 @@ function LoginForm() {
             {/* Заголовок */}
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                Вход
+                {t.login?.title || 'Вход'}
               </h2>
               <p className="text-sm text-gray-600">
-                Добро пожаловать обратно!
+                {t.login?.subtitle || 'Добро пожаловать обратно!'}
               </p>
             </div>
 
@@ -152,12 +154,12 @@ function LoginForm() {
               {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email
+                  {t.login?.email || 'Email'}
                 </label>
                 <input
                   type="email"
                   required
-                  placeholder="your@email.com"
+                  placeholder={t.login?.emailPlaceholder || 'your@email.com'}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-sm"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -167,13 +169,13 @@ function LoginForm() {
               {/* Пароль */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Пароль
+                  {t.login?.password || 'Пароль'}
                 </label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
-                    placeholder="••••••••"
+                    placeholder={t.login?.passwordPlaceholder || '••••••••'}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-sm pr-12"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -206,13 +208,13 @@ function LoginForm() {
                     className="h-4 w-4 text-[#00CC00] focus:ring-[#00CC00] border-gray-300 rounded"
                   />
                   <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
-                    Запомнить меня
+                    {t.login?.rememberMe || 'Запомнить меня'}
                   </label>
                 </div>
 
                 <div className="text-sm">
                   <Link href="/forgot-password" className="text-[#00CC00] hover:underline font-medium">
-                    Забыли пароль?
+                    {t.login?.forgotPassword || 'Забыли пароль?'}
                   </Link>
                 </div>
               </div>
@@ -223,7 +225,7 @@ function LoginForm() {
                 disabled={loading}
                 className="w-full py-3.5 bg-[#00CC00] text-white rounded-xl font-semibold hover:bg-[#00b300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#00CC00]/20"
               >
-                {loading ? 'Вход...' : 'Войти'}
+                {loading ? (t.login?.loggingIn || 'Вход...') : (t.login?.loginButton || 'Войти')}
               </button>
 
               {/* Разделитель */}
@@ -233,7 +235,7 @@ function LoginForm() {
                 </div>
                 <div className="relative flex justify-center text-sm">
                   <span className="px-4 bg-white text-gray-500">
-                    Или войдите с помощью
+                    {t.login?.orLoginWith || 'Или войдите с помощью'}
                   </span>
                 </div>
               </div>
@@ -262,16 +264,16 @@ function LoginForm() {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
-                <span className="text-sm font-medium text-gray-700">Войти через Google</span>
+                <span className="text-sm font-medium text-gray-700">{t.login?.googleLogin || 'Войти через Google'}</span>
               </button>
             </form>
 
             {/* Ссылка на регистрацию */}
             <div className="mt-8 text-center">
               <p className="text-sm text-gray-600">
-                Нет аккаунта?{' '}
+                {t.login?.noAccount || 'Нет аккаунта?'}{' '}
                 <Link href="/register" className="text-[#00CC00] font-semibold hover:underline">
-                  Зарегистрироваться
+                  {t.login?.signUp || 'Зарегистрироваться'}
                 </Link>
               </p>
             </div>

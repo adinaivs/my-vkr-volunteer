@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AiSupportButton from '@/app/components/AiSupportButton';
+import { useTranslation } from '@/app/i18n';
 
 export default function OrganizerRegisterPage() {
   const router = useRouter();
+  const { t, isLoading: translationsLoading } = useTranslation('auth');
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     representativeName: '',
@@ -59,17 +61,17 @@ export default function OrganizerRegisterPage() {
     if (!formData.representativeName || !formData.organizationName || 
         !formData.inn || !formData.okpo || 
         !formData.organizationEmail || !formData.organizationPhone) {
-      setError('Все поля обязательны для заполнения');
+      setError(t.organizerRegister?.errors?.allFieldsRequired || 'Все поля обязательны для заполнения');
       return;
     }
 
     if (formData.inn.length !== 14) {
-      setError('ИНН должен содержать 14 цифр');
+      setError(t.organizerRegister?.errors?.innLength || 'ИНН должен содержать 14 цифр');
       return;
     }
 
     if (formData.okpo.length !== 8) {
-      setError('ОКПО должен содержать 8 цифр');
+      setError(t.organizerRegister?.errors?.okpoLength || 'ОКПО должен содержать 8 цифр');
       return;
     }
 
@@ -81,17 +83,17 @@ export default function OrganizerRegisterPage() {
     setError('');
 
     if (!agreedToTerms) {
-      setError('Необходимо согласиться с правилами платформы');
+      setError(t.organizerRegister?.errors?.agreeRequired || 'Необходимо согласиться с правилами платформы');
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Пароли не совпадают');
+      setError(t.organizerRegister?.errors?.passwordMismatch || 'Пароли не совпадают');
       return;
     }
 
     if (formData.password.length < 6) {
-      setError('Пароль должен содержать минимум 6 символов');
+      setError(t.organizerRegister?.errors?.passwordTooShort || 'Пароль должен содержать минимум 6 символов');
       return;
     }
 
@@ -115,7 +117,7 @@ export default function OrganizerRegisterPage() {
 
           if (!uploadResponse.ok) {
             const uploadError = await uploadResponse.json();
-            throw new Error(uploadError.error || 'Ошибка при загрузке файла');
+            throw new Error(uploadError.error || t.organizerRegister?.errors?.fileUploadError || 'Ошибка при загрузке файла');
           }
 
           const uploadData = await uploadResponse.json();
@@ -123,7 +125,7 @@ export default function OrganizerRegisterPage() {
           console.log('Файл загружен:', verificationDocUrl);
         } catch (uploadErr: any) {
           setUploadingFile(false);
-          throw new Error(`Ошибка загрузки файла: ${uploadErr.message}`);
+          throw new Error(`${t.organizerRegister?.errors?.fileUploadError || 'Ошибка загрузки файла'}: ${uploadErr.message}`);
         } finally {
           setUploadingFile(false);
         }
@@ -165,7 +167,7 @@ export default function OrganizerRegisterPage() {
       console.log('Ответ сервера:', data);
 
       if (!response.ok) {
-        throw new Error(data.error || 'Ошибка при регистрации');
+        throw new Error(data.error || t.organizerRegister?.errors?.registrationError || 'Ошибка при регистрации');
       }
 
       // Перенаправление на страницу верификации email
@@ -181,13 +183,13 @@ export default function OrganizerRegisterPage() {
     window.location.href = '/api/auth/google';
   };
 
-  // Показываем загрузку пока проверяем авторизацию
-  if (checking) {
+  // Показываем загрузку пока проверяем авторизацию или загружаем переводы
+  if (checking || translationsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00CC00] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Загрузка...</p>
+          <p className="mt-4 text-gray-600">{t.organizerRegister?.loading || 'Загрузка...'}</p>
         </div>
       </div>
     );
@@ -216,7 +218,7 @@ export default function OrganizerRegisterPage() {
           {/* Заголовок */}
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              Регистрация
+              {t.organizerRegister?.title || 'Регистрация'}
             </h2>
             
             {/* Переключатель роли */}
@@ -225,13 +227,13 @@ export default function OrganizerRegisterPage() {
                 href="/register/volunteer"
                 className="px-8 py-2.5 bg-gray-100 text-gray-700 rounded-full font-medium text-sm hover:bg-gray-200 transition-colors"
               >
-                Волонтёр
+                {t.organizerRegister?.volunteer || 'Волонтёр'}
               </Link>
               <Link
                 href="/register/organizer"
                 className="px-8 py-2.5 bg-[#00CC00] text-white rounded-full font-medium text-sm shadow-md"
               >
-                Организатор
+                {t.organizerRegister?.organizer || 'Организатор'}
               </Link>
             </div>
           </div>
@@ -247,12 +249,12 @@ export default function OrganizerRegisterPage() {
               {/* ФИО представителя */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ФИО представителя
+                  {t.organizerRegister?.representativeName || 'ФИО представителя'}
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Иванов Иван Иванович"
+                  placeholder={t.organizerRegister?.representativeNamePlaceholder || 'Иванов Иван Иванович'}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-sm"
                   value={formData.representativeName}
                   onChange={(e) => setFormData({ ...formData, representativeName: e.target.value })}
@@ -262,12 +264,12 @@ export default function OrganizerRegisterPage() {
               {/* Название организации */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Название организации
+                  {t.organizerRegister?.organizationName || 'Название организации'}
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="ОсОО Название"
+                  placeholder={t.organizerRegister?.organizationNamePlaceholder || 'ОсОО Название'}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-sm"
                   value={formData.organizationName}
                   onChange={(e) => setFormData({ ...formData, organizationName: e.target.value })}
@@ -278,13 +280,13 @@ export default function OrganizerRegisterPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    ИНН
+                    {t.organizerRegister?.inn || 'ИНН'}
                   </label>
                   <input
                     type="text"
                     required
                     maxLength={14}
-                    placeholder="14 цифр"
+                    placeholder={t.organizerRegister?.innPlaceholder || '14 цифр'}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-sm"
                     value={formData.inn}
                     onChange={(e) => setFormData({ ...formData, inn: e.target.value.replace(/\D/g, '') })}
@@ -292,13 +294,13 @@ export default function OrganizerRegisterPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    ОКПО
+                    {t.organizerRegister?.okpo || 'ОКПО'}
                   </label>
                   <input
                     type="text"
                     required
                     maxLength={8}
-                    placeholder="8 цифр"
+                    placeholder={t.organizerRegister?.okpoPlaceholder || '8 цифр'}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-sm"
                     value={formData.okpo}
                     onChange={(e) => setFormData({ ...formData, okpo: e.target.value.replace(/\D/g, '') })}
@@ -309,12 +311,12 @@ export default function OrganizerRegisterPage() {
               {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email организации
+                  {t.organizerRegister?.organizationEmail || 'Email организации'}
                 </label>
                 <input
                   type="email"
                   required
-                  placeholder="organization@email.com"
+                  placeholder={t.organizerRegister?.organizationEmailPlaceholder || 'organization@email.com'}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-sm"
                   value={formData.organizationEmail}
                   onChange={(e) => setFormData({ ...formData, organizationEmail: e.target.value })}
@@ -324,12 +326,12 @@ export default function OrganizerRegisterPage() {
               {/* Телефон */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Телефон организации
+                  {t.organizerRegister?.organizationPhone || 'Телефон организации'}
                 </label>
                 <input
                   type="tel"
                   required
-                  placeholder="+996 XXX XXX XXX"
+                  placeholder={t.organizerRegister?.organizationPhonePlaceholder || '+996 XXX XXX XXX'}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-sm"
                   value={formData.organizationPhone}
                   onChange={(e) => setFormData({ ...formData, organizationPhone: e.target.value })}
@@ -339,7 +341,7 @@ export default function OrganizerRegisterPage() {
               {/* Загрузка документа */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Свидетельство о регистрации
+                  {t.organizerRegister?.verificationDoc || 'Свидетельство о регистрации'}
                 </label>
                 <label className={`w-full flex items-center justify-center px-4 py-3 bg-gray-50 border-2 border-dashed rounded-xl transition-colors cursor-pointer ${
                   formData.verificationDoc 
@@ -373,7 +375,7 @@ export default function OrganizerRegisterPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
                       <span className="text-sm text-gray-600">
-                        Нажмите для загрузки файла
+                        {t.organizerRegister?.uploadFile || 'Нажмите для загрузки файла'}
                       </span>
                     </>
                   )}
@@ -385,7 +387,7 @@ export default function OrganizerRegisterPage() {
                   />
                 </label>
                 <p className="mt-1 text-xs text-gray-500">
-                  Форматы: JPG, PNG, PDF (макс. 5 МБ)
+                  {t.organizerRegister?.fileFormats || 'Форматы: JPG, PNG, PDF (макс. 5 МБ)'}
                 </p>
               </div>
 
@@ -394,7 +396,7 @@ export default function OrganizerRegisterPage() {
                 type="submit"
                 className="w-full py-3.5 bg-[#00CC00] text-white rounded-xl font-semibold hover:bg-[#00b300] transition-colors shadow-lg shadow-[#00CC00]/20"
               >
-                Далее
+                {t.organizerRegister?.nextButton || 'Далее'}
               </button>
             </form>
           ) : (
@@ -408,13 +410,13 @@ export default function OrganizerRegisterPage() {
               {/* Пароль */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Пароль
+                  {t.organizerRegister?.password || 'Пароль'}
                 </label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
-                    placeholder="••••••••"
+                    placeholder={t.organizerRegister?.passwordPlaceholder || '••••••••'}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-sm pr-12"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -441,13 +443,13 @@ export default function OrganizerRegisterPage() {
               {/* Подтверждение пароля */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Подтверждение пароля
+                  {t.organizerRegister?.confirmPassword || 'Подтверждение пароля'}
                 </label>
                 <div className="relative">
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
                     required
-                    placeholder="••••••••"
+                    placeholder={t.organizerRegister?.confirmPasswordPlaceholder || '••••••••'}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-sm pr-12"
                     value={formData.confirmPassword}
                     onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
@@ -481,9 +483,9 @@ export default function OrganizerRegisterPage() {
                   className="mt-1 h-4 w-4 text-[#00CC00] focus:ring-[#00CC00] border-gray-300 rounded"
                 />
                 <label htmlFor="terms" className="ml-3 text-sm text-gray-600">
-                  Я согласен/на с{' '}
+                  {t.organizerRegister?.agreeToTerms || 'Я согласен/на с'}{' '}
                   <a href="#" className="text-[#00CC00] hover:underline">
-                    правилами платформы
+                    {t.organizerRegister?.platformRules || 'правилами платформы'}
                   </a>
                 </label>
               </div>
@@ -495,19 +497,19 @@ export default function OrganizerRegisterPage() {
                   onClick={() => setStep(1)}
                   className="flex-1 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
                 >
-                  Назад
+                  {t.organizerRegister?.backButton || 'Назад'}
                 </button>
                 <button
                   type="submit"
                   disabled={loading || uploadingFile}
                   className="flex-1 py-3.5 bg-[#00CC00] text-white rounded-xl font-semibold hover:bg-[#00b300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#00CC00]/20"
                 >
-                  {uploadingFile ? 'Загрузка файла...' : loading ? 'Регистрация...' : 'Зарегистрироваться'}
+                  {uploadingFile ? (t.organizerRegister?.uploadingFile || 'Загрузка файла...') : loading ? (t.organizerRegister?.registering || 'Регистрация...') : (t.organizerRegister?.registerButton || 'Зарегистрироваться')}
                 </button>
               </div>
 
               <p className="text-xs text-center text-gray-500 bg-blue-50 rounded-lg p-3">
-                ℹ️ После регистрации аккаунт будет проверен администраторами в течение 1-3 дней. Уведомление придёт на email.
+                {t.organizerRegister?.verificationNote || 'ℹ️ После регистрации аккаунт будет проверен администраторами в течение 1-3 дней. Уведомление придёт на email.'}
               </p>
             </form>
           )}
@@ -515,9 +517,9 @@ export default function OrganizerRegisterPage() {
           {/* Ссылка на вход */}
           <div className="mt-8 text-center">
             <p className="text-sm text-gray-600">
-              У вас уже есть аккаунт?{' '}
+              {t.organizerRegister?.haveAccount || 'У вас уже есть аккаунт?'}{' '}
               <Link href="/login" className="text-[#00CC00] font-semibold hover:underline">
-                Войти
+                {t.organizerRegister?.signIn || 'Войти'}
               </Link>
             </p>
           </div>

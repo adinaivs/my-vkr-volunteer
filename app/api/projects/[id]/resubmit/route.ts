@@ -26,10 +26,10 @@ export async function POST(
       return NextResponse.json({ error: 'Доступ запрещен' }, { status: 403 });
     }
 
-    // Можно отправить на модерацию только отклоненные проекты
-    if (project.status !== 'rejected') {
+    // Можно отправить на модерацию черновики и отклоненные проекты
+    if (project.status !== 'rejected' && project.status !== 'draft') {
       return NextResponse.json(
-        { error: 'Можно отправить на модерацию только отклоненные проекты' },
+        { error: 'Можно отправить на модерацию только черновики или отклоненные проекты' },
         { status: 400 }
       );
     }

@@ -59,6 +59,8 @@ export async function POST(request: NextRequest) {
         startDate: formData.get('startDate'),
         endDate: formData.get('endDate'),
         location: formData.get('location'),
+        latitude: formData.get('latitude'),
+        longitude: formData.get('longitude'),
         maxVolunteers: formData.get('maxVolunteers'),
         isPaid: formData.get('isPaid') === 'true',
       };
@@ -89,6 +91,8 @@ export async function POST(request: NextRequest) {
       startDate,
       endDate,
       location,
+      latitude,
+      longitude,
       maxVolunteers,
       isPaid,
     } = body;
@@ -162,6 +166,8 @@ export async function POST(request: NextRequest) {
         startDate: new Date(startDate),
         endDate: new Date(endDate),
         location,
+        latitude: latitude ? parseFloat(latitude) : null,
+        longitude: longitude ? parseFloat(longitude) : null,
         maxVolunteers: parseInt(maxVolunteers),
         status: 'draft', // Проект создается в черновике
         isPaid: isPaid || false,
@@ -271,7 +277,14 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ projects });
+    // Преобразуем Decimal в number для координат
+    const projectsData = projects.map(project => ({
+      ...project,
+      latitude: project.latitude ? parseFloat(project.latitude.toString()) : null,
+      longitude: project.longitude ? parseFloat(project.longitude.toString()) : null,
+    }));
+
+    return NextResponse.json({ projects: projectsData });
   } catch (error) {
     console.error('Error fetching projects:', error);
     return NextResponse.json(

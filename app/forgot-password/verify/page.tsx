@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useTranslation } from '@/app/i18n';
 
-export default function VerifyResetCodePage() {
+function VerifyResetCodeForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t, isLoading: translationsLoading } = useTranslation('auth');
   const email = searchParams.get('email');
 
   const [code, setCode] = useState('');
@@ -33,19 +35,19 @@ export default function VerifyResetCodePage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || 'Ошибка при проверке кода');
+        setError(data.error || t.verifyCode?.errors?.verifyError || 'Ошибка при проверке кода');
         setLoading(false);
         return;
       }
 
       router.push(`/forgot-password/reset?email=${encodeURIComponent(email!)}&code=${code}`);
     } catch (err) {
-      setError('Ошибка при проверке кода');
+      setError(t.verifyCode?.errors?.verifyError || 'Ошибка при проверке кода');
       setLoading(false);
     }
   };
 
-  if (!email) {
+  if (!email || translationsLoading) {
     return null;
   }
 
@@ -77,10 +79,10 @@ export default function VerifyResetCodePage() {
               </svg>
             </div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              Введите код подтверждения
+              {t.verifyCode?.title || 'Введите код подтверждения'}
             </h2>
             <p className="text-sm text-gray-600">
-              Мы отправили код на
+              {t.verifyCode?.subtitle || 'Мы отправили код на'}
             </p>
             <p className="text-sm font-semibold text-[#00CC00] mt-1">
               {email}
@@ -96,7 +98,7 @@ export default function VerifyResetCodePage() {
 
             <div>
               <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-2">
-                Код подтверждения
+                {t.verifyCode?.code || 'Код подтверждения'}
               </label>
               <input
                 id="code"
@@ -105,7 +107,7 @@ export default function VerifyResetCodePage() {
                 required
                 maxLength={6}
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-center text-2xl font-bold tracking-widest"
-                placeholder="000000"
+                placeholder={t.verifyCode?.codePlaceholder || '000000'}
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
               />
@@ -119,7 +121,7 @@ export default function VerifyResetCodePage() {
               disabled={loading || code.length !== 6}
               className="w-full py-3.5 bg-[#00CC00] text-white rounded-xl font-semibold hover:bg-[#00b300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#00CC00]/20"
             >
-              {loading ? 'Проверка...' : 'Подтвердить'}
+              {loading ? (t.verifyCode?.verifying || 'Проверка...') : (t.verifyCode?.verify || 'Подтвердить')}
             </button>
 
             <div className="text-center">
@@ -130,7 +132,7 @@ export default function VerifyResetCodePage() {
                   className="text-[#00CC00] font-semibold hover:underline"
                   onClick={() => router.push('/forgot-password')}
                 >
-                  Отправить снова
+                  {t.verifyCode?.resendCode || 'Отправить снова'}
                 </button>
               </p>
             </div>
@@ -138,5 +140,20 @@ export default function VerifyResetCodePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function VerifyResetCodePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00CC00] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Загрузка...</p>
+        </div>
+      </div>
+    }>
+      <VerifyResetCodeForm />
+    </Suspense>
   );
 }

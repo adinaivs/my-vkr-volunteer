@@ -49,6 +49,8 @@ export async function PUT(
         startDate: formData.get('startDate'),
         endDate: formData.get('endDate'),
         location: formData.get('location'),
+        latitude: formData.get('latitude'),
+        longitude: formData.get('longitude'),
         maxVolunteers: formData.get('maxVolunteers'),
       };
       imageFile = formData.get('image') as File | null;
@@ -77,6 +79,8 @@ export async function PUT(
         startDate: new Date(body.startDate),
         endDate: new Date(body.endDate),
         location: body.location,
+        latitude: body.latitude ? parseFloat(body.latitude) : null,
+        longitude: body.longitude ? parseFloat(body.longitude) : null,
         maxVolunteers: parseInt(body.maxVolunteers),
         // Сбрасываем причину отклонения при редактировании
         rejectionReason: null,
@@ -113,6 +117,13 @@ export async function GET(
             firstName: true,
             lastName: true,
             email: true,
+            phone: true,
+            avatarUrl: true,
+            organizerProfile: {
+              select: {
+                organizationName: true,
+              },
+            },
           },
         },
       },
@@ -122,11 +133,69 @@ export async function GET(
       return NextResponse.json({ error: 'Проект не найден' }, { status: 404 });
     }
 
-    return NextResponse.json({ project });
+    // Преобразуем Decimal в number для координат
+    const projectData = {
+      ...project,
+      latitude: project.latitude ? parseFloat(project.latitude.toString()) : null,
+      longitude: project.longitude ? parseFloat(project.longitude.toString()) : null,
+    };
+
+    return NextResponse.json({ project: projectData });
   } catch (error) {
     console.error('Error fetching project:', error);
     return NextResponse.json(
       { error: 'Ошибка при получении проекта' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
+    }
+
+    const { id } = await params;
+    
+    // Проверяем, что проект существует
+    const existingProject = await prisma.project.findUnique({
+      where: { id },
+    });
+
+    if (!existingProject) {
+      return NextResponse.json({ error: 'Проект не найден' }, { status: 404 });
+    }
+
+    // Проверяем, что проект принадлежит пользователю
+    if (existingProject.organizerId !== session.userId) {
+      return NextResponse.json({ error: 'Доступ запрещен' }, { status: 403 });
+    }
+
+    // Организатор может удалять только черновики и проекты на модерации
+    if (existingProject.status !== 'draft' && existingProject.status !== 'moderation') {
+      return NextResponse.json(
+        { error: 'Можно удалять только черновики и проекты на модерации' },
+        { status: 400 }
+      );
+    }
+
+    // Удаляем проект (каскадное удаление задач и заявок настроено в схеме)
+    await prisma.project.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({
+      message: 'Проект успешно удален',
+    });
+  } catch (error) {
+    console.error('Error deleting project:', error);
+    return NextResponse.json(
+      { error: 'Ошибка при удалении проекта' },
       { status: 500 }
     );
   }

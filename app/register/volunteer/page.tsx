@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AiSupportButton from '@/app/components/AiSupportButton';
 import Image from 'next/image';
+import { useTranslation } from '@/app/i18n';
 
 export default function VolunteerRegisterPage() {
   const router = useRouter();
+  const { t, isLoading: translationsLoading } = useTranslation('auth');
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -47,17 +49,17 @@ export default function VolunteerRegisterPage() {
     setError('');
 
     if (!agreedToTerms) {
-      setError('Необходимо согласиться с правилами платформы');
+      setError(t.volunteerRegister?.errors?.agreeRequired || 'Необходимо согласиться с правилами платформы');
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Пароли не совпадают');
+      setError(t.volunteerRegister?.errors?.passwordMismatch || 'Пароли не совпадают');
       return;
     }
 
     if (formData.password.length < 6) {
-      setError('Пароль должен содержать минимум 6 символов');
+      setError(t.volunteerRegister?.errors?.passwordTooShort || 'Пароль должен содержать минимум 6 символов');
       return;
     }
 
@@ -85,13 +87,13 @@ export default function VolunteerRegisterPage() {
       if (!contentType || !contentType.includes('application/json')) {
         const text = await response.text();
         console.error('Non-JSON response:', text);
-        throw new Error('Сервер вернул некорректный ответ. Проверьте консоль браузера.');
+        throw new Error(t.volunteerRegister?.errors?.serverError || 'Сервер вернул некорректный ответ. Проверьте консоль браузера.');
       }
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Ошибка при регистрации');
+        throw new Error(data.error || t.volunteerRegister?.errors?.registrationError || 'Ошибка при регистрации');
       }
 
       // Перенаправление на страницу верификации email
@@ -107,13 +109,13 @@ export default function VolunteerRegisterPage() {
     window.location.href = '/api/auth/google';
   };
 
-  // Показываем загрузку пока проверяем авторизацию
-  if (checking) {
+  // Показываем загрузку пока проверяем авторизацию или загружаем переводы
+  if (checking || translationsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00CC00] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Загрузка...</p>
+          <p className="mt-4 text-gray-600">{t.volunteerRegister?.loading || 'Загрузка...'}</p>
         </div>
       </div>
     );
@@ -142,7 +144,7 @@ export default function VolunteerRegisterPage() {
             {/* Заголовок */}
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                Регистрация
+                {t.volunteerRegister?.title || 'Регистрация'}
               </h2>
               
               {/* Переключатель роли */}
@@ -151,13 +153,13 @@ export default function VolunteerRegisterPage() {
                   href="/register/volunteer"
                   className="px-8 py-2.5 bg-[#00CC00] text-white rounded-full font-medium text-sm shadow-md"
                 >
-                  Волонтёр
+                  {t.volunteerRegister?.volunteer || 'Волонтёр'}
                 </Link>
                 <Link
                   href="/register/organizer"
                   className="px-8 py-2.5 bg-gray-100 text-gray-700 rounded-full font-medium text-sm hover:bg-gray-200 transition-colors"
                 >
-                  Организатор
+                  {t.volunteerRegister?.organizer || 'Организатор'}
                 </Link>
               </div>
             </div>
@@ -172,13 +174,13 @@ export default function VolunteerRegisterPage() {
               {/* ФИО */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ФИО
+                  {t.volunteerRegister?.fullName || 'ФИО'}
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <input
                     type="text"
                     required
-                    placeholder="Имя"
+                    placeholder={t.volunteerRegister?.firstName || 'Имя'}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-sm"
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
@@ -186,7 +188,7 @@ export default function VolunteerRegisterPage() {
                   <input
                     type="text"
                     required
-                    placeholder="Фамилия"
+                    placeholder={t.volunteerRegister?.lastName || 'Фамилия'}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-sm"
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
@@ -197,12 +199,12 @@ export default function VolunteerRegisterPage() {
               {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email
+                  {t.volunteerRegister?.email || 'Email'}
                 </label>
                 <input
                   type="email"
                   required
-                  placeholder="your@email.com"
+                  placeholder={t.volunteerRegister?.emailPlaceholder || 'your@email.com'}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-sm"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -212,12 +214,12 @@ export default function VolunteerRegisterPage() {
               {/* Телефон */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Телефон
+                  {t.volunteerRegister?.phone || 'Телефон'}
                 </label>
                 <input
                   type="tel"
                   required
-                  placeholder="+996 XXX XXX XXX"
+                  placeholder={t.volunteerRegister?.phonePlaceholder || '+996 XXX XXX XXX'}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-sm"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -227,13 +229,13 @@ export default function VolunteerRegisterPage() {
               {/* Пароль */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Пароль
+                  {t.volunteerRegister?.password || 'Пароль'}
                 </label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
-                    placeholder="••••••••"
+                    placeholder={t.volunteerRegister?.passwordPlaceholder || '••••••••'}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-sm pr-12"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -260,13 +262,13 @@ export default function VolunteerRegisterPage() {
               {/* Подтверждение пароля */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Подтверждение пароля
+                  {t.volunteerRegister?.confirmPassword || 'Подтверждение пароля'}
                 </label>
                 <div className="relative">
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
                     required
-                    placeholder="••••••••"
+                    placeholder={t.volunteerRegister?.confirmPasswordPlaceholder || '••••••••'}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-sm pr-12"
                     value={formData.confirmPassword}
                     onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
@@ -300,9 +302,9 @@ export default function VolunteerRegisterPage() {
                   className="mt-1 h-4 w-4 text-[#00CC00] focus:ring-[#00CC00] border-gray-300 rounded"
                 />
                 <label htmlFor="terms" className="ml-3 text-sm text-gray-600">
-                  Я согласен/на с{' '}
+                  {t.volunteerRegister?.agreeToTerms || 'Я согласен/на с'}{' '}
                   <a href="#" className="text-[#00CC00] hover:underline">
-                    правилами платформы
+                    {t.volunteerRegister?.platformRules || 'правилами платформы'}
                   </a>
                 </label>
               </div>
@@ -313,16 +315,16 @@ export default function VolunteerRegisterPage() {
                 disabled={loading}
                 className="w-full py-3.5 bg-[#00CC00] text-white rounded-xl font-semibold hover:bg-[#00b300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#00CC00]/20"
               >
-                {loading ? 'Регистрация...' : 'Зарегистрироваться'}
+                {loading ? (t.volunteerRegister?.registering || 'Регистрация...') : (t.volunteerRegister?.registerButton || 'Зарегистрироваться')}
               </button>
             </form>
 
             {/* Ссылка на вход */}
             <div className="mt-8 text-center">
               <p className="text-sm text-gray-600">
-                У вас уже есть аккаунт?{' '}
+                {t.volunteerRegister?.haveAccount || 'У вас уже есть аккаунт?'}{' '}
                 <Link href="/login" className="text-[#00CC00] font-semibold hover:underline">
-                  Войти
+                  {t.volunteerRegister?.signIn || 'Войти'}
                 </Link>
               </p>
             </div>

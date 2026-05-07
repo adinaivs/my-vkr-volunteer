@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useTranslation } from '@/app/i18n';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { t, isLoading: translationsLoading } = useTranslation('auth');
   const [checking, setChecking] = useState(true);
 
   // Проверка авторизации при загрузке
@@ -27,13 +29,13 @@ export default function RegisterPage() {
     checkAuth();
   }, [router]);
 
-  // Показываем загрузку пока проверяем авторизацию
-  if (checking) {
+  // Показываем загрузку пока проверяем авторизацию или загружаем переводы
+  if (checking || translationsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00CC00] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Загрузка...</p>
+          <p className="mt-4 text-gray-600">{t.register?.loading || 'Загрузка...'}</p>
         </div>
       </div>
     );
@@ -61,10 +63,10 @@ export default function RegisterPage() {
         <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-10">
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              Регистрация
+              {t.register?.title || 'Регистрация'}
             </h2>
             <p className="text-sm text-gray-600">
-              Выберите тип аккаунта
+              {t.register?.subtitle || 'Выберите тип аккаунта'}
             </p>
           </div>
 
@@ -83,10 +85,10 @@ export default function RegisterPage() {
                     </div>
                     <div className="text-left">
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                        Я волонтёр
+                        {t.register?.volunteer?.title || 'Я волонтёр'}
                       </h3>
                       <p className="text-sm text-gray-600">
-                        Хочу участвовать в проектах
+                        {t.register?.volunteer?.description || 'Хочу участвовать в проектах'}
                       </p>
                     </div>
                   </div>
@@ -111,10 +113,10 @@ export default function RegisterPage() {
                     </div>
                     <div className="text-left">
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                        Я организатор
+                        {t.register?.organizer?.title || 'Я организатор'}
                       </h3>
                       <p className="text-sm text-gray-600">
-                        Хочу создавать проекты
+                        {t.register?.organizer?.description || 'Хочу создавать проекты'}
                       </p>
                     </div>
                   </div>
@@ -128,9 +130,9 @@ export default function RegisterPage() {
 
           <div className="mt-8 text-center">
             <p className="text-sm text-gray-600">
-              Уже есть аккаунт?{' '}
+              {t.register?.haveAccount || 'Уже есть аккаунт?'}{' '}
               <Link href="/login" className="text-[#00CC00] font-semibold hover:underline">
-                Войти
+                {t.register?.signIn || 'Войти'}
               </Link>
             </p>
           </div>

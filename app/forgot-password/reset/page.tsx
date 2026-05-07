@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useTranslation } from '@/app/i18n';
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t, isLoading: translationsLoading } = useTranslation('auth');
   const email = searchParams.get('email');
   const code = searchParams.get('code');
 
@@ -48,19 +50,19 @@ export default function ResetPasswordPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || 'Ошибка при смене пароля');
+        setError(data.error || t.resetPassword?.errors?.resetError || 'Ошибка при смене пароля');
         setLoading(false);
         return;
       }
 
       router.push('/login?reset=success');
     } catch (err) {
-      setError('Ошибка при смене пароля');
+      setError(t.resetPassword?.errors?.resetError || 'Ошибка при смене пароля');
       setLoading(false);
     }
   };
 
-  if (!email || !code) {
+  if (!email || !code || translationsLoading) {
     return null;
   }
 
@@ -92,10 +94,10 @@ export default function ResetPasswordPage() {
               </svg>
             </div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              Создание нового пароля
+              {t.resetPassword?.title || 'Создание нового пароля'}
             </h2>
             <p className="text-sm text-gray-600">
-              Введите новый пароль для вашего аккаунта
+              {t.resetPassword?.subtitle || 'Введите новый пароль для вашего аккаунта'}
             </p>
           </div>
 
@@ -109,13 +111,13 @@ export default function ResetPasswordPage() {
             {/* Новый пароль */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Новый пароль
+                {t.resetPassword?.newPassword || 'Новый пароль'}
               </label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
-                  placeholder="••••••••"
+                  placeholder={t.resetPassword?.newPasswordPlaceholder || '••••••••'}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-sm pr-12"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
@@ -142,13 +144,13 @@ export default function ResetPasswordPage() {
             {/* Подтверждение пароля */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Подтвердите пароль
+                {t.resetPassword?.confirmPassword || 'Подтвердите пароль'}
               </label>
               <div className="relative">
                 <input
                   type={showConfirmPassword ? 'text' : 'password'}
                   required
-                  placeholder="••••••••"
+                  placeholder={t.resetPassword?.confirmPasswordPlaceholder || '••••••••'}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-sm pr-12"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
@@ -177,11 +179,26 @@ export default function ResetPasswordPage() {
               disabled={loading}
               className="w-full py-3.5 bg-[#00CC00] text-white rounded-xl font-semibold hover:bg-[#00b300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#00CC00]/20"
             >
-              {loading ? 'Сохранение...' : 'Сменить пароль'}
+              {loading ? (t.resetPassword?.resetting || 'Сохранение...') : (t.resetPassword?.resetButton || 'Сменить пароль')}
             </button>
           </form>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00CC00] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Загрузка...</p>
+        </div>
+      </div>
+    }>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }

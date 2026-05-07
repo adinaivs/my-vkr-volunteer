@@ -6,6 +6,7 @@ import AdminSidebar from '../components/AdminSidebar';
 import AdminNav from '../components/AdminNav';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
+import { useToast } from '@/app/components/ToastContainer';
 
 interface User {
   id: string;
@@ -37,6 +38,7 @@ interface OrganizerProfile {
 
 export default function AdminOrganizersPage() {
   const router = useRouter();
+  const toast = useToast();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [organizers, setOrganizers] = useState<OrganizerProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,6 +46,11 @@ export default function AdminOrganizersPage() {
   const [selectedOrganizer, setSelectedOrganizer] = useState<OrganizerProfile | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  
+  // Новые состояния для фильтрации и отображения
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'name-asc' | 'name-desc'>('date-desc');
+  const [showFilters, setShowFilters] = useState(false);
 
   console.log('AdminOrganizersPage rendered');
   console.log('Current user:', currentUser);
@@ -92,26 +99,6 @@ export default function AdminOrganizersPage() {
     }
   }, [filter, currentUser]);
 
-  const checkAuth = async () => {
-    try {
-      const response = await fetch('/api/auth/me');
-      if (!response.ok) {
-        router.push('/admin/login');
-        return;
-      }
-
-      const data = await response.json();
-      if (data.user.role !== 'admin') {
-        router.push('/');
-        return;
-      }
-
-      setCurrentUser(data.user);
-    } catch (error) {
-      router.push('/admin/login');
-    }
-  };
-
   const fetchOrganizers = async () => {
     try {
       setLoading(true);
@@ -136,30 +123,32 @@ export default function AdminOrganizersPage() {
   };
 
   const handleApprove = async (userId: string) => {
-    if (!confirm('Вы уверены, что хотите подтвердить этого организатора?')) {
-      return;
-    }
+    toast.confirm(
+      'Вы уверены, что хотите подтвердить этого организатора?',
+      async () => {
+        try {
+          setActionLoading(true);
+          const response = await fetch(`/api/admin/organizers/${userId}/approve`, {
+            method: 'POST',
+          });
 
-    try {
-      setActionLoading(true);
-      const response = await fetch(`/api/admin/organizers/${userId}/approve`, {
-        method: 'POST',
-      });
-
-      if (response.ok) {
-        alert('Организатор успешно подтвержден!');
-        fetchOrganizers();
-        setSelectedOrganizer(null);
-      } else {
-        const data = await response.json();
-        alert(data.error || 'Ошибка при подтверждении');
-      }
-    } catch (error) {
-      console.error('Error approving organizer:', error);
-      alert('Ошибка при подтверждении организатора');
-    } finally {
-      setActionLoading(false);
-    }
+          if (response.ok) {
+            toast.success('Организатор успешно подтвержден!');
+            fetchOrganizers();
+            setSelectedOrganizer(null);
+          } else {
+            const data = await response.json();
+            toast.error(data.error || 'Ошибка при подтверждении');
+          }
+        } catch (error) {
+          console.error('Error approving organizer:', error);
+          toast.error('Ошибка при подтверждении организатора');
+        } finally {
+          setActionLoading(false);
+        }
+      },
+      'info'
+    );
   };
 
   const handleReject = async (userId: string) => {
@@ -191,6 +180,50 @@ export default function AdminOrganizersPage() {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  // Функция фильтрации и сортировки организаторов
+  const getFilteredAndSortedOrganizers = () => {
+    let filtered = [...organizers];
+
+    // Фильтр по поисковому запросу
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(organizer => 
+        organizer.organizationName.toLowerCase().includes(query) ||
+        organizer.user.firstName.toLowerCase().includes(query) ||
+        organizer.user.lastName.toLowerCase().includes(query) ||
+        organizer.user.email.toLowerCase().includes(query) ||
+        organizer.user.phone.toLowerCase().includes(query) ||
+        organizer.inn.toLowerCase().includes(query) ||
+        organizer.okpo.toLowerCase().includes(query)
+      );
+    }
+
+    // Сортировка
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'date-desc':
+          return new Date(b.user.createdAt).getTime() - new Date(a.user.createdAt).getTime();
+        case 'date-asc':
+          return new Date(a.user.createdAt).getTime() - new Date(b.user.createdAt).getTime();
+        case 'name-asc':
+          return a.organizationName.localeCompare(b.organizationName);
+        case 'name-desc':
+          return b.organizationName.localeCompare(a.organizationName);
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  };
+
+  // Функция сброса всех фильтров
+  const resetFilters = () => {
+    setSearchQuery('');
+    setSortBy('date-desc');
+    setFilter('pending');
   };
 
   if (!currentUser) {
@@ -226,48 +259,115 @@ export default function AdminOrganizersPage() {
             </p>
           </div>
 
-          {/* Filters */}
-          <div className="mb-6 flex gap-2 flex-wrap">
+          {/* Единый контейнер для поиска и фильтров */}
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-300 mb-6 p-6">
+            {/* Верхняя панель: Поиск + Кнопки отображения + Сброс */}
+            <div className="flex flex-col md:flex-row gap-4 mb-4">
+              {/* Поисковая строка */}
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  placeholder="Поиск по названию, ФИО, email, телефону, ИНН, ОКПО..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                />
+                <svg 
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+
+              {/* Кнопка сброса фильтров */}
+              <button
+                onClick={resetFilters}
+                className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl border border-gray-200 hover:bg-gray-200 transition-colors flex items-center gap-2"
+                title="Сбросить фильтры"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span className="hidden sm:inline">Сбросить</span>
+              </button>
+            </div>
+
+            {/* Разделитель */}
+            <div className="border-t border-gray-100 my-4"></div>
+
+            {/* Кнопка показать/скрыть фильтры */}
             <button
-              onClick={() => setFilter('pending')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filter === 'pending'
-                  ? 'bg-[#00CC00] text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-100'
-              }`}
+              onClick={() => setShowFilters(!showFilters)}
+              className="w-full px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-between text-sm font-medium rounded-lg"
             >
-              Ожидают проверки
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                <span>{showFilters ? 'Скрыть фильтры' : 'Показать фильтры'}</span>
+              </div>
+              <svg 
+                className={`w-5 h-5 transition-transform ${showFilters ? 'rotate-180' : ''}`} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
             </button>
-            <button
-              onClick={() => setFilter('approved')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filter === 'approved'
-                  ? 'bg-[#00CC00] text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              Подтвержденные
-            </button>
-            <button
-              onClick={() => setFilter('rejected')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filter === 'rejected'
-                  ? 'bg-[#00CC00] text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              Отклоненные
-            </button>
-            <button
-              onClick={() => setFilter('all')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filter === 'all'
-                  ? 'bg-[#00CC00] text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              Все
-            </button>
+
+            {/* Панель фильтров */}
+            {showFilters && (
+              <div className="pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Фильтр по статусу */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Статус
+                    </label>
+                    <select
+                      value={filter}
+                      onChange={(e) => setFilter(e.target.value as any)}
+                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent text-sm"
+                    >
+                      <option value="pending">Ожидают проверки</option>
+                      <option value="approved">Подтвержденные</option>
+                      <option value="rejected">Отклоненные</option>
+                      <option value="all">Все</option>
+                    </select>
+                  </div>
+
+                  {/* Сортировка */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Сортировка
+                    </label>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as any)}
+                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent text-sm"
+                    >
+                      <option value="date-desc">Дата регистрации: сначала новые</option>
+                      <option value="date-asc">Дата регистрации: сначала старые</option>
+                      <option value="name-asc">Название: А-Я</option>
+                      <option value="name-desc">Название: Я-А</option>
+                    </select>
+                  </div>
+
+                  {/* Информация о количестве */}
+                  <div className="flex items-end">
+                    <div className="w-full px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-900">
+                        <span className="font-bold">{getFilteredAndSortedOrganizers().length}</span> из <span className="font-bold">{organizers.length}</span> организаторов
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Organizers List */}
@@ -275,13 +375,15 @@ export default function AdminOrganizersPage() {
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00CC00] mx-auto"></div>
             </div>
-          ) : organizers.length === 0 ? (
+          ) : getFilteredAndSortedOrganizers().length === 0 ? (
             <div className="bg-white rounded-xl shadow-xl border border-gray-300 p-12 text-center">
-              <p className="text-gray-500">Нет организаторов для отображения</p>
+              <p className="text-gray-500">
+                {searchQuery ? 'Организаторы не найдены. Попробуйте изменить параметры поиска.' : 'Нет организаторов для отображения'}
+              </p>
             </div>
           ) : (
             <div className="grid gap-4">
-              {organizers.map((organizer) => (
+              {getFilteredAndSortedOrganizers().map((organizer) => (
                 <div
                   key={organizer.id}
                   className="bg-white rounded-xl shadow-xl border border-gray-300 p-6 hover:shadow-2xl transition-shadow"
@@ -433,14 +535,14 @@ export default function AdminOrganizersPage() {
                           disabled={actionLoading}
                           className="px-4 py-2 bg-[#00CC00] text-white rounded-lg hover:bg-[#00b300] transition-colors disabled:opacity-50"
                         >
-                          ✓ Подтвердить
+                          Подтвердить
                         </button>
                         <button
                           onClick={() => setSelectedOrganizer(organizer)}
                           disabled={actionLoading}
                           className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
                         >
-                          ✗ Отклонить
+                          Отклонить
                         </button>
                       </div>
                     )}
@@ -452,7 +554,7 @@ export default function AdminOrganizersPage() {
                           disabled={actionLoading}
                           className="px-4 py-2 bg-[#00CC00] text-white rounded-lg hover:bg-[#00b300] transition-colors disabled:opacity-50"
                         >
-                          ✓ Подтвердить
+                          Подтвердить
                         </button>
                       </div>
                     )}
