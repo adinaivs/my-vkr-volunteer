@@ -18,7 +18,7 @@ const protectedPaths = ['/dashboard', '/volunteer', '/organizer'];
 // Пути админа
 const adminPaths = ['/admin/dashboard', '/admin/users', '/admin/projects', '/admin/verifications', '/admin/reports', '/admin/settings'];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Пропускаем API пути
