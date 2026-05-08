@@ -102,15 +102,32 @@ export async function PATCH(
         },
       });
 
-      // Обновляем статистику волонтёра
-      await prisma.volunteerProfile.update({
-        where: { userId: assignment.volunteerId },
-        data: {
-          completedTasks: {
-            increment: 1,
+      // Обновляем статистику волонтёра и пересчитываем рейтинг
+      if (rating) {
+        const currentProfile = await prisma.volunteerProfile.findUnique({
+          where: { userId: assignment.volunteerId },
+          select: { trustScore: true, ratingCount: true },
+        });
+
+        const oldScore = Number(currentProfile?.trustScore ?? 0);
+        const oldCount = currentProfile?.ratingCount ?? 0;
+        const newCount = oldCount + 1;
+        const newScore = (oldScore * oldCount + rating) / newCount;
+
+        await prisma.volunteerProfile.update({
+          where: { userId: assignment.volunteerId },
+          data: {
+            completedTasks: { increment: 1 },
+            trustScore: newScore,
+            ratingCount: newCount,
           },
-        },
-      });
+        });
+      } else {
+        await prisma.volunteerProfile.update({
+          where: { userId: assignment.volunteerId },
+          data: { completedTasks: { increment: 1 } },
+        });
+      }
 
       return NextResponse.json({
         message: 'Выполнение задачи подтверждено',

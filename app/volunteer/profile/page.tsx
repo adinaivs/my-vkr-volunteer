@@ -1,15 +1,28 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import VolunteerNav from '../components/VolunteerNav';
 import VolunteerSidebar from '../components/VolunteerSidebar';
 import AiSupportButton from '@/app/components/AiSupportButton';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
+import { useToast } from '@/app/components/ToastContainer';
 
-interface User {
+interface Skill {
+  id: string;
+  name: string;
+}
+
+interface VolunteerProfileData {
+  bio?: string | null;
+  trustScore: number;
+  ratingCount: number;
+  completedTasks: number;
+  completedProjects: number;
+}
+
+interface UserData {
   id: string;
   email: string;
   firstName: string;
@@ -18,21 +31,65 @@ interface User {
   city: string;
   role: string;
   avatarUrl?: string;
+  createdAt?: string;
+  volunteerProfile: VolunteerProfileData | null;
+  skills: Skill[];
 }
 
-interface VolunteerProfile {
-  bio?: string;
-  trustScore: number;
-  completedTasks: number;
-  completedProjects: number;
+function StarRating({ score, count }: { score: number; count: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex items-center gap-0.5">
+        {[1, 2, 3, 4, 5].map((star) => {
+          const filled = score >= star;
+          const partial = !filled && score > star - 1;
+          return (
+            <div key={star} className="relative w-5 h-5">
+              <svg className="w-5 h-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+              {(filled || partial) && (
+                <div
+                  className="absolute inset-0 overflow-hidden"
+                  style={{ width: filled ? '100%' : `${(score - (star - 1)) * 100}%` }}
+                >
+                  <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <span className="text-base font-semibold text-gray-800">
+        {score > 0 ? score.toFixed(1) : '—'}
+      </span>
+      <span className="text-sm text-gray-500">
+        {count > 0 ? `(${count} ${getRatingWord(count)})` : 'Нет оценок'}
+      </span>
+    </div>
+  );
 }
 
-export default function VolunteerProfile() {
+function getRatingWord(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod100 >= 11 && mod100 <= 14) return 'оценок';
+  if (mod10 === 1) return 'оценка';
+  if (mod10 >= 2 && mod10 <= 4) return 'оценки';
+  return 'оценок';
+}
+
+export default function VolunteerProfilePage() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<VolunteerProfile | null>(null);
+  const toast = useToast();
+
+  const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -41,52 +98,138 @@ export default function VolunteerProfile() {
     bio: '',
   });
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch('/api/auth/me');
-        if (!response.ok) {
-          router.push('/login');
-          return;
-        }
-        const data = await response.json();
-        if (data.user.role !== 'volunteer') {
-          router.push('/dashboard');
-          return;
-        }
-        setUser(data.user);
-        setFormData({
-          firstName: data.user.firstName,
-          lastName: data.user.lastName,
-          phone: data.user.phone,
-          city: data.user.city,
-          bio: '',
-        });
-        // TODO: Загрузить профиль волонтера
-        setProfile({
-          bio: '',
-          trustScore: 0,
-          completedTasks: 0,
-          completedProjects: 0,
-        });
-      } catch (error) {
-        router.push('/login');
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Skills state
+  const [allSkills, setAllSkills] = useState<Skill[]>([]);
+  const [skillsLoading, setSkillsLoading] = useState(false);
+  const [addingSkill, setAddingSkill] = useState(false);
+  const [selectedSkillId, setSelectedSkillId] = useState('');
 
-    checkAuth();
+  const loadProfile = useCallback(async () => {
+    try {
+      const res = await fetch('/api/volunteer/profile');
+      if (!res.ok) {
+        router.push('/login');
+        return;
+      }
+      const data = await res.json();
+      const userData = data.user;
+
+      // verify role
+      const meRes = await fetch('/api/auth/me');
+      if (!meRes.ok) { router.push('/login'); return; }
+      const meData = await meRes.json();
+      if (meData.user.role !== 'volunteer') { router.push('/dashboard'); return; }
+
+      setUser({ ...userData, role: meData.user.role });
+      setFormData({
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        phone: userData.phone,
+        city: userData.city,
+        bio: userData.volunteerProfile?.bio ?? '',
+      });
+    } catch {
+      router.push('/login');
+    } finally {
+      setLoading(false);
+    }
   }, [router]);
 
-  const handleLogout = async () => {
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
+
+  useEffect(() => {
+    const fetchSkills = async () => {
+      setSkillsLoading(true);
+      try {
+        const res = await fetch('/api/skills?locale=ru');
+        if (res.ok) {
+          const data = await res.json();
+          setAllSkills(data.skills);
+        }
+      } finally {
+        setSkillsLoading(false);
+      }
+    };
+    fetchSkills();
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      router.push('/');
-    } catch (error) {
-      console.error('Logout error:', error);
+      const res = await fetch('/api/volunteer/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || 'Ошибка при сохранении');
+        return;
+      }
+      toast.success('Профиль сохранён');
+      setEditing(false);
+      await loadProfile();
+    } catch {
+      toast.error('Ошибка при сохранении');
+    } finally {
+      setSaving(false);
     }
   };
+
+  const handleAddSkill = async () => {
+    if (!selectedSkillId) return;
+    setAddingSkill(true);
+    try {
+      const res = await fetch('/api/volunteer/skills', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skillId: selectedSkillId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || 'Ошибка при добавлении навыка');
+        return;
+      }
+      toast.success('Навык добавлен');
+      setSelectedSkillId('');
+      await loadProfile();
+    } catch {
+      toast.error('Ошибка при добавлении навыка');
+    } finally {
+      setAddingSkill(false);
+    }
+  };
+
+  const handleRemoveSkill = async (skillId: string) => {
+    try {
+      const res = await fetch(`/api/volunteer/skills?skillId=${skillId}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || 'Ошибка при удалении навыка');
+        return;
+      }
+      toast.success('Навык удалён');
+      await loadProfile();
+    } catch {
+      toast.error('Ошибка при удалении навыка');
+    }
+  };
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.push('/');
+  };
+
+  const availableSkillsToAdd = allSkills.filter(
+    (s) => !user?.skills.some((us) => us.id === s.id)
+  );
+
+  const profile = user?.volunteerProfile;
 
   if (loading) {
     return (
@@ -99,9 +242,7 @@ export default function VolunteerProfile() {
     );
   }
 
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
   return (
     <SidebarProvider>
@@ -109,238 +250,325 @@ export default function VolunteerProfile() {
         <VolunteerSidebar user={user} />
         <VolunteerNav user={user} />
 
-        {/* Main Content */}
         <DynamicContent maxWidth="max-w-5xl">
-        {/* Profile Header */}
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-6">
-          <div className="h-32 bg-gradient-to-r from-[#00CC00] to-emerald-500"></div>
-          <div className="px-8 pb-8">
-            <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 -mt-16">
-              {user?.avatarUrl ? (
-                <img 
-                  src={user.avatarUrl} 
-                  alt={user.firstName} 
-                  className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
-                />
-              ) : (
-                <div className="w-32 h-32 rounded-full bg-[#00CC00] flex items-center justify-center text-white font-bold text-4xl border-4 border-white shadow-lg">
-                  {user?.firstName?.[0]}{user?.lastName?.[0]}
-                </div>
-              )}
-              
-              <div className="flex-1 text-center sm:text-left sm:mt-12">
-                <h1 className="text-3xl font-bold text-gray-900 mb-1">
-                  {user?.firstName} {user?.lastName}
-                </h1>
-                <p className="text-gray-600 mb-2">{user?.email}</p>
-                <div className="flex items-center justify-center sm:justify-start gap-2">
-                  <div className="flex items-center gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <svg 
-                        key={i} 
-                        className={`w-5 h-5 ${i < Math.floor(profile?.trustScore || 0) ? 'text-yellow-400' : 'text-gray-300'}`} 
-                        fill="currentColor" 
-                        viewBox="0 0 20 20"
-                      >
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                      </svg>
-                    ))}
+          {/* Profile Header */}
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+            <div className="h-32 bg-gradient-to-r from-[#00CC00] to-emerald-500"></div>
+            <div className="px-8 pb-8">
+              <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 -mt-16">
+                {user.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt={user.firstName}
+                    className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
+                  />
+                ) : (
+                  <div className="w-32 h-32 rounded-full bg-[#00CC00] flex items-center justify-center text-white font-bold text-4xl border-4 border-white shadow-lg">
+                    {user.firstName?.[0]}{user.lastName?.[0]}
                   </div>
-                  <span className="text-sm text-gray-600">
-                    Рейтинг надёжности: {profile?.trustScore.toFixed(1) || '0.0'}
+                )}
+
+                <div className="flex-1 text-center sm:text-left sm:mt-12">
+                  <h1 className="text-3xl font-bold text-gray-900 mb-1">
+                    {user.firstName} {user.lastName}
+                  </h1>
+                  <p className="text-gray-500 text-sm mb-3">{user.email}</p>
+                  <StarRating
+                    score={Number(profile?.trustScore ?? 0)}
+                    count={profile?.ratingCount ?? 0}
+                  />
+                </div>
+
+                <div className="flex gap-3 sm:mt-12">
+                  <button
+                    onClick={() => {
+                      if (editing) {
+                        setEditing(false);
+                        setFormData({
+                          firstName: user.firstName,
+                          lastName: user.lastName,
+                          phone: user.phone,
+                          city: user.city,
+                          bio: profile?.bio ?? '',
+                        });
+                      } else {
+                        setEditing(true);
+                      }
+                    }}
+                    className="px-6 py-2 bg-[#00CC00] text-white rounded-full font-medium hover:bg-[#00b300] transition-colors"
+                  >
+                    {editing ? 'Отменить' : 'Редактировать'}
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="px-6 py-2 bg-gray-100 text-gray-700 rounded-full font-medium hover:bg-gray-200 transition-colors"
+                  >
+                    Выйти
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-gray-900">{profile?.completedProjects ?? 0}</div>
+                  <div className="text-sm text-gray-600">Завершено проектов</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-gray-900">{profile?.completedTasks ?? 0}</div>
+                  <div className="text-sm text-gray-600">Выполнено задач</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-gray-900">
+                    {profile?.ratingCount ?? 0 > 0 ? Number(profile?.trustScore ?? 0).toFixed(1) : '—'}
+                  </div>
+                  <div className="text-sm text-gray-600">Средний рейтинг</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Personal Information */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Личная информация</h2>
+
+            {editing ? (
+              <form onSubmit={handleSave} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Имя</label>
+                    <input
+                      type="text"
+                      value={formData.firstName}
+                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                      required
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Фамилия</label>
+                    <input
+                      type="text"
+                      value={formData.lastName}
+                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                      required
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Телефон</label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Город</label>
+                    <input
+                      type="text"
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">О себе</label>
+                  <textarea
+                    value={formData.bio}
+                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                    rows={4}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent resize-none"
+                    placeholder="Расскажите о себе, своих интересах..."
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="px-6 py-3 bg-[#00CC00] text-white rounded-xl font-medium hover:bg-[#00b300] transition-colors disabled:opacity-60"
+                  >
+                    {saving ? 'Сохранение...' : 'Сохранить изменения'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditing(false)}
+                    className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+                  >
+                    Отменить
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Имя</div>
+                    <div className="text-gray-900 font-medium">{user.firstName} {user.lastName}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Email</div>
+                    <div className="text-gray-900 font-medium">{user.email}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Телефон</div>
+                    <div className="text-gray-900 font-medium">{user.phone}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Город</div>
+                    <div className="text-gray-900 font-medium">{user.city}</div>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">О себе</div>
+                  <div className="text-gray-900">
+                    {profile?.bio?.trim() ? profile.bio : (
+                      <span className="text-gray-400 italic">Не указано</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Skills */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Навыки</h2>
+
+            {/* Current skills */}
+            {user.skills.length > 0 ? (
+              <div className="flex flex-wrap gap-2 mb-6">
+                {user.skills.map((skill) => (
+                  <span
+                    key={skill.id}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-800 rounded-full text-sm font-medium border border-green-200"
+                  >
+                    {skill.name}
+                    <button
+                      onClick={() => handleRemoveSkill(skill.id)}
+                      className="w-4 h-4 flex items-center justify-center rounded-full hover:bg-green-200 transition-colors text-green-600 hover:text-green-900"
+                      title="Удалить навык"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
                   </span>
-                </div>
+                ))}
               </div>
+            ) : (
+              <p className="text-gray-400 italic text-sm mb-6">Навыки не добавлены</p>
+            )}
 
-              <div className="flex gap-3 sm:mt-12">
-                <button
-                  onClick={() => setEditing(!editing)}
-                  className="px-6 py-2 bg-[#00CC00] text-white rounded-full font-medium hover:bg-[#00b300] transition-colors"
+            {/* Add skill */}
+            {!skillsLoading && availableSkillsToAdd.length > 0 && (
+              <div className="flex items-center gap-3">
+                <select
+                  value={selectedSkillId}
+                  onChange={(e) => setSelectedSkillId(e.target.value)}
+                  className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
                 >
-                  {editing ? 'Отменить' : 'Редактировать'}
-                </button>
+                  <option value="">Выберите навык для добавления...</option>
+                  {availableSkillsToAdd.map((skill) => (
+                    <option key={skill.id} value={skill.id}>
+                      {skill.name}
+                    </option>
+                  ))}
+                </select>
                 <button
-                  onClick={handleLogout}
-                  className="px-6 py-2 bg-gray-100 text-gray-700 rounded-full font-medium hover:bg-gray-200 transition-colors"
+                  onClick={handleAddSkill}
+                  disabled={!selectedSkillId || addingSkill}
+                  className="px-5 py-2.5 bg-[#00CC00] text-white rounded-xl text-sm font-medium hover:bg-[#00b300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
-                  Выйти
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-900">{profile?.completedProjects || 0}</div>
-                <div className="text-sm text-gray-600">Завершено проектов</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-900">{profile?.completedTasks || 0}</div>
-                <div className="text-sm text-gray-600">Выполнено задач</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-900">0</div>
-                <div className="text-sm text-gray-600">Достижений</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Profile Information */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Личная информация</h2>
-          
-          {editing ? (
-            <form className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Имя</label>
-                  <input
-                    type="text"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Фамилия</label>
-                  <input
-                    type="text"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Телефон</label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Город</label>
-                  <input
-                    type="text"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">О себе</label>
-                <textarea
-                  value={formData.bio}
-                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                  rows={4}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent resize-none"
-                  placeholder="Расскажите о себе, своих интересах и навыках..."
-                />
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  type="submit"
-                  className="px-6 py-3 bg-[#00CC00] text-white rounded-xl font-medium hover:bg-[#00b300] transition-colors"
-                >
-                  Сохранить изменения
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditing(false)}
-                  className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
-                >
-                  Отменить
+                  {addingSkill ? 'Добавление...' : 'Добавить'}
                 </button>
               </div>
-            </form>
-          ) : (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <div className="text-sm text-gray-600 mb-1">Email</div>
-                  <div className="text-gray-900 font-medium">{user?.email}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-600 mb-1">Телефон</div>
-                  <div className="text-gray-900 font-medium">{user?.phone}</div>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <div className="text-sm text-gray-600 mb-1">Город</div>
-                  <div className="text-gray-900 font-medium">{user?.city}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-600 mb-1">Роль</div>
-                  <div className="text-gray-900 font-medium">Волонтёр</div>
-                </div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-600 mb-1">О себе</div>
-                <div className="text-gray-900">
-                  {profile?.bio || 'Информация не указана'}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+            )}
 
-        {/* Achievements */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Достижения</h2>
-          
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Пока нет достижений</h3>
-            <p className="text-gray-600">Участвуйте в проектах, чтобы получить первые награды!</p>
+            {skillsLoading && (
+              <div className="text-sm text-gray-400">Загрузка навыков...</div>
+            )}
           </div>
-        </div>
-      </DynamicContent>
 
-      {/* AI Support Button */}
-      <AiSupportButton />
-    </div>
+          {/* Rating detail */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Рейтинг</h2>
+
+            {(profile?.ratingCount ?? 0) > 0 ? (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
+                <div className="text-center">
+                  <div className="text-6xl font-bold text-gray-900 mb-1">
+                    {Number(profile?.trustScore ?? 0).toFixed(1)}
+                  </div>
+                  <div className="text-sm text-gray-500">из 5.0</div>
+                </div>
+                <div className="flex-1">
+                  <StarRating
+                    score={Number(profile?.trustScore ?? 0)}
+                    count={profile?.ratingCount ?? 0}
+                  />
+                  <p className="mt-3 text-sm text-gray-600">
+                    Рейтинг формируется на основе оценок от организаторов после подтверждения
+                    выполненных задач. Чем выше рейтинг, тем больше доверия к волонтёру.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Рейтинг пока не сформирован</h3>
+                <p className="text-gray-500 text-sm">
+                  Выполняйте задачи и получайте оценки от организаторов, чтобы повысить свой рейтинг.
+                </p>
+              </div>
+            )}
+          </div>
+        </DynamicContent>
+
+        <AiSupportButton />
+      </div>
     </SidebarProvider>
   );
 }
