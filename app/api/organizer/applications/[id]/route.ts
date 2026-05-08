@@ -28,10 +28,17 @@ export async function PUT(
       return NextResponse.json({ error: 'Доступ запрещен' }, { status: 403 });
     }
 
-    const { status } = await request.json();
+    const { status, rejectionReason } = await request.json();
 
     if (!['approved', 'rejected'].includes(status)) {
       return NextResponse.json({ error: 'Неверный статус' }, { status: 400 });
+    }
+
+    // Если отклоняем, причина обязательна
+    if (status === 'rejected' && !rejectionReason?.trim()) {
+      return NextResponse.json({ 
+        error: 'Необходимо указать причину отклонения' 
+      }, { status: 400 });
     }
 
     // Проверяем, что заявка существует и принадлежит проекту организатора
@@ -43,7 +50,15 @@ export async function PUT(
         }
       },
       include: {
-        project: true
+        project: true,
+        volunteer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        }
       }
     });
 
@@ -92,6 +107,7 @@ export async function PUT(
       where: { id: applicationId },
       data: { 
         status,
+        rejectionReason: status === 'rejected' ? rejectionReason : null,
         reviewedBy: user.id,
         reviewedAt: new Date()
       }
@@ -119,6 +135,53 @@ export async function PUT(
       });
 
       // НЕ создаем TaskAssignment - это будет делаться отдельно!
+    }
+
+    // Если заявка отклонена, отправляем email волонтеру
+    if (status === 'rejected') {
+      try {
+        // Отправляем email с причиной отклонения
+        const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/email/send`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            to: application.volunteer.email,
+            subject: `Заявка на проект "${application.project.title}" отклонена`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #dc2626;">Заявка отклонена</h2>
+                <p>Здравствуйте, ${application.volunteer.firstName}!</p>
+                <p>К сожалению, ваша заявка на участие в проекте <strong>"${application.project.title}"</strong> была отклонена.</p>
+                <div style="background-color: #fee; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0;">
+                  <h3 style="margin-top: 0; color: #dc2626;">Причина отклонения:</h3>
+                  <p style="margin-bottom: 0;">${rejectionReason}</p>
+                </div>
+                <p>Не расстраивайтесь! Вы можете подать заявку на другие проекты на нашей платформе.</p>
+                <p style="margin-top: 30px;">
+                  <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/volunteer/projects" 
+                     style="background-color: #00CC00; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">
+                    Посмотреть другие проекты
+                  </a>
+                </p>
+                <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+                <p style="color: #666; font-size: 12px;">
+                  С уважением,<br>
+                  Команда ВолонтёрКР
+                </p>
+              </div>
+            `,
+          }),
+        });
+
+        if (!emailResponse.ok) {
+          console.error('Failed to send rejection email:', await emailResponse.text());
+        }
+      } catch (emailError) {
+        console.error('Error sending rejection email:', emailError);
+        // Не прерываем выполнение, если email не отправился
+      }
     }
 
     return NextResponse.json({ 

@@ -173,7 +173,7 @@ export default function ApplyToProject() {
 
       if (response.ok) {
         toast.success('Заявка успешно отправлена! Организатор свяжется с вами в ближайшее время.');
-        router.push(`/volunteer/projects/${projectId}`);
+        router.replace(`/volunteer/projects/${projectId}`);
       } else {
         const data = await response.json();
         toast.error(data.error || 'Ошибка при отправке заявки');

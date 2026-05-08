@@ -121,10 +121,15 @@ export default function ProjectDetailsPage() {
   
   // Состояния для управления статусами
   const [changingStatus, setChangingStatus] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectingApplicationId, setRejectingApplicationId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [showApplicationModal, setShowApplicationModal] = useState(false);
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
 
   // Блокировка скролла при открытии модального окна карты или назначения
   useEffect(() => {
-    if (showMapModal || showAssignModal) {
+    if (showMapModal || showAssignModal || showRejectModal || showApplicationModal) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -133,7 +138,7 @@ export default function ProjectDetailsPage() {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [showMapModal, showAssignModal]);
+  }, [showMapModal, showAssignModal, showRejectModal, showApplicationModal]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -388,6 +393,16 @@ export default function ProjectDetailsPage() {
   };
 
   const handleApplicationAction = async (applicationId: string, action: 'approve' | 'reject') => {
+    // Если отклоняем, показываем модальное окно для ввода причины
+    if (action === 'reject') {
+      setRejectingApplicationId(applicationId);
+      setRejectionReason('');
+      setShowRejectModal(true);
+      setShowApplicationModal(false); // Закрываем модальное окно заявки
+      return;
+    }
+
+    // Одобрение заявки
     try {
       const response = await fetch(`/api/organizer/applications/${applicationId}`, {
         method: 'PUT',
@@ -395,18 +410,18 @@ export default function ProjectDetailsPage() {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ status: action === 'approve' ? 'approved' : 'rejected' }),
+        body: JSON.stringify({ status: 'approved' }),
       });
 
       if (response.ok) {
         await fetchApplications();
         const updatedProjectData = await fetchProject();
         
-        const actionText = action === 'approve' ? 'одобрена' : 'отклонена';
-        toast.success(`Заявка ${actionText}`);
+        toast.success('Заявка одобрена');
+        setShowApplicationModal(false); // Закрываем модальное окно
         
         // Проверяем, достигнуто ли нужное количество волонтеров после одобрения
-        if (action === 'approve' && project && project.status === 'recruiting') {
+        if (project && project.status === 'recruiting') {
           const newCurrentVolunteers = project.currentVolunteers + 1;
           if (newCurrentVolunteers >= project.maxVolunteers) {
             setTimeout(() => {
@@ -424,6 +439,61 @@ export default function ProjectDetailsPage() {
     } catch (error) {
       console.error('Error handling application:', error);
       toast.error('Произошла ошибка при обработке заявки');
+    }
+  };
+
+  const handleViewApplication = (application: Application) => {
+    setSelectedApplication(application);
+    setShowApplicationModal(true);
+  };
+
+  const handleConfirmReject = async () => {
+    if (!rejectingApplicationId) return;
+
+    if (!rejectionReason.trim()) {
+      toast.error('Пожалуйста, укажите причину отклонения');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/organizer/applications/${rejectingApplicationId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          status: 'rejected',
+          rejectionReason: rejectionReason.trim()
+        }),
+      });
+
+      if (response.ok) {
+        await fetchApplications();
+        toast.success('Заявка отклонена. Волонтер получит уведомление на email.');
+        
+        // Закрываем модальное окно причины отклонения
+        setShowRejectModal(false);
+        setRejectionReason('');
+        
+        // Обновляем данные выбранной заявки, чтобы показать новый статус
+        if (selectedApplication && selectedApplication.id === rejectingApplicationId) {
+          const updatedApplication = applications.find(app => app.id === rejectingApplicationId);
+          if (updatedApplication) {
+            setSelectedApplication(updatedApplication);
+          }
+        }
+        
+        setRejectingApplicationId(null);
+        
+        // Модальное окно заявки остается открытым (showApplicationModal не меняем)
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Ошибка при отклонении заявки');
+      }
+    } catch (error) {
+      console.error('Error rejecting application:', error);
+      toast.error('Произошла ошибка при отклонении заявки');
     }
   };
 
@@ -1191,7 +1261,11 @@ export default function ProjectDetailsPage() {
                     ) : (
                       <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
                         {filteredApplications.map((application) => (
-                          <div key={application.id} className="border border-gray-200 rounded-lg p-4 hover:border-[#00CC00] hover:shadow-md transition-all">
+                          <div 
+                            key={application.id} 
+                            onClick={() => handleViewApplication(application)}
+                            className="border border-gray-200 rounded-lg p-4 hover:border-[#00CC00] hover:shadow-md transition-all cursor-pointer"
+                          >
                             <div className="flex items-start gap-4 mb-3">
                               {application.volunteer.avatarUrl ? (
                                 <img 
@@ -1236,7 +1310,7 @@ export default function ProjectDetailsPage() {
                             </div>
 
                             {application.volunteer.skills.length > 0 && (
-                              <div className="mb-3 pt-3 border-t border-gray-100">
+                              <div className="pt-3 border-t border-gray-100">
                                 <p className="text-xs text-gray-500 mb-2">Навыки:</p>
                                 <div className="flex flex-wrap gap-2">
                                   {application.volunteer.skills.map((skill) => (
@@ -1245,23 +1319,6 @@ export default function ProjectDetailsPage() {
                                     </span>
                                   ))}
                                 </div>
-                              </div>
-                            )}
-
-                            {application.status === 'pending' && (
-                              <div className="flex gap-3 pt-3 border-t border-gray-100">
-                                <button
-                                  onClick={() => handleApplicationAction(application.id, 'approve')}
-                                  className="flex-1 px-4 py-2.5 bg-green-500 text-white text-sm font-semibold rounded-lg hover:bg-green-600 transition-colors shadow-sm hover:shadow-md"
-                                >
-                                  ✓ Одобрить
-                                </button>
-                                <button
-                                  onClick={() => handleApplicationAction(application.id, 'reject')}
-                                  className="flex-1 px-4 py-2.5 bg-red-500 text-white text-sm font-semibold rounded-lg hover:bg-red-600 transition-colors shadow-sm hover:shadow-md"
-                                >
-                                  ✕ Отклонить
-                                </button>
                               </div>
                             )}
                           </div>
@@ -1452,6 +1509,256 @@ export default function ProjectDetailsPage() {
                 className="flex-1 px-4 py-2.5 bg-[#00CC00] text-white text-sm font-semibold rounded-lg hover:bg-[#00b300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Назначить задачу
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Application Details Modal */}
+      {showApplicationModal && selectedApplication && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => {
+            setShowApplicationModal(false);
+            setSelectedApplication(null);
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-8">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-gray-900">Детали заявки</h3>
+                <button
+                  onClick={() => {
+                    setShowApplicationModal(false);
+                    setSelectedApplication(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Volunteer Info */}
+              <div className="mb-6">
+                <div className="flex items-start gap-4 mb-4">
+                  {selectedApplication.volunteer.avatarUrl ? (
+                    <img 
+                      src={selectedApplication.volunteer.avatarUrl} 
+                      alt={`${selectedApplication.volunteer.firstName} ${selectedApplication.volunteer.lastName}`}
+                      className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 bg-gradient-to-br from-green-200 to-green-300 rounded-full flex items-center justify-center border-2 border-gray-200">
+                      <svg className="w-10 h-10 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <h4 className="text-xl font-bold text-gray-900 mb-1">
+                      {selectedApplication.volunteer.firstName} {selectedApplication.volunteer.lastName}
+                    </h4>
+                    <p className="text-gray-600 mb-1">
+                      <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      {selectedApplication.volunteer.email}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Подана: {new Date(selectedApplication.appliedAt).toLocaleDateString('ru-RU')} в {new Date(selectedApplication.appliedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Skills */}
+              {selectedApplication.volunteer.skills.length > 0 && (
+                <div className="mb-6">
+                  <h5 className="text-sm font-semibold text-gray-700 mb-3">Навыки волонтера</h5>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedApplication.volunteer.skills.map((skill) => (
+                      <span key={skill.id} className="px-3 py-1.5 bg-blue-100 text-blue-700 text-sm font-medium rounded-full">
+                        {skill.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Message */}
+              {selectedApplication.message && (
+                <div className="mb-6">
+                  <h5 className="text-sm font-semibold text-gray-700 mb-3">Сообщение от волонтера</h5>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{selectedApplication.message}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Task Info */}
+              {selectedApplication.task && (
+                <div className="mb-6">
+                  <h5 className="text-sm font-semibold text-gray-700 mb-3">Интересующая задача</h5>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-blue-900 font-medium">{selectedApplication.task.title}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Status Info for approved/rejected */}
+              {selectedApplication.status !== 'pending' && (
+                <div className="mb-6">
+                  <h5 className="text-sm font-semibold text-gray-700 mb-3">Статус заявки</h5>
+                  <div className={`border rounded-lg p-4 ${
+                    selectedApplication.status === 'approved' 
+                      ? 'bg-green-50 border-green-200' 
+                      : 'bg-red-50 border-red-200'
+                  }`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      {selectedApplication.status === 'approved' ? (
+                        <>
+                          <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="font-semibold text-green-900">Заявка одобрена</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="font-semibold text-red-900">Заявка отклонена</span>
+                        </>
+                      )}
+                    </div>
+                    {selectedApplication.status === 'approved' && (
+                      <p className="text-sm text-green-700">
+                        Волонтер добавлен в список участников проекта
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons - only for pending */}
+              {selectedApplication.status === 'pending' ? (
+                <div className="flex gap-3 pt-6 border-t border-gray-200">
+                  <button
+                    onClick={() => handleApplicationAction(selectedApplication.id, 'approve')}
+                    className="flex-1 px-6 py-3 bg-green-500 text-white text-sm font-semibold rounded-xl hover:bg-green-600 transition-colors shadow-sm hover:shadow-md flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Одобрить
+                  </button>
+                  <button
+                    onClick={() => handleApplicationAction(selectedApplication.id, 'reject')}
+                    className="flex-1 px-6 py-3 bg-red-500 text-white text-sm font-semibold rounded-xl hover:bg-red-600 transition-colors shadow-sm hover:shadow-md flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Отклонить
+                  </button>
+                </div>
+              ) : (
+                <div className="pt-6 border-t border-gray-200">
+                  <button
+                    onClick={() => {
+                      setShowApplicationModal(false);
+                      setSelectedApplication(null);
+                    }}
+                    className="w-full px-6 py-3 bg-gray-100 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-200 transition-colors"
+                  >
+                    Закрыть
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Application Modal */}
+      {showRejectModal && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => {
+            setShowRejectModal(false);
+            setRejectingApplicationId(null);
+            setRejectionReason('');
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl p-8 max-w-lg w-full shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-gray-900">Отклонить заявку</h3>
+              <button
+                onClick={() => {
+                  setShowRejectModal(false);
+                  setRejectingApplicationId(null);
+                  setRejectionReason('');
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Причина отклонения <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Укажите причину, по которой заявка отклонена. Волонтер получит это сообщение на email."
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                rows={5}
+                maxLength={500}
+              />
+              <div className="flex justify-between items-center mt-2">
+                <p className="text-sm text-gray-500">
+                  Волонтер получит уведомление на email
+                </p>
+                <p className="text-sm text-gray-400">
+                  {rejectionReason.length}/500
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowRejectModal(false);
+                  setRejectingApplicationId(null);
+                  setRejectionReason('');
+                }}
+                className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleConfirmReject}
+                disabled={!rejectionReason.trim()}
+                className="flex-1 px-6 py-3 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Отклонить заявку
               </button>
             </div>
           </div>

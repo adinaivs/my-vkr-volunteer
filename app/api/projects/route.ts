@@ -114,21 +114,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Проверяем, есть ли у организатора бесплатные публикации
-    const needsPayment =
-      user.organizerProfile.freePostsRemaining <= 0 && !isPaid;
+    // ВРЕМЕННО: Проверка оплаты отключена
+    // Все проекты считаются оплаченными до реализации платежной системы
+    // const needsPayment =
+    //   user.organizerProfile.freePostsRemaining <= 0 && !isPaid;
 
-    if (needsPayment) {
-      return NextResponse.json(
-        {
-          error: 'Необходима оплата',
-          message:
-            'У вас закончились бесплатные публикации. Для публикации этого проекта необходимо оплатить.',
-          code: 'PAYMENT_REQUIRED',
-        },
-        { status: 402 }
-      );
-    }
+    // if (needsPayment) {
+    //   return NextResponse.json(
+    //     {
+    //       error: 'Необходима оплата',
+    //       message:
+    //         'У вас закончились бесплатные публикации. Для публикации этого проекта необходимо оплатить.',
+    //       code: 'PAYMENT_REQUIRED',
+    //     },
+    //     { status: 402 }
+    //   );
+    // }
 
     // Загружаем изображение в S3, если оно есть
     let imageUrl: string | null = null;
@@ -171,7 +172,7 @@ export async function POST(request: NextRequest) {
         longitude: longitude ? parseFloat(longitude) : null,
         maxVolunteers: parseInt(maxVolunteers),
         status: 'draft', // Проект создается в черновике
-        isPaid: isPaid || false,
+        isPaid: true, // ВРЕМЕННО: Все проекты считаются оплаченными
       },
       include: {
         ...getCategoryInclude('ru'),
@@ -185,6 +186,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // ВРЕМЕННО: Счетчик бесплатных публикаций не уменьшается
     // Счетчик бесплатных публикаций уменьшается только после одобрения админом
 
     // Создаем задачи проекта, если они есть

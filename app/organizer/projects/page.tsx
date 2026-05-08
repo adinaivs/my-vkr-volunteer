@@ -156,6 +156,7 @@ export default function OrganizerProjects() {
   // Функция фильтрации и сортировки проектов
   const getFilteredAndSortedProjects = () => {
     let filtered = [...projects];
+    console.log('All projects before filtering:', filtered.length, filtered.map(p => ({ title: p.title, status: p.status })));
 
     // Фильтр по поисковому запросу (по имени и описанию)
     if (searchQuery.trim()) {
@@ -164,16 +165,19 @@ export default function OrganizerProjects() {
         project.title.toLowerCase().includes(query) || 
         project.description.toLowerCase().includes(query)
       );
+      console.log('After search filter:', filtered.length);
     }
 
     // Фильтр по статусу
     if (filterStatus !== 'all') {
       filtered = filtered.filter(project => project.status === filterStatus);
+      console.log('After status filter:', filterStatus, filtered.length);
     }
 
     // Фильтр по категории
     if (filterCategory !== 'all') {
       filtered = filtered.filter(project => project.categoryId === filterCategory);
+      console.log('After category filter:', filtered.length);
     }
 
     // Сортировка
@@ -196,6 +200,7 @@ export default function OrganizerProjects() {
       }
     });
 
+    console.log('Final filtered projects:', filtered.length, filtered.map(p => ({ title: p.title, status: p.status })));
     return filtered;
   };
 
@@ -215,14 +220,16 @@ export default function OrganizerProjects() {
       
       // Загружаем все проекты организатора без фильтрации по статусу
       const url = `/api/projects?organizerId=${user.id}`;
+      console.log('Fetching projects from:', url);
 
       const response = await fetch(url);
       
       if (response.ok) {
         const data = await response.json();
+        console.log('Received projects:', data.projects);
         setProjects(data.projects || []);
       } else {
-        console.error('Error fetching projects');
+        console.error('Error fetching projects, status:', response.status);
         setProjects([]);
       }
     } catch (error) {
@@ -1653,7 +1660,8 @@ export default function OrganizerProjects() {
             {/* Step 3: Payment/Success */}
             {createStep === 3 && (
               <div className="max-h-[70vh] overflow-y-auto px-8 py-2">
-                {freePostsRemaining > 0 ? (
+                {/* ВРЕМЕННО: Всегда показываем экран готовности к публикации (оплата отключена) */}
+                {true ? (
                   // Has free posts
                   <div className="text-center py-8">
                     <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
