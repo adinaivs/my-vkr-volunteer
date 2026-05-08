@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { getCategoryInclude, formatCategoryWithTranslation } from '@/lib/category-helpers';
 import { uploadToS3, validateFile } from '@/lib/s3';
 
 export async function PUT(
@@ -110,7 +111,7 @@ export async function GET(
     const project = await prisma.project.findUnique({
       where: { id },
       include: {
-        category: true,
+        ...getCategoryInclude('ru'),
         organizer: {
           select: {
             id: true,
@@ -133,11 +134,12 @@ export async function GET(
       return NextResponse.json({ error: 'Проект не найден' }, { status: 404 });
     }
 
-    // Преобразуем Decimal в number для координат
+    // Преобразуем Decimal в number для координат и форматируем категорию
     const projectData = {
       ...project,
       latitude: project.latitude ? parseFloat(project.latitude.toString()) : null,
       longitude: project.longitude ? parseFloat(project.longitude.toString()) : null,
+      category: formatCategoryWithTranslation(project.category)
     };
 
     return NextResponse.json({ project: projectData });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { getCategoryInclude, formatCategoryWithTranslation } from '@/lib/category-helpers';
 
 // GET - Получить список проектов для модерации
 export async function GET(request: NextRequest) {
@@ -30,8 +31,8 @@ export async function GET(request: NextRequest) {
 
     if (status === 'moderation') {
       where.status = 'moderation';
-    } else if (status === 'published') {
-      where.status = 'published';
+    } else if (status === 'recruiting') {
+      where.status = { in: ['recruiting', 'upcoming', 'active'] };
     } else if (status === 'rejected') {
       where.status = 'rejected';
     }
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
     const projects = await prisma.project.findMany({
       where,
       include: {
-        category: true,
+        ...getCategoryInclude('ru'),
         organizer: {
           select: {
             id: true,
@@ -62,7 +63,13 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ projects });
+    // Форматируем категории с переводами
+    const projectsWithTranslations = projects.map(project => ({
+      ...project,
+      category: formatCategoryWithTranslation(project.category)
+    }));
+
+    return NextResponse.json({ projects: projectsWithTranslations });
   } catch (error) {
     console.error('Error fetching projects:', error);
     return NextResponse.json(

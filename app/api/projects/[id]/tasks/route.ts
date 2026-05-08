@@ -34,7 +34,7 @@ export async function GET(
       return NextResponse.json({ error: 'Доступ запрещен' }, { status: 403 });
     }
 
-    // Получаем задачи проекта
+    // Получаем задачи проекта с информацией о назначениях
     const tasks = await prisma.task.findMany({
       where: { projectId: id },
       include: {
@@ -42,6 +42,19 @@ export async function GET(
           select: {
             id: true,
             name: true,
+          },
+        },
+        assignments: {
+          where: {
+            status: {
+              in: ['assigned', 'completed', 'confirmed'],
+            },
+          },
+          select: {
+            id: true,
+            volunteerId: true,
+            status: true,
+            createdAt: true,
           },
         },
       },

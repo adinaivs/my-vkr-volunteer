@@ -112,7 +112,7 @@ export default function ProjectsCatalog() {
 
   const loadProjects = async () => {
     try {
-      const response = await fetch('/api/projects?status=published');
+      const response = await fetch('/api/projects?status=recruiting');
       if (response.ok) {
         const data = await response.json();
         // Фильтруем только активные проекты (не завершенные)

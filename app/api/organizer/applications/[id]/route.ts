@@ -43,8 +43,7 @@ export async function PUT(
         }
       },
       include: {
-        project: true,
-        task: true
+        project: true
       }
     });
 
@@ -56,17 +55,59 @@ export async function PUT(
       return NextResponse.json({ error: 'Заявка уже обработана' }, { status: 400 });
     }
 
+    // Проверяем, что проект в статусе recruiting
+    if (application.project.status !== 'recruiting') {
+      return NextResponse.json({ 
+        error: 'Можно обрабатывать заявки только для проектов в статусе "Набор волонтеров"' 
+      }, { status: 400 });
+    }
+
+    // Если одобряем, проверяем лимит волонтеров
+    if (status === 'approved') {
+      if (application.project.currentVolunteers >= application.project.maxVolunteers) {
+        return NextResponse.json({ 
+          error: 'Достигнуто максимальное количество волонтеров' 
+        }, { status: 400 });
+      }
+
+      // Проверяем, не является ли волонтер уже участником
+      const existingParticipant = await prisma.projectParticipant.findUnique({
+        where: {
+          projectId_volunteerId: {
+            projectId: application.projectId,
+            volunteerId: application.volunteerId
+          }
+        }
+      });
+
+      if (existingParticipant) {
+        return NextResponse.json({ 
+          error: 'Волонтер уже является участником проекта' 
+        }, { status: 400 });
+      }
+    }
+
     // Обновляем статус заявки
     const updatedApplication = await prisma.application.update({
       where: { id: applicationId },
       data: { 
         status,
+        reviewedBy: user.id,
         reviewedAt: new Date()
       }
     });
 
-    // Если заявка одобрена, увеличиваем счетчик волонтеров
+    // Если заявка одобрена, создаем ProjectParticipant
     if (status === 'approved') {
+      // Создаем участника проекта
+      await prisma.projectParticipant.create({
+        data: {
+          projectId: application.projectId,
+          volunteerId: application.volunteerId,
+          joinedAt: new Date()
+        }
+      });
+
       // Увеличиваем счетчик волонтеров в проекте
       await prisma.project.update({
         where: { id: application.projectId },
@@ -77,17 +118,7 @@ export async function PUT(
         }
       });
 
-      // Если заявка была на конкретную задачу, увеличиваем счетчик и для задачи
-      if (application.taskId) {
-        await prisma.task.update({
-          where: { id: application.taskId },
-          data: {
-            currentVolunteers: {
-              increment: 1
-            }
-          }
-        });
-      }
+      // НЕ создаем TaskAssignment - это будет делаться отдельно!
     }
 
     return NextResponse.json({ 

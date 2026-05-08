@@ -81,7 +81,7 @@ export default function VolunteerDashboard() {
 
   const loadRecommendedProjects = async () => {
     try {
-      const response = await fetch('/api/projects?status=published');
+      const response = await fetch('/api/projects?status=recruiting');
       if (response.ok) {
         const data = await response.json();
         // Фильтруем активные проекты и берем первые 3

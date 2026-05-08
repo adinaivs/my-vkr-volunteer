@@ -87,12 +87,20 @@ export async function POST(request: NextRequest) {
       );
 
       if (!telegramResponse.ok) {
-        throw new Error('Ошибка отправки в Telegram');
+        const errorData = await telegramResponse.json();
+        console.error('Telegram API error:', errorData);
+        throw new Error(`Telegram API: ${errorData.description || 'Unknown error'}`);
       }
     } catch (telegramError) {
       console.error('Telegram error:', telegramError);
+      
+      // Если это ошибка сети или Telegram недоступен, возвращаем более понятное сообщение
+      const errorMessage = telegramError instanceof Error 
+        ? telegramError.message 
+        : 'Ошибка отправки кода в Telegram';
+      
       return NextResponse.json(
-        { error: 'Ошибка отправки кода в Telegram' },
+        { error: `Не удалось отправить код: ${errorMessage}` },
         { status: 500 }
       );
     }

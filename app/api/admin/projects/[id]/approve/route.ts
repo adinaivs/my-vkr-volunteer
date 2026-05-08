@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { getCategoryInclude, formatCategoryWithTranslation } from '@/lib/category-helpers';
 
 // POST - Одобрить проект
 export async function POST(
@@ -73,14 +74,14 @@ export async function POST(
     const updatedProject = await prisma.project.update({
       where: { id },
       data: {
-        status: 'published',
+        status: 'recruiting', // Одобренный проект переходит в статус набора волонтеров
         publishedAt: new Date(),
         moderatedAt: new Date(),
         moderatedBy: user.id,
         rejectionReason: null, // Очищаем причину отклонения, если была
       },
       include: {
-        category: true,
+        ...getCategoryInclude('ru'),
         organizer: {
           select: {
             firstName: true,
@@ -114,7 +115,10 @@ export async function POST(
 
     return NextResponse.json({
       message: 'Проект успешно одобрен и опубликован',
-      project: updatedProject,
+      project: {
+        ...updatedProject,
+        category: formatCategoryWithTranslation(updatedProject.category)
+      },
     });
   } catch (error) {
     console.error('Error approving project:', error);

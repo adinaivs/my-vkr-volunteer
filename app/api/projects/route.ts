@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { getCategoryInclude, formatCategoryWithTranslation } from '@/lib/category-helpers';
 import { uploadToS3, validateFile } from '@/lib/s3';
 
 // POST - Создать новый проект
@@ -173,7 +174,7 @@ export async function POST(request: NextRequest) {
         isPaid: isPaid || false,
       },
       include: {
-        category: true,
+        ...getCategoryInclude('ru'),
         organizer: {
           select: {
             firstName: true,
@@ -221,7 +222,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       message: 'Проект успешно создан',
-      project,
+      project: {
+        ...project,
+        category: formatCategoryWithTranslation(project.category)
+      },
     });
   } catch (error) {
     console.error('Error creating project:', error);
@@ -257,7 +261,7 @@ export async function GET(request: NextRequest) {
     const projects = await prisma.project.findMany({
       where,
       include: {
-        category: true,
+        ...getCategoryInclude('ru'),
         organizer: {
           select: {
             id: true,
@@ -277,11 +281,12 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Преобразуем Decimal в number для координат
+    // Преобразуем Decimal в number для координат и форматируем категории
     const projectsData = projects.map(project => ({
       ...project,
       latitude: project.latitude ? parseFloat(project.latitude.toString()) : null,
       longitude: project.longitude ? parseFloat(project.longitude.toString()) : null,
+      category: formatCategoryWithTranslation(project.category)
     }));
 
     return NextResponse.json({ projects: projectsData });

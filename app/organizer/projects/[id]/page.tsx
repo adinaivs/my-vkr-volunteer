@@ -107,13 +107,24 @@ export default function ProjectDetailsPage() {
   const [taskFilter, setTaskFilter] = useState('all');
   const [applicationSearch, setApplicationSearch] = useState('');
   const [applicationFilter, setApplicationFilter] = useState('all');
-  const [activeTab, setActiveTab] = useState<'tasks' | 'applications'>('tasks');
+  const [activeTab, setActiveTab] = useState<'tasks' | 'applications' | 'participants'>('tasks');
   const [showMapModal, setShowMapModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  
+  // Состояния для участников
+  const [participants, setParticipants] = useState<any[]>([]);
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [expandedParticipant, setExpandedParticipant] = useState<string | null>(null);
+  const [assignedTasks, setAssignedTasks] = useState<Record<string, any[]>>({});
+  
+  // Состояния для управления статусами
+  const [changingStatus, setChangingStatus] = useState(false);
 
-  // Блокировка скролла при открытии модального окна карты
+  // Блокировка скролла при открытии модального окна карты или назначения
   useEffect(() => {
-    if (showMapModal) {
+    if (showMapModal || showAssignModal) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -122,7 +133,7 @@ export default function ProjectDetailsPage() {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [showMapModal]);
+  }, [showMapModal, showAssignModal]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -176,15 +187,31 @@ export default function ProjectDetailsPage() {
 
       setProject(data.project);
       
+      // Проверяем, набрано ли нужное количество волонтеров (только при первой загрузке)
+      if (!project && data.project.status === 'recruiting' && 
+          data.project.currentVolunteers >= data.project.maxVolunteers) {
+        toast.success(
+          `🎉 Набрано нужное количество волонтеров (${data.project.currentVolunteers}/${data.project.maxVolunteers})! Вы можете завершить набор и перейти к следующему этапу.`,
+          { duration: 8000 }
+        );
+      }
+      
       // Загружаем задачи всегда
       await fetchTasks();
       
-      // Загружаем заявки только для опубликованных проектов
-      if (data.project.status === 'published') {
+      // Загружаем заявки только для проектов в статусе набора волонтеров
+      if (data.project.status === 'recruiting') {
         await fetchApplications();
       } else {
         setApplications([]);
       }
+      
+      // Загружаем участников для проектов со статусом recruiting и выше
+      if (['recruiting', 'upcoming', 'active', 'completed', 'cancelled'].includes(data.project.status)) {
+        await fetchParticipants();
+      }
+      
+      return data.project;
     } catch (error) {
       console.error('Error fetching project:', error);
       router.push('/organizer/projects');
@@ -229,6 +256,137 @@ export default function ProjectDetailsPage() {
     }
   };
 
+  const fetchParticipants = async () => {
+    try {
+      setLoadingParticipants(true);
+      const response = await fetch(`/api/organizer/projects/${projectId}/participants`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setParticipants(data || []);
+      } else {
+        console.error('Ошибка загрузки участников:', response.status);
+      }
+    } catch (error) {
+      console.error('Error fetching participants:', error);
+    } finally {
+      setLoadingParticipants(false);
+    }
+  };
+
+  const fetchParticipantTasks = async (volunteerId: string) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/tasks`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const allTasks = data.tasks || [];
+        
+        // Получаем назначения для этого волонтера
+        const volunteerTasks = allTasks.filter((task: any) => 
+          task.assignments?.some((a: any) => 
+            a.volunteerId === volunteerId && 
+            ['assigned', 'completed', 'confirmed'].includes(a.status)
+          )
+        ).map((task: any) => {
+          const assignment = task.assignments.find((a: any) => a.volunteerId === volunteerId);
+          return {
+            ...task,
+            assignmentStatus: assignment?.status,
+            assignedAt: assignment?.createdAt,
+          };
+        });
+        
+        setAssignedTasks(prev => ({
+          ...prev,
+          [volunteerId]: volunteerTasks
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching participant tasks:', error);
+    }
+  };
+
+  const handleAssignTask = async (volunteerId: string) => {
+    if (!selectedTask) return;
+
+    try {
+      const response = await fetch(
+        `/api/organizer/projects/${projectId}/tasks/${selectedTask.id}/assign`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({ volunteerId }),
+        }
+      );
+
+      if (response.ok) {
+        toast.success('Задача успешно назначена');
+        setShowAssignModal(false);
+        setSelectedTask(null);
+        await fetchParticipants();
+        await fetchTasks();
+        // Обновляем задачи участника если он развернут
+        if (expandedParticipant === volunteerId) {
+          await fetchParticipantTasks(volunteerId);
+        }
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Ошибка при назначении задачи');
+      }
+    } catch (error) {
+      console.error('Error assigning task:', error);
+      toast.error('Произошла ошибка при назначении задачи');
+    }
+  };
+
+  const handleUnassignTask = async (taskId: string, volunteerId: string) => {
+    toast.confirm(
+      'Вы уверены, что хотите отменить назначение этой задачи?',
+      async () => {
+        try {
+          const response = await fetch(
+            `/api/organizer/projects/${projectId}/tasks/${taskId}/assignments/${volunteerId}`,
+            {
+              method: 'DELETE',
+              credentials: 'include',
+            }
+          );
+
+          if (response.ok) {
+            toast.success('Назначение отменено');
+            await fetchParticipants();
+            await fetchTasks();
+            await fetchParticipantTasks(volunteerId);
+          } else {
+            const data = await response.json();
+            toast.error(data.error || 'Ошибка при отмене назначения');
+          }
+        } catch (error) {
+          console.error('Error unassigning task:', error);
+          toast.error('Произошла ошибка при отмене назначения');
+        }
+      },
+      'warning'
+    );
+  };
+
+  const toggleParticipantExpand = async (volunteerId: string) => {
+    if (expandedParticipant === volunteerId) {
+      setExpandedParticipant(null);
+    } else {
+      setExpandedParticipant(volunteerId);
+      if (!assignedTasks[volunteerId]) {
+        await fetchParticipantTasks(volunteerId);
+      }
+    }
+  };
+
   const handleApplicationAction = async (applicationId: string, action: 'approve' | 'reject') => {
     try {
       const response = await fetch(`/api/organizer/applications/${applicationId}`, {
@@ -242,10 +400,23 @@ export default function ProjectDetailsPage() {
 
       if (response.ok) {
         await fetchApplications();
-        await fetchProject();
+        const updatedProjectData = await fetchProject();
         
         const actionText = action === 'approve' ? 'одобрена' : 'отклонена';
         toast.success(`Заявка ${actionText}`);
+        
+        // Проверяем, достигнуто ли нужное количество волонтеров после одобрения
+        if (action === 'approve' && project && project.status === 'recruiting') {
+          const newCurrentVolunteers = project.currentVolunteers + 1;
+          if (newCurrentVolunteers >= project.maxVolunteers) {
+            setTimeout(() => {
+              toast.success(
+                `🎉 Набрано нужное количество волонтеров (${newCurrentVolunteers}/${project.maxVolunteers})! Вы можете завершить набор и перейти к следующему этапу.`,
+                { duration: 8000 }
+              );
+            }, 1000);
+          }
+        }
       } else {
         const data = await response.json();
         toast.error(data.error || 'Ошибка при обработке заявки');
@@ -294,24 +465,112 @@ export default function ProjectDetailsPage() {
     );
   };
 
+  const handleChangeStatus = async (newStatus: string) => {
+    if (!project) return;
+
+    // Определяем текст подтверждения в зависимости от статуса
+    let confirmMessage = '';
+    let statusText = '';
+    
+    switch (newStatus) {
+      case 'upcoming':
+        confirmMessage = 'Вы уверены, что хотите завершить набор волонтеров и перевести проект в статус "Скоро начнется"?';
+        statusText = 'Скоро начнется';
+        break;
+      case 'active':
+        confirmMessage = 'Вы уверены, что хотите активировать проект? После этого он будет в процессе выполнения.';
+        statusText = 'Активный';
+        break;
+      case 'completed':
+        confirmMessage = 'Вы уверены, что хотите завершить проект? Убедитесь, что все задачи выполнены.';
+        statusText = 'Завершенный';
+        break;
+      case 'cancelled':
+        confirmMessage = 'Вы уверены, что хотите отменить проект? Все назначения задач будут отменены.';
+        statusText = 'Отмененный';
+        break;
+      default:
+        return;
+    }
+
+    toast.confirm(
+      confirmMessage,
+      async () => {
+        try {
+          setChangingStatus(true);
+          const response = await fetch(`/api/organizer/projects/${projectId}/status`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({ newStatus }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            toast.success(`Статус проекта изменен на "${statusText}"`);
+            await fetchProject();
+          } else {
+            toast.error(data.error || 'Ошибка при изменении статуса');
+          }
+        } catch (error) {
+          console.error('Error changing status:', error);
+          toast.error('Произошла ошибка при изменении статуса');
+        } finally {
+          setChangingStatus(false);
+        }
+      },
+      'warning'
+    );
+  };
+
+  const getAvailableStatusTransitions = (currentStatus: string): Array<{ status: string; label: string; color: string }> => {
+    const transitions: Record<string, Array<{ status: string; label: string; color: string }>> = {
+      recruiting: [
+        { status: 'upcoming', label: 'Завершить набор', color: 'bg-blue-500 hover:bg-blue-600' },
+        { status: 'cancelled', label: 'Отменить проект', color: 'bg-red-500 hover:bg-red-600' },
+      ],
+      upcoming: [
+        { status: 'active', label: 'Активировать проект', color: 'bg-purple-500 hover:bg-purple-600' },
+        { status: 'cancelled', label: 'Отменить проект', color: 'bg-red-500 hover:bg-red-600' },
+      ],
+      active: [
+        { status: 'completed', label: 'Завершить проект', color: 'bg-green-500 hover:bg-green-600' },
+        { status: 'cancelled', label: 'Отменить проект', color: 'bg-red-500 hover:bg-red-600' },
+      ],
+    };
+
+    return transitions[currentStatus] || [];
+  };
+
   const getStatusBadge = (status: string) => {
     const badges: Record<string, string> = {
-      moderation: 'bg-orange-100 text-orange-700',
-      published: 'bg-green-100 text-green-700',
       draft: 'bg-gray-100 text-gray-700',
-      completed: 'bg-blue-100 text-blue-700',
+      moderation: 'bg-orange-100 text-orange-700',
       rejected: 'bg-red-100 text-red-700',
+      recruiting: 'bg-green-100 text-green-700',
+      upcoming: 'bg-blue-100 text-blue-700',
+      active: 'bg-purple-100 text-purple-700',
+      completed: 'bg-gray-100 text-gray-700',
+      cancelled: 'bg-red-100 text-red-700',
+      blocked: 'bg-red-100 text-red-700',
     };
     return badges[status] || 'bg-gray-100 text-gray-700';
   };
 
   const getStatusText = (status: string) => {
     const texts: Record<string, string> = {
-      moderation: 'На проверке',
-      published: 'Опубликован',
       draft: 'Черновик',
-      completed: 'Завершён',
+      moderation: 'На проверке',
       rejected: 'Отклонен',
+      recruiting: 'Набор волонтеров',
+      upcoming: 'Скоро начнется',
+      active: 'Активный',
+      completed: 'Завершён',
+      cancelled: 'Отменен',
+      blocked: 'Заблокирован',
     };
     return texts[status] || 'Неизвестно';
   };
@@ -474,6 +733,32 @@ export default function ProjectDetailsPage() {
                   </span>
                 </div>
 
+                {/* Кнопки управления статусами */}
+                {getAvailableStatusTransitions(project.status).length > 0 && (
+                  <div className="mb-4 space-y-2">
+                    <h3 className="text-sm font-semibold text-gray-700">Управление статусом</h3>
+                    <div className="flex flex-col gap-2">
+                      {getAvailableStatusTransitions(project.status).map((transition) => (
+                        <button
+                          key={transition.status}
+                          onClick={() => handleChangeStatus(transition.status)}
+                          disabled={changingStatus}
+                          className={`px-4 py-2 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${transition.color}`}
+                        >
+                          {changingStatus ? (
+                            <div className="flex items-center justify-center gap-2">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              <span>Изменение...</span>
+                            </div>
+                          ) : (
+                            transition.label
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {project.status === 'rejected' && project.rejectionReason && (
                   <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-400 rounded-r-lg">
                     <p className="text-xs font-semibold text-red-900 mb-1">Причина отклонения:</p>
@@ -558,6 +843,21 @@ export default function ProjectDetailsPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                       </svg>
                       Задачи ({filteredTasks.length})
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('participants')}
+                    className={`flex-1 px-6 py-4 text-sm font-semibold transition-colors ${
+                      activeTab === 'participants'
+                        ? 'bg-white text-[#00CC00] border-b-2 border-[#00CC00]'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                      Участники ({participants.length})
                     </div>
                   </button>
                   <button
@@ -671,11 +971,165 @@ export default function ProjectDetailsPage() {
                   </div>
                 )}
 
+                {/* Participants Tab */}
+                {activeTab === 'participants' && (
+                  <div>
+                    {loadingParticipants ? (
+                      <div className="text-center py-12">
+                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#00CC00] mx-auto"></div>
+                        <p className="mt-4 text-gray-600">Загрузка участников...</p>
+                      </div>
+                    ) : participants.length === 0 ? (
+                      <div className="text-center py-12">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                          </svg>
+                        </div>
+                        <p className="text-gray-500 font-medium">Пока нет участников</p>
+                        <p className="text-gray-400 text-sm mt-1">Одобрите заявки волонтеров, чтобы они стали участниками проекта</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                        {participants.map((participant) => (
+                          <div key={participant.id} className="border border-gray-200 rounded-lg overflow-hidden hover:border-[#00CC00] hover:shadow-md transition-all">
+                            {/* Participant Header */}
+                            <div className="p-4">
+                              <div className="flex items-start gap-4">
+                                {participant.avatarUrl ? (
+                                  <img 
+                                    src={participant.avatarUrl} 
+                                    alt={`${participant.firstName} ${participant.lastName}`}
+                                    className="w-14 h-14 rounded-full object-cover border-2 border-gray-200"
+                                  />
+                                ) : (
+                                  <div className="w-14 h-14 bg-gradient-to-br from-green-200 to-green-300 rounded-full flex items-center justify-center border-2 border-gray-200">
+                                    <svg className="w-7 h-7 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                  </div>
+                                )}
+                                <div className="flex-1">
+                                  <div className="flex items-start justify-between mb-2">
+                                    <div>
+                                      <h4 className="font-semibold text-gray-900 text-lg">
+                                        {participant.firstName} {participant.lastName}
+                                      </h4>
+                                      <p className="text-sm text-gray-600">{participant.email}</p>
+                                      <p className="text-xs text-gray-500 mt-1">
+                                        <svg className="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                        {participant.city}
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                                        {participant.assignedTasksCount} {participant.assignedTasksCount === 1 ? 'задача' : 'задач'}
+                                      </span>
+                                      <p className="text-xs text-gray-500 mt-2">
+                                        Присоединился: {new Date(participant.joinedAt).toLocaleDateString('ru-RU')}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div className="flex gap-2 mt-4">
+                                <button
+                                  onClick={() => toggleParticipantExpand(participant.volunteerId)}
+                                  className="flex-1 px-4 py-2 bg-blue-500 text-white text-sm font-semibold rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                  </svg>
+                                  {expandedParticipant === participant.volunteerId ? 'Скрыть задачи' : 'Показать задачи'}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedTask(null);
+                                    setShowAssignModal(true);
+                                    // Сохраняем ID волонтера для назначения
+                                    (window as any).selectedVolunteerId = participant.volunteerId;
+                                  }}
+                                  className="px-4 py-2 bg-[#00CC00] text-white text-sm font-semibold rounded-lg hover:bg-[#00b300] transition-colors flex items-center gap-2"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                  </svg>
+                                  Назначить задачу
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Expanded Tasks List */}
+                            {expandedParticipant === participant.volunteerId && (
+                              <div className="border-t border-gray-200 bg-gray-50 p-4">
+                                <h5 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                                  <svg className="w-5 h-5 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                                  </svg>
+                                  Назначенные задачи
+                                </h5>
+                                {!assignedTasks[participant.volunteerId] ? (
+                                  <div className="text-center py-4">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#00CC00] mx-auto"></div>
+                                  </div>
+                                ) : assignedTasks[participant.volunteerId].length === 0 ? (
+                                  <p className="text-sm text-gray-500 text-center py-4">Задачи пока не назначены</p>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {assignedTasks[participant.volunteerId].map((task: any) => (
+                                      <div key={task.id} className="bg-white border border-gray-200 rounded-lg p-3">
+                                        <div className="flex items-start justify-between mb-2">
+                                          <div className="flex-1">
+                                            <h6 className="font-medium text-gray-900">{task.title}</h6>
+                                            <p className="text-xs text-gray-600 mt-1">{task.description}</p>
+                                          </div>
+                                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ml-2 ${
+                                            task.assignmentStatus === 'assigned' ? 'bg-blue-100 text-blue-700' :
+                                            task.assignmentStatus === 'completed' ? 'bg-green-100 text-green-700' :
+                                            task.assignmentStatus === 'confirmed' ? 'bg-purple-100 text-purple-700' :
+                                            'bg-gray-100 text-gray-700'
+                                          }`}>
+                                            {task.assignmentStatus === 'assigned' && 'Назначена'}
+                                            {task.assignmentStatus === 'completed' && 'Выполнена'}
+                                            {task.assignmentStatus === 'confirmed' && 'Подтверждена'}
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center justify-between mt-2">
+                                          <span className="text-xs text-gray-500">
+                                            Назначена: {new Date(task.assignedAt).toLocaleDateString('ru-RU')}
+                                          </span>
+                                          {task.assignmentStatus === 'assigned' && (
+                                            <button
+                                              onClick={() => handleUnassignTask(task.id, participant.volunteerId)}
+                                              className="text-xs text-red-600 hover:text-red-700 font-medium"
+                                            >
+                                              Отменить
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Applications Tab */}
                 {activeTab === 'applications' && (
                   <div>
                     {/* Проверяем статус проекта */}
-                    {project.status !== 'published' ? (
+                    {project.status !== 'recruiting' ? (
                       <div className="text-center py-16">
                         <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                           <svg className="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -891,6 +1345,114 @@ export default function ProjectDetailsPage() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Task Assignment Modal */}
+      {showAssignModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => {
+            setShowAssignModal(false);
+            setSelectedTask(null);
+          }}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Назначить задачу</h2>
+                <p className="text-sm text-gray-600 mt-1">Выберите задачу для назначения волонтеру</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowAssignModal(false);
+                  setSelectedTask(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 max-h-[60vh] overflow-y-auto">
+              {tasks.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">Нет доступных задач для назначения</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {tasks.map((task) => (
+                    <div
+                      key={task.id}
+                      onClick={() => setSelectedTask(task)}
+                      className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                        selectedTask?.id === task.id
+                          ? 'border-[#00CC00] bg-green-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-900 mb-1">{task.title}</h4>
+                          <p className="text-sm text-gray-600 mb-2">{task.description}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {task.requiredSkill && (
+                              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                                {task.requiredSkill.name}
+                              </span>
+                            )}
+                            <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                              {task.currentVolunteers}/{task.requiredVolunteers} волонтёров
+                            </span>
+                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getTaskStatusBadge(task.status)}`}>
+                              {getTaskStatusText(task.status)}
+                            </span>
+                          </div>
+                        </div>
+                        {selectedTask?.id === task.id && (
+                          <svg className="w-6 h-6 text-[#00CC00] flex-shrink-0 ml-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex gap-3 p-6 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowAssignModal(false);
+                  setSelectedTask(null);
+                }}
+                className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={() => {
+                  const volunteerId = (window as any).selectedVolunteerId;
+                  if (volunteerId) {
+                    handleAssignTask(volunteerId);
+                  }
+                }}
+                disabled={!selectedTask}
+                className="flex-1 px-4 py-2.5 bg-[#00CC00] text-white text-sm font-semibold rounded-lg hover:bg-[#00b300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Назначить задачу
+              </button>
             </div>
           </div>
         </div>

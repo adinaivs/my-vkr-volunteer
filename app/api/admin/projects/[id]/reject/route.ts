@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { getCategoryInclude, formatCategoryWithTranslation } from '@/lib/category-helpers';
 import { sendProjectRejectionEmail } from '@/lib/email';
 
 // POST - Отклонить проект
@@ -77,7 +78,7 @@ export async function POST(
         moderatedBy: user.id,
       },
       include: {
-        category: true,
+        ...getCategoryInclude('ru'),
         organizer: {
           select: {
             firstName: true,
@@ -106,7 +107,10 @@ export async function POST(
 
     return NextResponse.json({
       message: 'Проект отклонен',
-      project: updatedProject,
+      project: {
+        ...updatedProject,
+        category: formatCategoryWithTranslation(updatedProject.category)
+      },
     });
   } catch (error) {
     console.error('Error rejecting project:', error);

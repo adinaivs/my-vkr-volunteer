@@ -98,8 +98,8 @@ export async function POST(
       return NextResponse.json({ error: 'Проект не найден' }, { status: 404 });
     }
 
-    // Проверяем, что проект опубликован
-    if (project.status !== 'published') {
+    // Проверяем, что проект в статусе набора волонтеров
+    if (project.status !== 'recruiting') {
       return NextResponse.json(
         { error: 'Проект недоступен для подачи заявок' },
         { status: 400 }

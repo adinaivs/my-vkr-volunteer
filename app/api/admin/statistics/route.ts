@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       prisma.user.count(),
       prisma.user.count({ where: { role: 'volunteer' } }),
       prisma.user.count({ where: { role: 'organizer' } }),
-      prisma.project.count({ where: { status: 'published' } }),
+      prisma.project.count({ where: { status: { in: ['recruiting', 'upcoming', 'active'] } } }),
       prisma.organizerProfile.count({ where: { verificationStatus: 'pending' } }),
       prisma.organizerProfile.count({ where: { isApprovedByAdmin: false } }),
     ]);

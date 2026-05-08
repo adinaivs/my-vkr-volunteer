@@ -56,7 +56,7 @@ export default function OrganizerProjects() {
   });
   const [freePostsRemaining, setFreePostsRemaining] = useState(3); // TODO: Load from API
   const [isApproved, setIsApproved] = useState(false);
-  const [categories, setCategories] = useState<Array<{id: string, slug: string, icon: string}>>([]);
+  const [categories, setCategories] = useState<Array<{id: string, slug: string, icon: string, name: string}>>([]);
   const [skills, setSkills] = useState<Array<{id: string, name: string}>>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
@@ -850,11 +850,15 @@ export default function OrganizerProjects() {
                     className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent text-sm"
                   >
                     <option value="all">Все</option>
-                    <option value="moderation">На модерации</option>
-                    <option value="published">Активные</option>
-                    <option value="completed">Завершенные</option>
                     <option value="draft">Черновики</option>
+                    <option value="moderation">На модерации</option>
                     <option value="rejected">Отклоненные</option>
+                    <option value="recruiting">Набор волонтеров</option>
+                    <option value="upcoming">Скоро начнется</option>
+                    <option value="active">Активные</option>
+                    <option value="completed">Завершенные</option>
+                    <option value="cancelled">Отмененные</option>
+                    <option value="blocked">Заблокированные</option>
                   </select>
                 </div>
 
@@ -890,7 +894,7 @@ export default function OrganizerProjects() {
                     <option value="all">Все категории</option>
                     {categories.map((cat) => (
                       <option key={cat.id} value={cat.id}>
-                        {cat.icon} {cat.slug}
+                        {cat.icon} {cat.name}
                       </option>
                     ))}
                   </select>
@@ -971,9 +975,29 @@ export default function OrganizerProjects() {
                               На проверке
                             </span>
                           )}
-                          {project.status === 'published' && (
+                          {project.status === 'recruiting' && (
                             <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full flex-shrink-0">
-                              Опубликован
+                              Набор волонтеров
+                            </span>
+                          )}
+                          {project.status === 'upcoming' && (
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full flex-shrink-0">
+                              Скоро начнется
+                            </span>
+                          )}
+                          {project.status === 'active' && (
+                            <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-medium rounded-full flex-shrink-0">
+                              Активный
+                            </span>
+                          )}
+                          {project.status === 'cancelled' && (
+                            <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full flex-shrink-0">
+                              Отменен
+                            </span>
+                          )}
+                          {project.status === 'blocked' && (
+                            <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full flex-shrink-0">
+                              Заблокирован
                             </span>
                           )}
                           {project.status === 'draft' && (
@@ -1061,9 +1085,29 @@ export default function OrganizerProjects() {
                             На проверке
                           </span>
                         )}
-                        {project.status === 'published' && (
+                        {project.status === 'recruiting' && (
                           <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full whitespace-nowrap">
-                            Опубликован
+                            Набор волонтеров
+                          </span>
+                        )}
+                        {project.status === 'upcoming' && (
+                          <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full whitespace-nowrap">
+                            Скоро начнется
+                          </span>
+                        )}
+                        {project.status === 'active' && (
+                          <span className="px-2.5 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-full whitespace-nowrap">
+                            Активный
+                          </span>
+                        )}
+                        {project.status === 'cancelled' && (
+                          <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full whitespace-nowrap">
+                            Отменен
+                          </span>
+                        )}
+                        {project.status === 'blocked' && (
+                          <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full whitespace-nowrap">
+                            Заблокирован
                           </span>
                         )}
                         {project.status === 'draft' && (
@@ -1206,7 +1250,7 @@ export default function OrganizerProjects() {
                       <option value="">Выберите категорию</option>
                       {categories.map((cat) => (
                         <option key={cat.id} value={cat.id}>
-                          {cat.icon} {cat.slug}
+                          {cat.icon} {cat.name}
                         </option>
                       ))}
                     </select>
@@ -1852,7 +1896,7 @@ export default function OrganizerProjects() {
                     <option value="">Выберите категорию</option>
                     {categories.map((cat) => (
                       <option key={cat.id} value={cat.id}>
-                        {cat.icon} {cat.slug}
+                        {cat.icon} {cat.name}
                       </option>
                     ))}
                   </select>
