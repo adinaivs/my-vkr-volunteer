@@ -98,6 +98,9 @@ export default function VolunteerProfilePage() {
     bio: '',
   });
 
+  // Avatar state
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
   // Skills state
   const [allSkills, setAllSkills] = useState<Skill[]>([]);
   const [skillsLoading, setSkillsLoading] = useState(false);
@@ -154,6 +157,30 @@ export default function VolunteerProfilePage() {
     };
     fetchSkills();
   }, []);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingAvatar(true);
+    try {
+      const form = new FormData();
+      form.append('avatar', file);
+      const res = await fetch('/api/upload/avatar', { method: 'POST', body: form });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || 'Ошибка при загрузке аватара');
+        return;
+      }
+      toast.success('Аватар обновлён');
+      setUser((prev) => prev ? { ...prev, avatarUrl: data.avatarUrl } : prev);
+    } catch {
+      toast.error('Ошибка при загрузке аватара');
+    } finally {
+      setUploadingAvatar(false);
+      e.target.value = '';
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -256,17 +283,39 @@ export default function VolunteerProfilePage() {
             <div className="h-32 bg-gradient-to-r from-[#00CC00] to-emerald-500"></div>
             <div className="px-8 pb-8">
               <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 -mt-16">
-                {user.avatarUrl ? (
-                  <img
-                    src={user.avatarUrl}
-                    alt={user.firstName}
-                    className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
-                  />
-                ) : (
-                  <div className="w-32 h-32 rounded-full bg-[#00CC00] flex items-center justify-center text-white font-bold text-4xl border-4 border-white shadow-lg">
-                    {user.firstName?.[0]}{user.lastName?.[0]}
+                <label className="relative group cursor-pointer shrink-0">
+                  {user.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt={user.firstName}
+                      className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
+                    />
+                  ) : (
+                    <div className="w-32 h-32 rounded-full bg-[#00CC00] flex items-center justify-center text-white font-bold text-4xl border-4 border-white shadow-lg">
+                      {user.firstName?.[0]}{user.lastName?.[0]}
+                    </div>
+                  )}
+                  <div className="absolute inset-0 rounded-full bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    {uploadingAvatar ? (
+                      <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent" />
+                    ) : (
+                      <>
+                        <svg className="w-6 h-6 text-white mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span className="text-white text-xs font-medium">Изменить</span>
+                      </>
+                    )}
                   </div>
-                )}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/jpg,image/webp"
+                    className="hidden"
+                    disabled={uploadingAvatar}
+                    onChange={handleAvatarChange}
+                  />
+                </label>
 
                 <div className="flex-1 text-center sm:text-left sm:mt-12">
                   <h1 className="text-3xl font-bold text-gray-900 mb-1">

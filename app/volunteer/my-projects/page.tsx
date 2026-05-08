@@ -8,6 +8,7 @@ import VolunteerSidebar from '../components/VolunteerSidebar';
 import AiSupportButton from '@/app/components/AiSupportButton';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
+import { useToast } from '@/app/components/ToastContainer';
 
 interface User {
   id: string;
@@ -110,6 +111,7 @@ interface Application {
 
 export default function MyProjects() {
   const router = useRouter();
+  const toast = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'applications'>('active');
