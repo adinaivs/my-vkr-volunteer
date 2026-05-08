@@ -187,11 +187,53 @@ export async function PATCH(
               email: true,
             },
           },
+          participants: {
+            where: { isActive: true },
+            select: { volunteerId: true },
+          },
         },
       });
 
       return updatedProject;
     });
+
+    // При переходе recruiting -> upcoming создаём групповой чат
+    // Выполняется отдельно от транзакции после применения миграции
+    if (project.status === 'recruiting' && newStatus === 'upcoming') {
+      try {
+        const existingChat = await (prisma as any).projectChat.findUnique({
+          where: { projectId },
+        });
+
+        if (!existingChat) {
+          const chat = await (prisma as any).projectChat.create({
+            data: { projectId, name: result.title },
+          });
+
+          const memberIds = [
+            result.organizer.id,
+            ...result.participants.map((p: { volunteerId: string }) => p.volunteerId),
+          ];
+          const uniqueIds = [...new Set(memberIds)];
+
+          await (prisma as any).projectChatMember.createMany({
+            data: uniqueIds.map((userId) => ({ chatId: chat.id, userId })),
+            skipDuplicates: true,
+          });
+
+          await (prisma as any).projectChatMessage.create({
+            data: {
+              chatId: chat.id,
+              senderId: result.organizer.id,
+              content: `Добро пожаловать в групповой чат проекта «${result.title}»! Набор завершён, проект скоро начнётся.`,
+            },
+          });
+        }
+      } catch (chatError) {
+        // Чат не создан (миграция ещё не применена), статус уже обновлён
+        console.warn('Не удалось создать чат (применить миграцию):', chatError);
+      }
+    }
 
     return NextResponse.json({
       message: 'Статус проекта обновлен',
