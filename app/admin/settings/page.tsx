@@ -162,25 +162,6 @@ export default function AdminSettingsPage() {
               </div>
             </div>
 
-            {/* Информация о системе */}
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100">
-                <h2 className="text-base font-semibold text-gray-900">Информация о системе</h2>
-              </div>
-              <div className="px-6 py-5 space-y-3">
-                {[
-                  { label: 'Платформа', value: 'Волонтёрская платформа КР' },
-                  { label: 'Версия', value: '1.0.0' },
-                  { label: 'База данных', value: 'PostgreSQL' },
-                  { label: 'ORM', value: 'Prisma 5.22.0' },
-                ].map(({ label, value }) => (
-                  <div key={label} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                    <span className="text-sm text-gray-500">{label}</span>
-                    <span className="text-sm font-medium text-gray-900">{value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </DynamicContent>
       </div>
