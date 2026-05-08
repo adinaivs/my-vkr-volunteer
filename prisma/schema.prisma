@@ -128,6 +128,7 @@ model VolunteerProfile {
   bio               String?
   availableTime     Json?    @map("available_time")
   trustScore        Decimal  @default(0) @map("trust_score") @db.Decimal(5, 2)
+  ratingCount       Int      @default(0) @map("rating_count")
   completedTasks    Int      @default(0) @map("completed_tasks")
   completedProjects Int      @default(0) @map("completed_projects")
 
