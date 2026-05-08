@@ -148,6 +148,11 @@ export default function ApplyToProject() {
       return;
     }
 
+    if (motivation.trim().length < 50) {
+      toast.error('Причина участия должна содержать минимум 50 символов');
+      return;
+    }
+
     if (!phone.trim() || !email.trim()) {
       toast.error('Пожалуйста, заполните контактные данные');
       return;
@@ -282,9 +287,22 @@ export default function ApplyToProject() {
               required
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent resize-none"
             />
-            <p className="text-xs text-gray-500 mt-2">
-              Минимум 50 символов. Организатор увидит ваш ответ.
-            </p>
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-xs text-gray-500">
+                Минимум 50 символов. Организатор увидит ваш ответ.
+              </p>
+              <div className="flex items-center gap-1">
+                <span className={`text-xs font-medium ${
+                  motivation.length < 50 
+                    ? 'text-orange-600' 
+                    : 'text-[#00CC00]'
+                }`}>
+                  {motivation.length}
+                </span>
+                <span className="text-xs text-gray-400">/</span>
+                <span className="text-xs text-gray-500">50</span>
+              </div>
+            </div>
           </div>
 
           {/* Contact Information */}

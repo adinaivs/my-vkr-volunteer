@@ -7,6 +7,7 @@ import AdminNav from '../components/AdminNav';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { useToast } from '@/app/components/ToastContainer';
+import CustomSelect from '@/app/components/CustomSelect';
 
 interface User {
   id: string;
@@ -502,16 +503,16 @@ export default function AdminProjectsPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Статус
                     </label>
-                    <select
+                    <CustomSelect
                       value={filter}
-                      onChange={(e) => setFilter(e.target.value as any)}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent text-sm"
-                    >
-                      <option value="moderation">На модерации</option>
-                      <option value="recruiting">Опубликованные</option>
-                      <option value="rejected">Отклоненные</option>
-                      <option value="all">Все</option>
-                    </select>
+                      onChange={(value) => setFilter(value as any)}
+                      options={[
+                        { value: 'moderation', label: 'На модерации' },
+                        { value: 'recruiting', label: 'Опубликованные' },
+                        { value: 'rejected', label: 'Отклоненные' },
+                        { value: 'all', label: 'Все' }
+                      ]}
+                    />
                   </div>
 
                   {/* Сортировка */}
@@ -519,16 +520,16 @@ export default function AdminProjectsPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Сортировка
                     </label>
-                    <select
+                    <CustomSelect
                       value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as any)}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent text-sm"
-                    >
-                      <option value="date-desc">Дата: сначала новые</option>
-                      <option value="date-asc">Дата: сначала старые</option>
-                      <option value="name-asc">Название: А-Я</option>
-                      <option value="name-desc">Название: Я-А</option>
-                    </select>
+                      onChange={(value) => setSortBy(value as any)}
+                      options={[
+                        { value: 'date-desc', label: 'Дата: сначала новые' },
+                        { value: 'date-asc', label: 'Дата: сначала старые' },
+                        { value: 'name-asc', label: 'Название: А-Я' },
+                        { value: 'name-desc', label: 'Название: Я-А' }
+                      ]}
+                    />
                   </div>
 
                   {/* Фильтр по категории */}
@@ -536,22 +537,20 @@ export default function AdminProjectsPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Категория {categories.length > 0 && `(${categories.length})`}
                     </label>
-                    <select
+                    <CustomSelect
                       value={filterCategory}
-                      onChange={(e) => setFilterCategory(e.target.value)}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent text-sm"
-                    >
-                      <option value="all">Все категории</option>
-                      {categories.length === 0 ? (
-                        <option disabled>Загрузка категорий...</option>
-                      ) : (
-                        categories.map((cat) => (
-                          <option key={cat.id} value={cat.id}>
-                            {cat.icon} {cat.slug}
-                          </option>
-                        ))
-                      )}
-                    </select>
+                      onChange={(value) => setFilterCategory(value)}
+                      options={[
+                        { value: 'all', label: 'Все категории' },
+                        ...(categories.length === 0 
+                          ? [{ value: 'loading', label: 'Загрузка категорий...', disabled: true }]
+                          : categories.map((cat) => ({
+                              value: cat.id,
+                              label: `${cat.icon} ${cat.slug}`
+                            }))
+                        )
+                      ]}
+                    />
                   </div>
                 </div>
               </div>

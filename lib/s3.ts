@@ -77,7 +77,7 @@ export async function uploadToS3(
 export function validateFile(
   file: File,
   maxSizeMB: number = 5,
-  allowedTypes: string[] = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf']
+  allowedTypes: string[] = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'application/pdf']
 ): { valid: boolean; error?: string } {
   // Проверка размера файла
   const maxSize = maxSizeMB * 1024 * 1024;
@@ -92,7 +92,7 @@ export function validateFile(
   if (!allowedTypes.includes(file.type)) {
     return {
       valid: false,
-      error: 'Разрешены только файлы JPG, PNG и PDF',
+      error: 'Разрешены только файлы JPG, PNG, WEBP и PDF',
     };
   }
 

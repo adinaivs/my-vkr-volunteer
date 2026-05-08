@@ -9,6 +9,8 @@ import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import LocationPicker from '@/app/components/LocationPicker';
 import { useToast } from '@/app/components/ToastContainer';
+import CustomSelect from '@/app/components/CustomSelect';
+import CustomDatePicker from '@/app/components/CustomDatePicker';
 
 interface User {
   id: string;
@@ -851,22 +853,23 @@ export default function OrganizerProjects() {
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Статус
                   </label>
-                  <select
+                  <CustomSelect
+                    options={[
+                      { value: 'all', label: 'Все' },
+                      { value: 'draft', label: 'Черновики' },
+                      { value: 'moderation', label: 'На модерации' },
+                      { value: 'rejected', label: 'Отклоненные' },
+                      { value: 'recruiting', label: 'Набор волонтеров' },
+                      { value: 'upcoming', label: 'Скоро начнется' },
+                      { value: 'active', label: 'Активные' },
+                      { value: 'completed', label: 'Завершенные' },
+                      { value: 'cancelled', label: 'Отмененные' },
+                      { value: 'blocked', label: 'Заблокированные' },
+                    ]}
                     value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent text-sm"
-                  >
-                    <option value="all">Все</option>
-                    <option value="draft">Черновики</option>
-                    <option value="moderation">На модерации</option>
-                    <option value="rejected">Отклоненные</option>
-                    <option value="recruiting">Набор волонтеров</option>
-                    <option value="upcoming">Скоро начнется</option>
-                    <option value="active">Активные</option>
-                    <option value="completed">Завершенные</option>
-                    <option value="cancelled">Отмененные</option>
-                    <option value="blocked">Заблокированные</option>
-                  </select>
+                    onChange={setFilterStatus}
+                    placeholder="Все"
+                  />
                 </div>
 
                 {/* Сортировка */}
@@ -874,18 +877,19 @@ export default function OrganizerProjects() {
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Сортировка
                   </label>
-                  <select
+                  <CustomSelect
+                    options={[
+                      { value: 'date-desc', label: 'Дата: сначала новые' },
+                      { value: 'date-asc', label: 'Дата: сначала старые' },
+                      { value: 'name-asc', label: 'Название: А-Я' },
+                      { value: 'name-desc', label: 'Название: Я-А' },
+                      { value: 'volunteers-desc', label: 'Волонтёры: по убыванию' },
+                      { value: 'volunteers-asc', label: 'Волонтёры: по возрастанию' },
+                    ]}
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
-                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent text-sm"
-                  >
-                    <option value="date-desc">Дата: сначала новые</option>
-                    <option value="date-asc">Дата: сначала старые</option>
-                    <option value="name-asc">Название: А-Я</option>
-                    <option value="name-desc">Название: Я-А</option>
-                    <option value="volunteers-desc">Волонтёры: по убыванию</option>
-                    <option value="volunteers-asc">Волонтёры: по возрастанию</option>
-                  </select>
+                    onChange={(value) => setSortBy(value as any)}
+                    placeholder="Сортировка"
+                  />
                 </div>
 
                 {/* Фильтр по категории */}
@@ -893,18 +897,18 @@ export default function OrganizerProjects() {
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Категория
                   </label>
-                  <select
+                  <CustomSelect
+                    options={[
+                      { value: 'all', label: 'Все категории' },
+                      ...categories.map((cat) => ({
+                        value: cat.id,
+                        label: `${cat.icon} ${cat.name}`
+                      }))
+                    ]}
                     value={filterCategory}
-                    onChange={(e) => setFilterCategory(e.target.value)}
-                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent text-sm"
-                  >
-                    <option value="all">Все категории</option>
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.icon} {cat.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setFilterCategory}
+                    placeholder="Все категории"
+                  />
                 </div>
               </div>
             </div>
@@ -1249,18 +1253,18 @@ export default function OrganizerProjects() {
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Категория проекта *
                     </label>
-                    <select 
+                    <CustomSelect
+                      options={[
+                        { value: '', label: 'Выберите категорию' },
+                        ...categories.map((cat) => ({
+                          value: cat.id,
+                          label: `${cat.icon} ${cat.name}`
+                        }))
+                      ]}
                       value={projectData.category}
-                      onChange={(e) => setProjectData({ ...projectData, category: e.target.value })}
-                      className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
-                    >
-                      <option value="">Выберите категорию</option>
-                      {categories.map((cat) => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.icon} {cat.name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(value) => setProjectData({ ...projectData, category: value })}
+                      placeholder="Выберите категорию"
+                    />
                   </div>
 
                   {/* Description */}
@@ -1309,12 +1313,10 @@ export default function OrganizerProjects() {
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">
                         Дата начала *
                       </label>
-                      <input
-                        type="date"
-                        required
+                      <CustomDatePicker
                         value={projectData.startDate}
-                        onChange={(e) => setProjectData({ ...projectData, startDate: e.target.value })}
-                        className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
+                        onChange={(value) => setProjectData({ ...projectData, startDate: value })}
+                        placeholder="Выберите дату начала"
                       />
                     </div>
 
@@ -1322,12 +1324,11 @@ export default function OrganizerProjects() {
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">
                         Дата окончания *
                       </label>
-                      <input
-                        type="date"
-                        required
+                      <CustomDatePicker
                         value={projectData.endDate}
-                        onChange={(e) => setProjectData({ ...projectData, endDate: e.target.value })}
-                        className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
+                        onChange={(value) => setProjectData({ ...projectData, endDate: value })}
+                        placeholder="Выберите дату окончания"
+                        minDate={projectData.startDate}
                       />
                     </div>
                   </div>
@@ -1373,22 +1374,23 @@ export default function OrganizerProjects() {
                       Требуемые навыки
                     </label>
                     <div className="flex gap-2 mb-3">
-                      <select
-                        onChange={(e) => {
-                          if (e.target.value) {
-                            handleAddSkill(e.target.value);
-                            e.target.value = '';
+                      <CustomSelect
+                        options={[
+                          { value: '', label: 'Выберите навык' },
+                          ...skills.map((skill) => ({
+                            value: skill.name,
+                            label: skill.name
+                          }))
+                        ]}
+                        value=""
+                        onChange={(value) => {
+                          if (value) {
+                            handleAddSkill(value);
                           }
                         }}
-                        className="flex-1 px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
-                      >
-                        <option value="">Выберите навык</option>
-                        {skills.map((skill) => (
-                          <option key={skill.id} value={skill.name}>
-                            {skill.name}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Выберите навык"
+                        className="flex-1"
+                      />
                     </div>
                     {projectData.requiredSkills.length > 0 && (
                       <div className="flex flex-wrap gap-2">
@@ -1549,18 +1551,18 @@ export default function OrganizerProjects() {
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">
                           Требуемый навык
                         </label>
-                        <select
+                        <CustomSelect
+                          options={[
+                            { value: '', label: 'Не требуется' },
+                            ...projectData.requiredSkills.map((skill) => ({
+                              value: skill,
+                              label: skill
+                            }))
+                          ]}
                           value={currentTask.requiredSkill}
-                          onChange={(e) => setCurrentTask({ ...currentTask, requiredSkill: e.target.value })}
-                          className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
-                        >
-                          <option value="">Не требуется</option>
-                          {projectData.requiredSkills.map((skill) => (
-                            <option key={skill} value={skill}>
-                              {skill}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(value) => setCurrentTask({ ...currentTask, requiredSkill: value })}
+                          placeholder="Не требуется"
+                        />
                       </div>
 
                       <div>
@@ -1581,23 +1583,21 @@ export default function OrganizerProjects() {
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">
                           Дедлайн
                         </label>
-                        <input
-                          type="date"
+                        <CustomDatePicker
                           value={currentTask.deadline}
-                          min={projectData.startDate}
-                          max={projectData.endDate}
-                          onChange={(e) => {
-                            const selectedDate = e.target.value;
+                          onChange={(value) => {
                             // Проверяем, что дата находится в диапазоне проекта
                             if (projectData.startDate && projectData.endDate) {
-                              if (selectedDate < projectData.startDate || selectedDate > projectData.endDate) {
+                              if (value < projectData.startDate || value > projectData.endDate) {
                                 toast.error(`Дедлайн задачи должен быть между ${new Date(projectData.startDate).toLocaleDateString('ru-RU')} и ${new Date(projectData.endDate).toLocaleDateString('ru-RU')}`);
                                 return;
                               }
                             }
-                            setCurrentTask({ ...currentTask, deadline: selectedDate });
+                            setCurrentTask({ ...currentTask, deadline: value });
                           }}
-                          className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
+                          placeholder="Выберите дедлайн"
+                          minDate={projectData.startDate}
+                          maxDate={projectData.endDate}
                         />
                         {projectData.startDate && projectData.endDate && (
                           <p className="text-xs text-gray-500 mt-1">
@@ -1896,18 +1896,18 @@ export default function OrganizerProjects() {
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Категория проекта *
                   </label>
-                  <select 
+                  <CustomSelect
+                    options={[
+                      { value: '', label: 'Выберите категорию' },
+                      ...categories.map((cat) => ({
+                        value: cat.id,
+                        label: `${cat.icon} ${cat.name}`
+                      }))
+                    ]}
                     value={projectData.category}
-                    onChange={(e) => setProjectData({ ...projectData, category: e.target.value })}
-                    className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
-                  >
-                    <option value="">Выберите категорию</option>
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.icon} {cat.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(value) => setProjectData({ ...projectData, category: value })}
+                    placeholder="Выберите категорию"
+                  />
                 </div>
 
                 {/* Description */}
@@ -1966,12 +1966,10 @@ export default function OrganizerProjects() {
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Дата начала *
                     </label>
-                    <input
-                      type="date"
-                      required
+                    <CustomDatePicker
                       value={projectData.startDate}
-                      onChange={(e) => setProjectData({ ...projectData, startDate: e.target.value })}
-                      className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
+                      onChange={(value) => setProjectData({ ...projectData, startDate: value })}
+                      placeholder="Выберите дату начала"
                     />
                   </div>
 
@@ -1979,12 +1977,11 @@ export default function OrganizerProjects() {
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Дата окончания *
                     </label>
-                    <input
-                      type="date"
-                      required
+                    <CustomDatePicker
                       value={projectData.endDate}
-                      onChange={(e) => setProjectData({ ...projectData, endDate: e.target.value })}
-                      className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
+                      onChange={(value) => setProjectData({ ...projectData, endDate: value })}
+                      placeholder="Выберите дату окончания"
+                      minDate={projectData.startDate}
                     />
                   </div>
                 </div>
@@ -2030,22 +2027,23 @@ export default function OrganizerProjects() {
                     Требуемые навыки
                   </label>
                   <div className="flex gap-2 mb-3">
-                    <select
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          handleAddSkill(e.target.value);
-                          e.target.value = '';
+                    <CustomSelect
+                      options={[
+                        { value: '', label: 'Выберите навык' },
+                        ...skills.map((skill) => ({
+                          value: skill.name,
+                          label: skill.name
+                        }))
+                      ]}
+                      value=""
+                      onChange={(value) => {
+                        if (value) {
+                          handleAddSkill(value);
                         }
                       }}
-                      className="flex-1 px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
-                    >
-                      <option value="">Выберите навык</option>
-                      {skills.map((skill) => (
-                        <option key={skill.id} value={skill.name}>
-                          {skill.name}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Выберите навык"
+                      className="flex-1"
+                    />
                   </div>
                   {projectData.requiredSkills.length > 0 && (
                     <div className="flex flex-wrap gap-2">
@@ -2218,18 +2216,18 @@ export default function OrganizerProjects() {
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">
                           Требуемый навык
                         </label>
-                        <select
+                        <CustomSelect
+                          options={[
+                            { value: '', label: 'Не требуется' },
+                            ...projectData.requiredSkills.map((skill) => ({
+                              value: skill,
+                              label: skill
+                            }))
+                          ]}
                           value={currentTask.requiredSkill}
-                          onChange={(e) => setCurrentTask({ ...currentTask, requiredSkill: e.target.value })}
-                          className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
-                        >
-                          <option value="">Не требуется</option>
-                          {projectData.requiredSkills.map((skill) => (
-                            <option key={skill} value={skill}>
-                              {skill}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(value) => setCurrentTask({ ...currentTask, requiredSkill: value })}
+                          placeholder="Не требуется"
+                        />
                       </div>
 
                       <div>
@@ -2250,23 +2248,21 @@ export default function OrganizerProjects() {
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">
                           Дедлайн
                         </label>
-                        <input
-                          type="date"
+                        <CustomDatePicker
                           value={currentTask.deadline}
-                          min={projectData.startDate}
-                          max={projectData.endDate}
-                          onChange={(e) => {
-                            const selectedDate = e.target.value;
+                          onChange={(value) => {
                             // Проверяем, что дата находится в диапазоне проекта
                             if (projectData.startDate && projectData.endDate) {
-                              if (selectedDate < projectData.startDate || selectedDate > projectData.endDate) {
+                              if (value < projectData.startDate || value > projectData.endDate) {
                                 toast.error(`Дедлайн задачи должен быть между ${new Date(projectData.startDate).toLocaleDateString('ru-RU')} и ${new Date(projectData.endDate).toLocaleDateString('ru-RU')}`);
                                 return;
                               }
                             }
-                            setCurrentTask({ ...currentTask, deadline: selectedDate });
+                            setCurrentTask({ ...currentTask, deadline: value });
                           }}
-                          className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
+                          placeholder="Выберите дедлайн"
+                          minDate={projectData.startDate}
+                          maxDate={projectData.endDate}
                         />
                         {projectData.startDate && projectData.endDate && (
                           <p className="text-xs text-gray-500 mt-1">

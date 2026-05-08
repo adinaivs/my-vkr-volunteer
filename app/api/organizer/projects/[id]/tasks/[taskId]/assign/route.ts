@@ -85,7 +85,7 @@ export async function POST(
       );
     }
 
-    // Проверяем, что задача еще не назначена этому волонтеру
+    // Проверяем, что задача еще не назначена этому волонтеру (проверяем только активные назначения)
     const existingAssignment = await prisma.taskAssignment.findUnique({
       where: {
         taskId_volunteerId: {
@@ -95,7 +95,8 @@ export async function POST(
       },
     });
 
-    if (existingAssignment) {
+    // Если есть активное назначение (не отмененное и не отклоненное), то нельзя назначить снова
+    if (existingAssignment && existingAssignment.status !== 'cancelled' && existingAssignment.status !== 'rejected') {
       return NextResponse.json(
         { error: 'Задача уже назначена этому волонтеру' },
         { status: 400 }
@@ -104,31 +105,69 @@ export async function POST(
 
     // Создаем назначение задачи в транзакции
     const result = await prisma.$transaction(async (tx) => {
-      // Создаем назначение
-      const assignment = await tx.taskAssignment.create({
-        data: {
-          taskId,
-          volunteerId,
-          assignedBy: session.userId,
-          status: 'assigned',
-        },
-        include: {
-          volunteer: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
+      let assignment;
+      
+      // Если есть отмененное или отклоненное назначение, обновляем его
+      if (existingAssignment && (existingAssignment.status === 'cancelled' || existingAssignment.status === 'rejected')) {
+        assignment = await tx.taskAssignment.update({
+          where: {
+            taskId_volunteerId: {
+              taskId,
+              volunteerId,
             },
           },
-          task: {
-            select: {
-              id: true,
-              title: true,
+          data: {
+            status: 'assigned',
+            assignedBy: session.userId,
+            completedAt: null,
+            confirmedAt: null,
+            feedback: null,
+            rating: null,
+          },
+          include: {
+            volunteer: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+            task: {
+              select: {
+                id: true,
+                title: true,
+              },
             },
           },
-        },
-      });
+        });
+      } else {
+        // Создаем новое назначение
+        assignment = await tx.taskAssignment.create({
+          data: {
+            taskId,
+            volunteerId,
+            assignedBy: session.userId,
+            status: 'assigned',
+          },
+          include: {
+            volunteer: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+            task: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+          },
+        });
+      }
 
       // Обновляем счетчик волонтеров в задаче
       const updatedTask = await tx.task.update({

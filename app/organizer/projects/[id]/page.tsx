@@ -111,6 +111,13 @@ export default function ProjectDetailsPage() {
   const [showMapModal, setShowMapModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   
+  // Состояния для QR-кода
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [selectedTaskForQR, setSelectedTaskForQR] = useState<Task | null>(null);
+  const [qrCodeData, setQrCodeData] = useState<any>(null);
+  const [loadingQR, setLoadingQR] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
+  
   // Состояния для участников
   const [participants, setParticipants] = useState<any[]>([]);
   const [loadingParticipants, setLoadingParticipants] = useState(false);
@@ -126,10 +133,18 @@ export default function ProjectDetailsPage() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [showApplicationModal, setShowApplicationModal] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
+  
+  // Состояния для просмотра отчётов
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<any>(null);
+  const [loadingReport, setLoadingReport] = useState(false);
+  const [processingReport, setProcessingReport] = useState(false);
+  const [reportFeedback, setReportFeedback] = useState('');
+  const [reportRating, setReportRating] = useState<number>(0);
 
   // Блокировка скролла при открытии модального окна карты или назначения
   useEffect(() => {
-    if (showMapModal || showAssignModal || showRejectModal || showApplicationModal) {
+    if (showMapModal || showAssignModal || showRejectModal || showApplicationModal || showQRModal || showReportModal) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -138,7 +153,7 @@ export default function ProjectDetailsPage() {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [showMapModal, showAssignModal, showRejectModal, showApplicationModal]);
+  }, [showMapModal, showAssignModal, showRejectModal, showApplicationModal, showQRModal, showReportModal]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -196,8 +211,7 @@ export default function ProjectDetailsPage() {
       if (!project && data.project.status === 'recruiting' && 
           data.project.currentVolunteers >= data.project.maxVolunteers) {
         toast.success(
-          `🎉 Набрано нужное количество волонтеров (${data.project.currentVolunteers}/${data.project.maxVolunteers})! Вы можете завершить набор и перейти к следующему этапу.`,
-          { duration: 8000 }
+          `🎉 Набрано нужное количество волонтеров (${data.project.currentVolunteers}/${data.project.maxVolunteers})! Вы можете завершить набор и перейти к следующему этапу.`
         );
       }
       
@@ -301,6 +315,7 @@ export default function ProjectDetailsPage() {
             ...task,
             assignmentStatus: assignment?.status,
             assignedAt: assignment?.createdAt,
+            assignments: task.assignments, // Передаём все assignments включая report
           };
         });
         
@@ -426,8 +441,7 @@ export default function ProjectDetailsPage() {
           if (newCurrentVolunteers >= project.maxVolunteers) {
             setTimeout(() => {
               toast.success(
-                `🎉 Набрано нужное количество волонтеров (${newCurrentVolunteers}/${project.maxVolunteers})! Вы можете завершить набор и перейти к следующему этапу.`,
-                { duration: 8000 }
+                `🎉 Набрано нужное количество волонтеров (${newCurrentVolunteers}/${project.maxVolunteers})! Вы можете завершить набор и перейти к следующему этапу.`
               );
             }, 1000);
           }
@@ -497,6 +511,49 @@ export default function ProjectDetailsPage() {
     }
   };
 
+  const handleShowQRCode = async (task: Task) => {
+    setSelectedTaskForQR(task);
+    setShowQRModal(true);
+    setLoadingQR(true);
+    setQrError(null);
+    setQrCodeData(null);
+
+    try {
+      const response = await fetch(
+        `/api/organizer/projects/${projectId}/tasks/${task.id}/qr-code`,
+        {
+          credentials: 'include'
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Ошибка при генерации QR-кода');
+      }
+
+      const data = await response.json();
+      setQrCodeData(data);
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      setQrError(error instanceof Error ? error.message : 'Неизвестная ошибка');
+    } finally {
+      setLoadingQR(false);
+    }
+  };
+
+  const handleRefreshQRCode = () => {
+    if (selectedTaskForQR) {
+      handleShowQRCode(selectedTaskForQR);
+    }
+  };
+
+  const handleCloseQRModal = () => {
+    setShowQRModal(false);
+    setSelectedTaskForQR(null);
+    setQrCodeData(null);
+    setQrError(null);
+  };
+
   const handleDeleteProject = async () => {
     if (!project) return;
 
@@ -533,6 +590,144 @@ export default function ProjectDetailsPage() {
       },
       'error'
     );
+  };
+
+  // Функция для просмотра отчёта
+  const handleViewReport = async (taskId: string, assignmentId: string) => {
+    try {
+      setLoadingReport(true);
+      setShowReportModal(true);
+      setReportFeedback('');
+      setReportRating(0);
+      
+      const response = await fetch(
+        `/api/organizer/projects/${projectId}/tasks/${taskId}/reports`,
+        {
+          credentials: 'include'
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Ошибка при загрузке отчёта');
+      }
+
+      const data = await response.json();
+      const assignment = data.assignments.find((a: any) => a.id === assignmentId);
+      
+      if (!assignment || !assignment.report) {
+        throw new Error('Отчёт не найден');
+      }
+
+      setSelectedReport({
+        ...assignment.report,
+        assignment: {
+          id: assignment.id,
+          taskId: assignment.taskId,
+          volunteer: assignment.volunteer,
+          status: assignment.status,
+        }
+      });
+    } catch (error) {
+      console.error('Error loading report:', error);
+      toast.error('Ошибка при загрузке отчёта');
+      setShowReportModal(false);
+    } finally {
+      setLoadingReport(false);
+    }
+  };
+
+  // Функция для подтверждения отчёта
+  const handleConfirmReport = async () => {
+    if (!selectedReport) return;
+
+    try {
+      setProcessingReport(true);
+      const response = await fetch(
+        `/api/organizer/projects/${projectId}/tasks/${selectedReport.assignment.taskId}/reports/${selectedReport.assignment.id}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            action: 'confirm',
+            feedback: reportFeedback.trim() || undefined,
+            rating: reportRating > 0 ? reportRating : undefined,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Ошибка при подтверждении отчёта');
+      }
+
+      toast.success('Отчёт подтверждён! Задача отмечена как выполненная.');
+      setShowReportModal(false);
+      setSelectedReport(null);
+      
+      // Обновляем данные
+      await fetchParticipants();
+      await fetchTasks();
+      if (expandedParticipant) {
+        await fetchParticipantTasks(expandedParticipant);
+      }
+    } catch (error) {
+      console.error('Error confirming report:', error);
+      toast.error(error instanceof Error ? error.message : 'Ошибка при подтверждении отчёта');
+    } finally {
+      setProcessingReport(false);
+    }
+  };
+
+  // Функция для отклонения отчёта
+  const handleRejectReport = async () => {
+    if (!selectedReport) return;
+
+    if (!reportFeedback.trim()) {
+      toast.error('Пожалуйста, укажите причину отклонения');
+      return;
+    }
+
+    try {
+      setProcessingReport(true);
+      const response = await fetch(
+        `/api/organizer/projects/${projectId}/tasks/${selectedReport.assignment.taskId}/reports/${selectedReport.assignment.id}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            action: 'reject',
+            feedback: reportFeedback.trim(),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Ошибка при отклонении отчёта');
+      }
+
+      toast.success('Отчёт отклонён. Волонтёр может отправить новый отчёт.');
+      setShowReportModal(false);
+      setSelectedReport(null);
+      
+      // Обновляем данные
+      await fetchParticipants();
+      await fetchTasks();
+      if (expandedParticipant) {
+        await fetchParticipantTasks(expandedParticipant);
+      }
+    } catch (error) {
+      console.error('Error rejecting report:', error);
+      toast.error(error instanceof Error ? error.message : 'Ошибка при отклонении отчёта');
+    } finally {
+      setProcessingReport(false);
+    }
   };
 
   const handleChangeStatus = async (newStatus: string) => {
@@ -1010,7 +1205,7 @@ export default function ProjectDetailsPage() {
                               </span>
                             </div>
                             
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-2 mb-3">
                               {task.requiredSkill && (
                                 <span className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
                                   <svg className="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1034,6 +1229,32 @@ export default function ProjectDetailsPage() {
                                 </span>
                               )}
                             </div>
+                            
+                            {/* Кнопка QR-кода - только для активных проектов */}
+                            {project.status === 'active' && (
+                              <div className="flex justify-end">
+                                <button
+                                  onClick={() => handleShowQRCode(task)}
+                                  className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                  title={`Показать QR-код для задачи: ${task.title}`}
+                                >
+                                  <svg
+                                    className="w-5 h-5 mr-2"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+                                    />
+                                  </svg>
+                                  QR-код
+                                </button>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -1151,39 +1372,62 @@ export default function ProjectDetailsPage() {
                                   <p className="text-sm text-gray-500 text-center py-4">Задачи пока не назначены</p>
                                 ) : (
                                   <div className="space-y-2">
-                                    {assignedTasks[participant.volunteerId].map((task: any) => (
-                                      <div key={task.id} className="bg-white border border-gray-200 rounded-lg p-3">
-                                        <div className="flex items-start justify-between mb-2">
-                                          <div className="flex-1">
-                                            <h6 className="font-medium text-gray-900">{task.title}</h6>
-                                            <p className="text-xs text-gray-600 mt-1">{task.description}</p>
+                                    {assignedTasks[participant.volunteerId].map((task: any) => {
+                                      // Находим назначение для этой задачи
+                                      const assignment = task.assignments?.find((a: any) => a.volunteerId === participant.volunteerId);
+                                      const hasReport = assignment && assignment.report;
+                                      
+                                      // Отладка - выводим в консоль
+                                      console.log('Task:', task.title, 'Status:', task.assignmentStatus, 'Has Report:', hasReport, 'Assignment:', assignment);
+                                      
+                                      return (
+                                        <div key={task.id} className="bg-white border border-gray-200 rounded-lg p-3">
+                                          <div className="flex items-start justify-between mb-2">
+                                            <div className="flex-1">
+                                              <h6 className="font-medium text-gray-900">{task.title}</h6>
+                                              <p className="text-xs text-gray-600 mt-1">{task.description}</p>
+                                            </div>
+                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ml-2 ${
+                                              task.assignmentStatus === 'assigned' ? 'bg-blue-100 text-blue-700' :
+                                              task.assignmentStatus === 'completed' ? 'bg-green-100 text-green-700' :
+                                              task.assignmentStatus === 'confirmed' ? 'bg-purple-100 text-purple-700' :
+                                              'bg-gray-100 text-gray-700'
+                                            }`}>
+                                              {task.assignmentStatus === 'assigned' && 'Назначена'}
+                                              {task.assignmentStatus === 'completed' && 'Выполнена'}
+                                              {task.assignmentStatus === 'confirmed' && 'Подтверждена'}
+                                            </span>
                                           </div>
-                                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ml-2 ${
-                                            task.assignmentStatus === 'assigned' ? 'bg-blue-100 text-blue-700' :
-                                            task.assignmentStatus === 'completed' ? 'bg-green-100 text-green-700' :
-                                            task.assignmentStatus === 'confirmed' ? 'bg-purple-100 text-purple-700' :
-                                            'bg-gray-100 text-gray-700'
-                                          }`}>
-                                            {task.assignmentStatus === 'assigned' && 'Назначена'}
-                                            {task.assignmentStatus === 'completed' && 'Выполнена'}
-                                            {task.assignmentStatus === 'confirmed' && 'Подтверждена'}
-                                          </span>
+                                          <div className="flex items-center justify-between mt-2 gap-2">
+                                            <span className="text-xs text-gray-500">
+                                              Назначена: {new Date(task.assignedAt).toLocaleDateString('ru-RU')}
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                              {/* Кнопка "Посмотреть отчёт" - показываем если есть отчёт */}
+                                              {hasReport && task.assignmentStatus === 'assigned' && (
+                                                <button
+                                                  onClick={() => handleViewReport(task.id, assignment.id)}
+                                                  className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                                                >
+                                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                  </svg>
+                                                  Посмотреть отчёт
+                                                </button>
+                                              )}
+                                              {task.assignmentStatus === 'assigned' && !hasReport && (
+                                                <button
+                                                  onClick={() => handleUnassignTask(task.id, participant.volunteerId)}
+                                                  className="text-xs text-red-600 hover:text-red-700 font-medium"
+                                                >
+                                                  Отменить
+                                                </button>
+                                              )}
+                                            </div>
+                                          </div>
                                         </div>
-                                        <div className="flex items-center justify-between mt-2">
-                                          <span className="text-xs text-gray-500">
-                                            Назначена: {new Date(task.assignedAt).toLocaleDateString('ru-RU')}
-                                          </span>
-                                          {task.assignmentStatus === 'assigned' && (
-                                            <button
-                                              onClick={() => handleUnassignTask(task.id, participant.volunteerId)}
-                                              className="text-xs text-red-600 hover:text-red-700 font-medium"
-                                            >
-                                              Отменить
-                                            </button>
-                                          )}
-                                        </div>
-                                      </div>
-                                    ))}
+                                      );
+                                    })}
                                   </div>
                                 )}
                               </div>
@@ -1760,6 +2004,339 @@ export default function ProjectDetailsPage() {
               >
                 Отклонить заявку
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR Code Modal */}
+      {showQRModal && selectedTaskForQR && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={handleCloseQRModal}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-blue-100">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">QR-код для подтверждения задачи</h2>
+                <p className="text-sm text-gray-600 mt-1">{selectedTaskForQR.title}</p>
+              </div>
+              <button
+                onClick={handleCloseQRModal}
+                className="p-2 hover:bg-white/50 rounded-lg transition-colors"
+              >
+                <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              {loadingQR ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-4 text-gray-600">Генерация QR-кода...</p>
+                </div>
+              ) : qrError ? (
+                <div className="text-center py-12">
+                  <div className="text-red-500 text-5xl mb-4">⚠️</div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Ошибка</h3>
+                  <p className="text-gray-600 mb-6">{qrError}</p>
+                  <button
+                    onClick={handleRefreshQRCode}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                  >
+                    Попробовать снова
+                  </button>
+                </div>
+              ) : qrCodeData ? (
+                <>
+                  {/* QR Code Display */}
+                  <div className="flex justify-center mb-6">
+                    <div className="bg-white p-6 rounded-lg border-4 border-blue-600 shadow-xl">
+                      <img
+                        src={qrCodeData.qrCode}
+                        alt="QR код для верификации задачи"
+                        className="w-full h-auto"
+                        style={{ maxWidth: '400px' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Instructions */}
+                  <div className="bg-blue-50 rounded-lg p-6 mb-6">
+                    <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Инструкция:
+                    </h3>
+                    <ol className="list-decimal list-inside space-y-2 text-gray-700 text-sm">
+                      <li>Покажите этот QR-код волонтеру</li>
+                      <li>Волонтер должен отсканировать код в своем приложении</li>
+                      <li>После сканирования задача будет отмечена как выполненная</li>
+                    </ol>
+                  </div>
+
+                  {/* Expiry Time */}
+                  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <svg
+                          className="h-5 w-5 text-yellow-400"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-yellow-700">
+                          <span className="font-medium">Код действителен до:</span>{' '}
+                          {new Date(qrCodeData.expiresAt).toLocaleString('ru-RU')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleRefreshQRCode}
+                      className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Обновить код
+                    </button>
+                    <button
+                      onClick={() => window.print()}
+                      className="flex-1 bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition font-medium flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                      </svg>
+                      Распечатать
+                    </button>
+                    <button
+                      onClick={handleCloseQRModal}
+                      className="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition font-medium"
+                    >
+                      Закрыть
+                    </button>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Report View Modal */}
+      {showReportModal && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => {
+            if (!processingReport) {
+              setShowReportModal(false);
+              setSelectedReport(null);
+              setReportFeedback('');
+              setReportRating(0);
+            }
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-green-100">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Отчёт о выполнении задачи</h2>
+                {selectedReport && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    Волонтёр: {selectedReport.assignment.volunteer.firstName} {selectedReport.assignment.volunteer.lastName}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  if (!processingReport) {
+                    setShowReportModal(false);
+                    setSelectedReport(null);
+                    setReportFeedback('');
+                    setReportRating(0);
+                  }
+                }}
+                disabled={processingReport}
+                className="p-2 hover:bg-white/50 rounded-lg transition-colors disabled:opacity-50"
+              >
+                <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              {loadingReport ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00CC00] mx-auto"></div>
+                  <p className="mt-4 text-gray-600">Загрузка отчёта...</p>
+                </div>
+              ) : selectedReport ? (
+                <>
+                  {/* Report Description */}
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">Описание выполненной работы</h3>
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                        {selectedReport.description || 'Описание не предоставлено'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Report Photos */}
+                  {selectedReport.photos && selectedReport.photos.length > 0 && (
+                    <div className="mb-6">
+                      <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                        Фотографии ({selectedReport.photos.length})
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {selectedReport.photos.map((photo: string, index: number) => (
+                          <div key={index} className="relative group">
+                            <img
+                              src={photo}
+                              alt={`Фото ${index + 1}`}
+                              className="w-full h-48 object-cover rounded-lg border-2 border-gray-200 hover:border-[#00CC00] transition-colors cursor-pointer"
+                              onClick={() => window.open(photo, '_blank')}
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-lg flex items-center justify-center">
+                              <svg className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                              </svg>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Submission Date */}
+                  <div className="mb-6">
+                    <p className="text-sm text-gray-500">
+                      <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Отправлено: {new Date(selectedReport.submittedAt).toLocaleString('ru-RU')}
+                    </p>
+                  </div>
+
+                  {/* Rating Section */}
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                      Оценка работы (необязательно)
+                    </h3>
+                    <div className="flex gap-2">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          onClick={() => setReportRating(star)}
+                          disabled={processingReport}
+                          className="transition-transform hover:scale-110 disabled:opacity-50"
+                        >
+                          <svg
+                            className={`w-8 h-8 ${
+                              star <= reportRating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                            }`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
+                            />
+                          </svg>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Feedback Section */}
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                      Комментарий (необязательно для подтверждения, обязательно для отклонения)
+                    </h3>
+                    <textarea
+                      value={reportFeedback}
+                      onChange={(e) => setReportFeedback(e.target.value)}
+                      placeholder="Оставьте комментарий для волонтёра..."
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent resize-none"
+                      rows={4}
+                      maxLength={500}
+                      disabled={processingReport}
+                    />
+                    <p className="text-sm text-gray-400 mt-1 text-right">
+                      {reportFeedback.length}/500
+                    </p>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-6 border-t border-gray-200">
+                    <button
+                      onClick={handleConfirmReport}
+                      disabled={processingReport}
+                      className="flex-1 px-6 py-3 bg-green-500 text-white text-sm font-semibold rounded-xl hover:bg-green-600 transition-colors shadow-sm hover:shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {processingReport ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          <span>Обработка...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Подтвердить выполнение
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={handleRejectReport}
+                      disabled={processingReport}
+                      className="flex-1 px-6 py-3 bg-red-500 text-white text-sm font-semibold rounded-xl hover:bg-red-600 transition-colors shadow-sm hover:shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {processingReport ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          <span>Обработка...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                          Отклонить отчёт
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
+              ) : null}
             </div>
           </div>
         </div>

@@ -43,6 +43,7 @@ interface MyTask {
   assignmentStatus: string;
   assignedAt: string;
   assignments: TaskAssignment[];
+  projectStatus?: string; // Добавляем статус проекта
 }
 
 interface Project {
@@ -119,6 +120,16 @@ export default function MyProjects() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [loadingApplications, setLoadingApplications] = useState(false);
+
+  // Report Modal States
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<MyTask | null>(null);
+  const [reportDescription, setReportDescription] = useState('');
+  const [reportPhotos, setReportPhotos] = useState<string[]>([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [submittingReport, setSubmittingReport] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportSuccess, setReportSuccess] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -236,7 +247,7 @@ export default function MyProjects() {
 
   // Блокируем скролл при открытии модального окна
   useEffect(() => {
-    if (showProjectDetails) {
+    if (showProjectDetails || showReportModal) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -245,7 +256,140 @@ export default function MyProjects() {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [showProjectDetails]);
+  }, [showProjectDetails, showReportModal]);
+
+  const openReportModal = (task: MyTask) => {
+    setSelectedTask(task);
+    setReportDescription('');
+    setReportPhotos([]);
+    setReportError(null);
+    setReportSuccess(false);
+    setShowReportModal(true);
+  };
+
+  const closeReportModal = () => {
+    setShowReportModal(false);
+    setSelectedTask(null);
+    setReportDescription('');
+    setReportPhotos([]);
+    setReportError(null);
+    setReportSuccess(false);
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingPhoto(true);
+    setReportError(null);
+
+    try {
+      // Проверяем количество файлов
+      if (files.length > 10) {
+        setReportError('Можно загрузить максимум 10 фотографий');
+        setUploadingPhoto(false);
+        return;
+      }
+
+      // Проверяем размер и тип каждого файла
+      for (const file of Array.from(files)) {
+        if (file.size > 5 * 1024 * 1024) {
+          setReportError('Размер каждого файла не должен превышать 5MB');
+          setUploadingPhoto(false);
+          return;
+        }
+
+        if (!file.type.startsWith('image/')) {
+          setReportError('Можно загружать только изображения');
+          setUploadingPhoto(false);
+          return;
+        }
+      }
+
+      // Загружаем фотографии в S3
+      const formData = new FormData();
+      Array.from(files).forEach((file) => {
+        formData.append('photos', file);
+      });
+
+      const response = await fetch('/api/upload/report-photos', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Ошибка при загрузке фотографий');
+      }
+
+      const data = await response.json();
+      setReportPhotos([...reportPhotos, ...data.urls]);
+      toast.success(`Загружено ${data.urls.length} фотографий`);
+    } catch (err) {
+      console.error('Error uploading photos:', err);
+      setReportError(err instanceof Error ? err.message : 'Ошибка при загрузке фотографий');
+      toast.error(err instanceof Error ? err.message : 'Ошибка при загрузке фотографий');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setReportPhotos(reportPhotos.filter((_, i) => i !== index));
+  };
+
+  const handleSubmitReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedTask || !selectedTask.assignments[0]) {
+      setReportError('Задание не найдено');
+      return;
+    }
+
+    if (!reportDescription.trim()) {
+      setReportError('Введите описание выполненной работы');
+      return;
+    }
+
+    if (reportPhotos.length === 0) {
+      setReportError('Загрузите хотя бы одну фотографию');
+      return;
+    }
+
+    setSubmittingReport(true);
+    setReportError(null);
+
+    try {
+      const assignmentId = selectedTask.assignments[0].id;
+      const response = await fetch(`/api/volunteer/tasks/${assignmentId}/report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: reportDescription,
+          photos: reportPhotos,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setReportError(data.error || 'Ошибка при отправке отчёта');
+        return;
+      }
+
+      setReportSuccess(true);
+      
+      // Обновляем список проектов
+      setTimeout(() => {
+        closeReportModal();
+        fetchProjects();
+      }, 2000);
+    } catch (err) {
+      setReportError('Ошибка при отправке отчёта');
+    } finally {
+      setSubmittingReport(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -714,9 +858,23 @@ export default function MyProjects() {
                                 <h4 className="text-sm font-bold text-gray-900 mb-1">{task.title}</h4>
                                 <p className="text-xs text-gray-600 line-clamp-2">{task.description}</p>
                               </div>
-                              <span className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${taskStatusBadge.bg} ${taskStatusBadge.text}`}>
-                                {taskStatusBadge.icon} {taskStatusBadge.label}
-                              </span>
+                              <div className="flex flex-col items-end gap-2">
+                                <span className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${taskStatusBadge.bg} ${taskStatusBadge.text}`}>
+                                  {taskStatusBadge.icon} {taskStatusBadge.label}
+                                </span>
+                                {/* Submit Report Button - small, next to status */}
+                                {task.assignmentStatus === 'assigned' && task.projectStatus === 'active' && (
+                                  <button
+                                    onClick={() => openReportModal(task)}
+                                    className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    Отправить отчёт
+                                  </button>
+                                )}
+                              </div>
                             </div>
 
                             <div className="flex flex-wrap gap-3 text-xs text-gray-600">
@@ -816,6 +974,157 @@ export default function MyProjects() {
                     Закрыть
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Report Modal */}
+        {showReportModal && selectedTask && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              {/* Modal Header */}
+              <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
+                <div className="flex-1">
+                  <h2 className="text-xl font-bold text-gray-900">Отправить отчёт</h2>
+                  <p className="text-sm text-gray-600 mt-1">{selectedTask.title}</p>
+                </div>
+                <button
+                  onClick={closeReportModal}
+                  className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+                >
+                  <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6">
+                {reportSuccess ? (
+                  <div className="text-center py-8">
+                    <div className="text-green-500 text-6xl mb-4">✓</div>
+                    <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                      Отчёт отправлен!
+                    </h3>
+                    <p className="text-gray-600">
+                      Ваш отчёт отправлен организатору на проверку. Вы получите уведомление после проверки.
+                    </p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSubmitReport} className="space-y-6">
+                    {/* Warning if project is not active */}
+                    {selectedTask.projectStatus !== 'active' && (
+                      <div className="bg-orange-50 border-l-4 border-orange-400 p-4">
+                        <div className="flex items-start gap-3">
+                          <svg className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                          <div>
+                            <p className="text-sm font-medium text-orange-900">Проект не активен</p>
+                            <p className="text-sm text-orange-700 mt-1">
+                              Отчёт можно отправлять только для активных проектов. Текущий статус проекта: <strong>{selectedTask.projectStatus}</strong>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Error Message */}
+                    {reportError && (
+                      <div className="bg-red-50 border-l-4 border-red-400 p-4">
+                        <p className="text-sm text-red-700">{reportError}</p>
+                      </div>
+                    )}
+
+                    {/* Description */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Описание выполненной работы <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        value={reportDescription}
+                        onChange={(e) => setReportDescription(e.target.value)}
+                        rows={5}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                        placeholder="Опишите, что вы сделали..."
+                        required
+                      />
+                    </div>
+
+                    {/* Photo Upload */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Фотографии <span className="text-red-500">*</span>
+                      </label>
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handlePhotoUpload}
+                          className="hidden"
+                          id="photo-upload-modal"
+                          disabled={uploadingPhoto}
+                        />
+                        <label
+                          htmlFor="photo-upload-modal"
+                          className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          {uploadingPhoto ? 'Загрузка...' : 'Загрузить фотографии'}
+                        </label>
+                        <p className="text-xs text-gray-500 mt-2">
+                          Максимальный размер файла: 5MB
+                        </p>
+                      </div>
+
+                      {/* Photo Preview */}
+                      {reportPhotos.length > 0 && (
+                        <div className="grid grid-cols-3 gap-4 mt-4">
+                          {reportPhotos.map((photo, index) => (
+                            <div key={index} className="relative group">
+                              <img
+                                src={photo}
+                                alt={`Фото ${index + 1}`}
+                                className="w-full h-32 object-cover rounded-lg"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removePhoto(index)}
+                                className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Buttons */}
+                    <div className="flex gap-4 pt-4 border-t border-gray-200">
+                      <button
+                        type="submit"
+                        disabled={submittingReport || selectedTask.projectStatus !== 'active'}
+                        className="flex-1 bg-[#00CC00] text-white px-6 py-3 rounded-lg hover:bg-[#00b300] transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {submittingReport ? 'Отправка...' : 'Отправить отчёт'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={closeReportModal}
+                        className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+                      >
+                        Отмена
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
             </div>
           </div>

@@ -56,6 +56,9 @@ export async function GET(request: NextRequest) {
                 assignments: {
                   where: {
                     volunteerId: user.id,
+                    status: {
+                      notIn: ['cancelled', 'rejected'], // Исключаем отмененные и отклоненные назначения
+                    },
                   },
                 },
               },
@@ -87,9 +90,13 @@ export async function GET(request: NextRequest) {
 
     // Форматируем данные
     const projectsData = filteredProjects.map(project => {
-      // Подсчитываем назначенные задачи волонтера
+      // Подсчитываем назначенные задачи волонтера (только активные назначения)
       const myTasks = project.tasks.filter(task => 
-        task.assignments.some(a => a.volunteerId === user.id)
+        task.assignments.some(a => 
+          a.volunteerId === user.id && 
+          a.status !== 'cancelled' && 
+          a.status !== 'rejected'
+        )
       );
 
       const completedTasks = myTasks.filter(task =>
@@ -110,6 +117,7 @@ export async function GET(request: NextRequest) {
           ...task,
           assignmentStatus: task.assignments[0]?.status,
           assignedAt: task.assignments[0]?.createdAt,
+          projectStatus: project.status, // Добавляем статус проекта
         })),
       };
     });

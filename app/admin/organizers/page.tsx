@@ -7,6 +7,7 @@ import AdminNav from '../components/AdminNav';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { useToast } from '@/app/components/ToastContainer';
+import CustomSelect from '@/app/components/CustomSelect';
 
 interface User {
   id: string;
@@ -341,16 +342,16 @@ export default function AdminOrganizersPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Статус
                     </label>
-                    <select
+                    <CustomSelect
                       value={filter}
-                      onChange={(e) => setFilter(e.target.value as any)}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent text-sm"
-                    >
-                      <option value="pending">Ожидают проверки</option>
-                      <option value="approved">Подтвержденные</option>
-                      <option value="rejected">Отклоненные</option>
-                      <option value="all">Все</option>
-                    </select>
+                      onChange={(value) => setFilter(value as any)}
+                      options={[
+                        { value: 'pending', label: 'Ожидают проверки' },
+                        { value: 'approved', label: 'Подтвержденные' },
+                        { value: 'rejected', label: 'Отклоненные' },
+                        { value: 'all', label: 'Все' }
+                      ]}
+                    />
                   </div>
 
                   {/* Сортировка */}
@@ -358,16 +359,16 @@ export default function AdminOrganizersPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Сортировка
                     </label>
-                    <select
+                    <CustomSelect
                       value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as any)}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent text-sm"
-                    >
-                      <option value="date-desc">Дата регистрации: сначала новые</option>
-                      <option value="date-asc">Дата регистрации: сначала старые</option>
-                      <option value="name-asc">Название: А-Я</option>
-                      <option value="name-desc">Название: Я-А</option>
-                    </select>
+                      onChange={(value) => setSortBy(value as any)}
+                      options={[
+                        { value: 'date-desc', label: 'Дата регистрации: сначала новые' },
+                        { value: 'date-asc', label: 'Дата регистрации: сначала старые' },
+                        { value: 'name-asc', label: 'Название: А-Я' },
+                        { value: 'name-desc', label: 'Название: Я-А' }
+                      ]}
+                    />
                   </div>
 
                   {/* Информация о количестве */}

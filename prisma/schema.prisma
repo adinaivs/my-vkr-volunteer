@@ -299,9 +299,23 @@ model TaskAssignment {
   task      Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
   volunteer User @relation("VolunteerAssignments", fields: [volunteerId], references: [id], onDelete: Cascade)
   assigner  User @relation("AssignedBy", fields: [assignedBy], references: [id])
+  report    TaskReport?
 
   @@unique([taskId, volunteerId])
   @@map("task_assignments")
+}
+
+model TaskReport {
+  id           String   @id @default(uuid()) @db.Uuid
+  assignmentId String   @unique @map("assignment_id") @db.Uuid
+  description  String
+  photos       String[] // Массив URL фотографий
+  submittedAt  DateTime @default(now()) @map("submitted_at") @db.Timestamp(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  assignment TaskAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@map("task_reports")
 }
 
 model ProjectParticipant {

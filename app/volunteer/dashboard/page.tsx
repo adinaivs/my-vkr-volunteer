@@ -133,12 +133,14 @@ export default function VolunteerDashboard() {
             <p className="text-sm md:text-base text-emerald-50 mb-5 mt-4 max-w-2xl">
               Готовы изменить мир к лучшему? Найдите проект, который вам по душе, и начните помогать уже сегодня!
             </p>
-            <Link 
-              href="/volunteer/projects"
-              className="inline-block px-5 py-2 bg-white text-[#00CC00] rounded-full text-sm font-semibold hover:bg-emerald-50 transition-colors"
-            >
-              Найти проект
-            </Link>
+            <div className="flex flex-wrap gap-3">
+              <Link 
+                href="/volunteer/projects"
+                className="inline-block px-5 py-2 bg-white text-[#00CC00] rounded-full text-sm font-semibold hover:bg-emerald-50 transition-colors"
+              >
+                Найти проект
+              </Link>
+            </div>
           </div>
         </section>
 

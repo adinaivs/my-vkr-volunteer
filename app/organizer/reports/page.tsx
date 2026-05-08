@@ -8,6 +8,7 @@ import AiSupportButton from '@/app/components/AiSupportButton';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { useToast } from '@/app/components/ToastContainer';
+import CustomDatePicker from '@/app/components/CustomDatePicker';
 
 interface User {
   id: string;
@@ -155,20 +156,19 @@ export default function OrganizerReports() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs text-gray-600 mb-2">Дата начала</label>
-                  <input
-                    type="date"
+                  <CustomDatePicker
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                    onChange={setStartDate}
+                    placeholder="Выберите дату начала"
                   />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-600 mb-2">Дата окончания</label>
-                  <input
-                    type="date"
+                  <CustomDatePicker
                     value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                    onChange={setEndDate}
+                    placeholder="Выберите дату окончания"
+                    minDate={startDate}
                   />
                 </div>
               </div>

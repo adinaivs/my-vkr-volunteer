@@ -55,6 +55,12 @@ export async function GET(
             volunteerId: true,
             status: true,
             createdAt: true,
+            report: {
+              select: {
+                id: true,
+                submittedAt: true,
+              },
+            },
           },
         },
       },
