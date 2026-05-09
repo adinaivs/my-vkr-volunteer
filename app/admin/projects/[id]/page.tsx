@@ -1,0 +1,409 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
+import AdminNav from '../../components/AdminNav';
+import AdminSidebar from '../../components/AdminSidebar';
+import DynamicContent from '@/app/components/DynamicContent';
+import { SidebarProvider } from '@/app/contexts/SidebarContext';
+import { useToast } from '@/app/components/ToastContainer';
+
+interface AdminUser { id: string; firstName: string; lastName: string; email: string; role: string; avatarUrl?: string; }
+
+const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  draft: { label: 'Черновик', color: 'bg-gray-100 text-gray-600' },
+  moderation: { label: 'На модерации', color: 'bg-yellow-100 text-yellow-700' },
+  rejected: { label: 'Отклонён', color: 'bg-red-100 text-red-700' },
+  recruiting: { label: 'Набор', color: 'bg-blue-100 text-blue-700' },
+  upcoming: { label: 'Скоро', color: 'bg-purple-100 text-purple-700' },
+  active: { label: 'Активен', color: 'bg-green-100 text-green-700' },
+  completed: { label: 'Завершён', color: 'bg-emerald-100 text-emerald-700' },
+  cancelled: { label: 'Отменён', color: 'bg-orange-100 text-orange-700' },
+  blocked: { label: 'Заблокирован', color: 'bg-red-100 text-red-800' },
+};
+
+const TASK_STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  pending: { label: 'Ожидает', color: 'bg-gray-100 text-gray-600' },
+  in_progress: { label: 'В процессе', color: 'bg-blue-100 text-blue-700' },
+  completed: { label: 'Завершена', color: 'bg-green-100 text-green-700' },
+  overdue: { label: 'Просрочена', color: 'bg-red-100 text-red-700' },
+  cancelled: { label: 'Отменена', color: 'bg-orange-100 text-orange-600' },
+};
+
+const APP_STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  pending: { label: 'Ожидает', color: 'bg-yellow-100 text-yellow-700' },
+  approved: { label: 'Принят', color: 'bg-green-100 text-green-700' },
+  rejected: { label: 'Отклонён', color: 'bg-red-100 text-red-700' },
+  cancelled: { label: 'Отменён', color: 'bg-gray-100 text-gray-600' },
+};
+
+const ASSIGN_STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  assigned: { label: 'Назначен', color: 'bg-blue-100 text-blue-700' },
+  completed: { label: 'Выполнил', color: 'bg-yellow-100 text-yellow-700' },
+  confirmed: { label: 'Подтверждено', color: 'bg-green-100 text-green-700' },
+  rejected: { label: 'Отклонён', color: 'bg-red-100 text-red-700' },
+  cancelled: { label: 'Отменён', color: 'bg-gray-100 text-gray-600' },
+};
+
+function Avatar({ user, size = 'sm' }: { user: { firstName: string; lastName: string; avatarUrl?: string | null }; size?: 'sm' | 'md' }) {
+  const s = size === 'md' ? 'w-12 h-12 text-base' : 'w-8 h-8 text-xs';
+  return user.avatarUrl ? (
+    <img src={user.avatarUrl} alt={user.firstName} className={`${s} rounded-full object-cover`} />
+  ) : (
+    <div className={`${s} rounded-full bg-[#00CC00] flex items-center justify-center text-white font-bold`}>
+      {user.firstName[0]}{user.lastName[0]}
+    </div>
+  );
+}
+
+export default function AdminProjectDetailPage() {
+  const router = useRouter();
+  const params = useParams();
+  const id = params.id as string;
+  const toast = useToast();
+
+  const [me, setMe] = useState<AdminUser | null>(null);
+  const [project, setProject] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedTask, setExpandedTask] = useState<string | null>(null);
+  const [rejectModal, setRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const meRes = await fetch('/api/auth/me');
+        if (!meRes.ok) { router.push('/admin/login'); return; }
+        const { user } = await meRes.json();
+        if (user.role !== 'admin') { router.push('/'); return; }
+        setMe(user);
+        const res = await fetch(`/api/admin/projects/${id}`);
+        if (!res.ok) { router.push('/admin/projects'); return; }
+        setProject((await res.json()).project);
+      } finally { setLoading(false); }
+    };
+    init();
+  }, [id, router]);
+
+  const handleApprove = async () => {
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/admin/projects/${id}/approve`, { method: 'POST' });
+      if (res.ok) { toast.success('Проект одобрен'); setProject((p: any) => ({ ...p, status: 'recruiting' })); }
+      else toast.error((await res.json()).error || 'Ошибка');
+    } finally { setActionLoading(false); }
+  };
+
+  const handleReject = async () => {
+    if (!rejectReason.trim()) { toast.error('Укажите причину отклонения'); return; }
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/admin/projects/${id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: rejectReason }),
+      });
+      if (res.ok) {
+        toast.success('Проект отклонён');
+        setProject((p: any) => ({ ...p, status: 'rejected', rejectionReason: rejectReason }));
+        setRejectModal(false);
+      } else toast.error((await res.json()).error || 'Ошибка');
+    } finally { setActionLoading(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('Удалить проект? Это действие нельзя отменить.')) return;
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/admin/projects/${id}`, { method: 'DELETE' });
+      if (res.ok) { toast.success('Проект удалён'); router.push('/admin/projects'); }
+      else toast.error((await res.json()).error || 'Ошибка');
+    } finally { setActionLoading(false); }
+  };
+
+  const fmt = (d: string) => new Date(d).toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00CC00]" />
+    </div>
+  );
+
+  if (!project) return null;
+
+  const st = STATUS_LABELS[project.status] || { label: project.status, color: 'bg-gray-100 text-gray-600' };
+  const catName = project.category?.translations?.find((t: any) => t.locale === 'ru')?.name || project.category?.slug;
+
+  return (
+    <SidebarProvider>
+      <div className="min-h-screen bg-green-50">
+        {me && <><AdminNav user={me} /><AdminSidebar user={me} /></>}
+        <DynamicContent>
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
+            <Link href="/admin/projects" className="hover:text-[#00CC00] transition-colors">Проекты</Link>
+            <span>/</span>
+            <span className="text-gray-800 truncate max-w-xs">{project.title}</span>
+          </div>
+
+          {/* Header */}
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-5">
+            {project.imageUrl && (
+              <img src={project.imageUrl} alt={project.title} className="w-full h-48 object-cover" />
+            )}
+            <div className="p-6">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <div className="flex items-center gap-3 mb-2 flex-wrap">
+                    <span className="text-xl">{project.category?.icon}</span>
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{catName}</span>
+                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${st.color}`}>{st.label}</span>
+                    {project.isPaid && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full">Платный</span>}
+                  </div>
+                  <h1 className="text-2xl font-bold text-gray-900 mb-1">{project.title}</h1>
+                  <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
+                    <span>📍 {project.location}</span>
+                    <span>📅 {fmt(project.startDate)} — {fmt(project.endDate)}</span>
+                    <span>👥 {project.currentVolunteers} / {project.maxVolunteers}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2 flex-wrap shrink-0">
+                  {project.status === 'moderation' && (
+                    <>
+                      <button onClick={handleApprove} disabled={actionLoading}
+                        className="px-4 py-2 bg-[#00CC00] text-white rounded-xl text-sm hover:bg-[#00b300] transition-colors disabled:opacity-50">
+                        Одобрить
+                      </button>
+                      <button onClick={() => setRejectModal(true)} disabled={actionLoading}
+                        className="px-4 py-2 bg-red-500 text-white rounded-xl text-sm hover:bg-red-600 transition-colors disabled:opacity-50">
+                        Отклонить
+                      </button>
+                    </>
+                  )}
+                  <button onClick={handleDelete} disabled={actionLoading}
+                    className="px-4 py-2 border border-red-200 text-red-500 rounded-xl text-sm hover:bg-red-50 transition-colors disabled:opacity-50">
+                    Удалить
+                  </button>
+                </div>
+              </div>
+              {project.rejectionReason && (
+                <div className="mt-4 p-3 bg-red-50 rounded-xl text-sm text-red-700">
+                  <span className="font-medium">Причина отклонения:</span> {project.rejectionReason}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            {/* Left column */}
+            <div className="lg:col-span-2 space-y-5">
+              {/* Description */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-6">
+                <h2 className="text-base font-semibold text-gray-900 mb-3">Описание</h2>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{project.description}</p>
+              </div>
+
+              {/* Tasks */}
+              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <h2 className="text-base font-semibold text-gray-900">Задачи</h2>
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{project.tasks?.length || 0}</span>
+                </div>
+                {(!project.tasks || project.tasks.length === 0) ? (
+                  <div className="p-8 text-center text-gray-400 text-sm">Задачи не добавлены</div>
+                ) : (
+                  <div className="divide-y divide-gray-50">
+                    {project.tasks.map((task: any) => {
+                      const ts = TASK_STATUS_LABELS[task.status] || { label: task.status, color: 'bg-gray-100 text-gray-600' };
+                      const isOpen = expandedTask === task.id;
+                      return (
+                        <div key={task.id}>
+                          <button onClick={() => setExpandedTask(isOpen ? null : task.id)}
+                            className="w-full flex items-center gap-3 px-6 py-4 hover:bg-gray-50 transition-colors text-left">
+                            <svg className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900">{task.title}</p>
+                              <p className="text-xs text-gray-400">
+                                {task.skill?.name && <span>Навык: {task.skill.name} · </span>}
+                                До {fmt(task.deadline)} · {task.currentVolunteers}/{task.requiredVolunteers} волонтёров
+                              </p>
+                            </div>
+                            <span className={`text-xs px-2 py-1 rounded-full ${ts.color}`}>{ts.label}</span>
+                          </button>
+                          {isOpen && (
+                            <div className="px-6 pb-4 bg-gray-50">
+                              <p className="text-sm text-gray-600 mb-3">{task.description}</p>
+                              {task.assignments?.length > 0 && (
+                                <div className="space-y-2">
+                                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Назначенные волонтёры</p>
+                                  {task.assignments.map((a: any) => {
+                                    const as = ASSIGN_STATUS_LABELS[a.status] || { label: a.status, color: 'bg-gray-100 text-gray-600' };
+                                    return (
+                                      <div key={a.id} className="flex items-center gap-3 bg-white rounded-xl p-3">
+                                        <Avatar user={a.volunteer} />
+                                        <div className="flex-1 min-w-0">
+                                          <Link href={`/admin/users/${a.volunteer.id}`} className="text-sm font-medium text-gray-900 hover:text-[#00CC00]">
+                                            {a.volunteer.firstName} {a.volunteer.lastName}
+                                          </Link>
+                                          {a.feedback && <p className="text-xs text-gray-400 truncate">{a.feedback}</p>}
+                                          {a.rating && <p className="text-xs text-yellow-600">{'★'.repeat(a.rating)}</p>}
+                                        </div>
+                                        <span className={`text-xs px-2 py-1 rounded-full ${as.color}`}>{as.label}</span>
+                                        {a.report && <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">Отчёт</span>}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Applications */}
+              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <h2 className="text-base font-semibold text-gray-900">Заявки волонтёров</h2>
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{project.applications?.length || 0}</span>
+                </div>
+                {(!project.applications || project.applications.length === 0) ? (
+                  <div className="p-8 text-center text-gray-400 text-sm">Заявок нет</div>
+                ) : (
+                  <div className="divide-y divide-gray-50">
+                    {project.applications.map((app: any) => {
+                      const as = APP_STATUS_LABELS[app.status] || { label: app.status, color: 'bg-gray-100 text-gray-600' };
+                      return (
+                        <div key={app.id} className="flex items-start gap-3 px-6 py-4 hover:bg-gray-50 transition-colors">
+                          <Avatar user={app.volunteer} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Link href={`/admin/users/${app.volunteer.id}`} className="text-sm font-medium text-gray-900 hover:text-[#00CC00]">
+                                {app.volunteer.firstName} {app.volunteer.lastName}
+                              </Link>
+                              {app.volunteer.volunteerProfile && (
+                                <span className="text-xs text-gray-400">
+                                  Рейтинг: {Number(app.volunteer.volunteerProfile.trustScore).toFixed(1)}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500">{app.volunteer.email}</p>
+                            {app.message && <p className="text-xs text-gray-600 mt-1 italic">«{app.message}»</p>}
+                            <p className="text-xs text-gray-400 mt-1">{fmt(app.appliedAt)}</p>
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded-full shrink-0 ${as.color}`}>{as.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right column */}
+            <div className="space-y-5">
+              {/* Organizer */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                <h2 className="text-base font-semibold text-gray-900 mb-4">Организатор</h2>
+                <div className="flex items-center gap-3 mb-4">
+                  <Avatar user={project.organizer} size="md" />
+                  <div>
+                    <Link href={`/admin/users/${project.organizer.id}`} className="text-sm font-medium text-gray-900 hover:text-[#00CC00]">
+                      {project.organizer.firstName} {project.organizer.lastName}
+                    </Link>
+                    {project.organizer.organizerProfile && (
+                      <p className="text-xs text-gray-500">{project.organizer.organizerProfile.organizationName}</p>
+                    )}
+                    <p className="text-xs text-gray-400">{project.organizer.email}</p>
+                  </div>
+                </div>
+                <div className="space-y-1.5 text-xs text-gray-500">
+                  <div className="flex items-center gap-2"><span>📱</span><span>{project.organizer.phone}</span></div>
+                  <div className="flex items-center gap-2"><span>🏙️</span><span>{project.organizer.city}</span></div>
+                </div>
+              </div>
+
+              {/* Participants */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-base font-semibold text-gray-900">Участники</h2>
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{project.participants?.length || 0}</span>
+                </div>
+                {(!project.participants || project.participants.length === 0) ? (
+                  <p className="text-xs text-gray-400 text-center py-2">Участников нет</p>
+                ) : (
+                  <div className="space-y-2">
+                    {project.participants.slice(0, 8).map((p: any) => (
+                      <div key={p.id} className="flex items-center gap-2">
+                        <Avatar user={p.volunteer} />
+                        <Link href={`/admin/users/${p.volunteer.id}`} className="text-xs text-gray-700 hover:text-[#00CC00] truncate">
+                          {p.volunteer.firstName} {p.volunteer.lastName}
+                        </Link>
+                        {!p.isActive && <span className="text-xs text-gray-400">(вышел)</span>}
+                      </div>
+                    ))}
+                    {project.participants.length > 8 && (
+                      <p className="text-xs text-gray-400 text-center">+{project.participants.length - 8} ещё</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Dates and meta */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                <h2 className="text-base font-semibold text-gray-900 mb-4">Информация</h2>
+                <div className="space-y-2 text-xs text-gray-600">
+                  <div className="flex justify-between"><span className="text-gray-400">Создан</span><span>{fmt(project.createdAt)}</span></div>
+                  {project.publishedAt && <div className="flex justify-between"><span className="text-gray-400">Опубликован</span><span>{fmt(project.publishedAt)}</span></div>}
+                  {project.moderatedAt && <div className="flex justify-between"><span className="text-gray-400">Промодерирован</span><span>{fmt(project.moderatedAt)}</span></div>}
+                  <div className="flex justify-between"><span className="text-gray-400">Задач</span><span>{project.tasks?.length || 0}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-400">Заявок</span><span>{project.applications?.length || 0}</span></div>
+                </div>
+              </div>
+
+              {/* Chat */}
+              {project.chat && (
+                <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                  <h2 className="text-base font-semibold text-gray-900 mb-3">Групповой чат</h2>
+                  <div className="space-y-1.5 text-xs text-gray-600">
+                    <div className="flex justify-between"><span className="text-gray-400">Название</span><span className="truncate ml-2">{project.chat.name}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-400">Участников</span><span>{project.chat._count.members}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-400">Сообщений</span><span>{project.chat._count.messages}</span></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </DynamicContent>
+      </div>
+
+      {rejectModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Отклонить проект</h3>
+            <label className="text-xs font-medium text-gray-600 mb-1 block">Причина отклонения *</label>
+            <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={4}
+              placeholder="Опишите причину отклонения..."
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none mb-4" />
+            <div className="flex gap-3">
+              <button onClick={() => setRejectModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleReject} disabled={actionLoading}
+                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-xl text-sm hover:bg-red-600 disabled:opacity-50">
+                Отклонить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </SidebarProvider>
+  );
+}

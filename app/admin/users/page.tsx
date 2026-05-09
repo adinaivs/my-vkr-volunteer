@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import AdminNav from '../components/AdminNav';
 import AdminSidebar from '../components/AdminSidebar';
 import DynamicContent from '@/app/components/DynamicContent';
@@ -305,7 +306,9 @@ export default function AdminUsersPage() {
                               </div>
                             )}
                             <div className="min-w-0">
-                              <p className="text-sm font-medium text-gray-900 truncate">{user.firstName} {user.lastName}</p>
+                              <Link href={`/admin/users/${user.id}`} className="text-sm font-medium text-gray-900 hover:text-[#00CC00] truncate block">
+                                {user.firstName} {user.lastName}
+                              </Link>
                               <p className="text-xs text-gray-500 truncate">{user.email}</p>
                               <p className="text-xs text-gray-400 truncate">{user.phone}</p>
                             </div>

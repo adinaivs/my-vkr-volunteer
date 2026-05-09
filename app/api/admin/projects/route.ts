@@ -29,12 +29,11 @@ export async function GET(request: NextRequest) {
 
     const where: any = {};
 
-    if (status === 'moderation') {
-      where.status = 'moderation';
-    } else if (status === 'recruiting') {
-      where.status = { in: ['recruiting', 'upcoming', 'active'] };
-    } else if (status === 'rejected') {
-      where.status = 'rejected';
+    const singleStatuses = ['moderation', 'rejected', 'active', 'completed', 'cancelled', 'blocked', 'upcoming'];
+    if (status === 'recruiting') {
+      where.status = { in: ['recruiting', 'upcoming'] };
+    } else if (singleStatuses.includes(status)) {
+      where.status = status;
     }
     // Если status === 'all', не добавляем фильтр по статусу
 
