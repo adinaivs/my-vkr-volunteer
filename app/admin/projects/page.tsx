@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import AdminSidebar from '../components/AdminSidebar';
 import AdminNav from '../components/AdminNav';
 import DynamicContent from '@/app/components/DynamicContent';
@@ -75,7 +76,7 @@ export default function AdminProjectsPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'moderation' | 'recruiting' | 'rejected' | 'all'>('moderation');
+  const [filter, setFilter] = useState<'moderation' | 'recruiting' | 'active' | 'completed' | 'rejected' | 'cancelled' | 'blocked' | 'all'>('moderation');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
@@ -508,9 +509,13 @@ export default function AdminProjectsPage() {
                       onChange={(value) => setFilter(value as any)}
                       options={[
                         { value: 'moderation', label: 'На модерации' },
-                        { value: 'recruiting', label: 'Опубликованные' },
-                        { value: 'rejected', label: 'Отклоненные' },
-                        { value: 'all', label: 'Все' }
+                        { value: 'recruiting', label: 'Набор волонтёров' },
+                        { value: 'active', label: 'Активные' },
+                        { value: 'completed', label: 'Завершённые' },
+                        { value: 'rejected', label: 'Отклонённые' },
+                        { value: 'cancelled', label: 'Отменённые' },
+                        { value: 'blocked', label: 'Заблокированные' },
+                        { value: 'all', label: 'Все' },
                       ]}
                     />
                   </div>
@@ -597,9 +602,13 @@ export default function AdminProjectsPage() {
                         
                         {/* Информация о проекте */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <h3 className="text-lg font-semibold text-gray-900 truncate">{project.title}</h3>
                             {getStatusBadge(project.status)}
+                            <Link href={`/admin/projects/${project.id}`} onClick={(e) => e.stopPropagation()}
+                              className="text-xs text-[#00CC00] hover:underline shrink-0">
+                              Подробнее →
+                            </Link>
                           </div>
                           <p className="text-sm text-gray-600 mb-2 line-clamp-1">{project.description}</p>
                           <div className="flex flex-wrap gap-3 text-xs text-gray-600">
