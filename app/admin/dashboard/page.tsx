@@ -14,6 +14,7 @@ interface User {
   firstName: string;
   lastName: string;
   role: string;
+  avatarUrl?: string;
 }
 
 interface Statistics {
@@ -59,6 +60,39 @@ const ACTIVITY_ICONS: Record<string, { icon: string; color: string; label: (d: a
   },
 };
 
+const PROJECT_STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  draft: { label: 'Черновики', color: 'bg-gray-400' },
+  moderation: { label: 'На модерации', color: 'bg-yellow-400' },
+  rejected: { label: 'Отклонённые', color: 'bg-red-400' },
+  recruiting: { label: 'Набор', color: 'bg-blue-400' },
+  upcoming: { label: 'Скоро', color: 'bg-purple-400' },
+  active: { label: 'Активные', color: 'bg-green-500' },
+  completed: { label: 'Завершённые', color: 'bg-emerald-500' },
+  cancelled: { label: 'Отменённые', color: 'bg-orange-400' },
+  blocked: { label: 'Заблокированные', color: 'bg-red-600' },
+};
+
+function MiniBar({ data, maxVal, color = 'bg-[#00CC00]' }: { data: { label: string; count: number }[]; maxVal: number; color?: string }) {
+  return (
+    <div className="space-y-1.5">
+      {data.map((d) => (
+        <div key={d.label} className="flex items-center gap-2">
+          <span className="text-xs text-gray-400 w-10 text-right shrink-0">{d.label}</span>
+          <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+            <div
+              className={`h-full ${color} rounded-full flex items-center justify-end pr-1.5 transition-all`}
+              style={{ width: maxVal > 0 ? `${Math.max((d.count / maxVal) * 100, d.count > 0 ? 5 : 0)}%` : '0%' }}
+            >
+              {d.count > 0 && <span className="text-xs font-bold text-white leading-none">{d.count}</span>}
+            </div>
+          </div>
+          {d.count === 0 && <span className="text-xs text-gray-300">0</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -68,6 +102,7 @@ export default function AdminDashboardPage() {
     activeProjects: 0, pendingVerifications: 0, pendingOrganizerApprovals: 0,
   });
   const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [analytics, setAnalytics] = useState<any>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -78,16 +113,15 @@ export default function AdminDashboardPage() {
         if (data.user.role !== 'admin') { router.push('/'); return; }
         setUser(data.user);
 
-        const [statsRes, activityRes] = await Promise.all([
+        const [statsRes, activityRes, analyticsRes] = await Promise.all([
           fetch('/api/admin/statistics'),
           fetch('/api/admin/activity'),
+          fetch('/api/admin/analytics'),
         ]);
 
         if (statsRes.ok) setStatistics(await statsRes.json());
-        if (activityRes.ok) {
-          const d = await activityRes.json();
-          setActivity(d.activity);
-        }
+        if (activityRes.ok) setActivity((await activityRes.json()).activity);
+        if (analyticsRes.ok) setAnalytics(await analyticsRes.json());
       } finally {
         setLoading(false);
       }
@@ -118,6 +152,10 @@ export default function AdminDashboardPage() {
     { href: '/admin/settings', label: 'Настройки', desc: 'Системные параметры', color: 'bg-gray-100 text-gray-600', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' },
   ];
 
+  const maxReg = analytics ? Math.max(...(analytics.monthlyRegistrations?.map((d: any) => d.count) || [1]), 1) : 1;
+  const maxProj = analytics ? Math.max(...(analytics.monthlyProjects?.map((d: any) => d.count) || [1]), 1) : 1;
+  const totalProjectsAll = analytics?.projectsByStatus?.reduce((s: number, p: any) => s + p.count, 0) || 1;
+
   return (
     <SidebarProvider>
       <div className="min-h-screen bg-green-50">
@@ -144,17 +182,14 @@ export default function AdminDashboardPage() {
             ))}
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-6">
+          <div className="grid lg:grid-cols-2 gap-6 mb-6">
             {/* Быстрые действия */}
             <div>
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Быстрые действия</h2>
               <div className="grid grid-cols-2 gap-3">
                 {quickActions.map((a) => (
-                  <Link
-                    key={a.href}
-                    href={a.href}
-                    className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-[#00CC00] hover:shadow-md transition-all"
-                  >
+                  <Link key={a.href} href={a.href}
+                    className="bg-white rounded-2xl border border-gray-200 p-4 hover:border-[#00CC00] hover:shadow-md transition-all">
                     <div className={`w-10 h-10 ${a.color} rounded-xl flex items-center justify-center mb-3`}>
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={a.icon} />
@@ -199,6 +234,102 @@ export default function AdminDashboardPage() {
               </div>
             </div>
           </div>
+
+          {/* Аналитика */}
+          {analytics && (
+            <>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Аналитика</h2>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+                {/* Регистрации по месяцам */}
+                <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                  <p className="text-sm font-semibold text-gray-700 mb-3">Регистрации (6 мес.)</p>
+                  <MiniBar data={analytics.monthlyRegistrations} maxVal={maxReg} color="bg-[#00CC00]" />
+                </div>
+
+                {/* Проекты по месяцам */}
+                <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                  <p className="text-sm font-semibold text-gray-700 mb-3">Новые проекты (6 мес.)</p>
+                  <MiniBar data={analytics.monthlyProjects} maxVal={maxProj} color="bg-blue-500" />
+                </div>
+
+                {/* Проекты по статусам */}
+                <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                  <p className="text-sm font-semibold text-gray-700 mb-3">Проекты по статусам</p>
+                  <div className="space-y-1.5">
+                    {analytics.projectsByStatus?.map((p: any) => {
+                      const st = PROJECT_STATUS_LABELS[p.status] || { label: p.status, color: 'bg-gray-400' };
+                      const pct = totalProjectsAll > 0 ? (p.count / totalProjectsAll) * 100 : 0;
+                      return (
+                        <div key={p.status} className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500 w-24 shrink-0 truncate">{st.label}</span>
+                          <div className="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden">
+                            <div className={`h-full ${st.color} rounded-full`} style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-xs font-medium text-gray-600 w-5 text-right">{p.count}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Топ волонтёров */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                  <div className="px-5 py-3 border-b border-gray-100">
+                    <p className="text-sm font-semibold text-gray-700">Топ волонтёров</p>
+                  </div>
+                  {analytics.topVolunteers?.length === 0 ? (
+                    <div className="p-6 text-center text-gray-400 text-sm">Нет данных</div>
+                  ) : (
+                    <ul className="divide-y divide-gray-50">
+                      {analytics.topVolunteers?.slice(0, 5).map((v: any, i: number) => (
+                        <li key={v.id} className="flex items-center gap-3 px-5 py-2.5 hover:bg-gray-50 transition-colors">
+                          <span className={`text-sm font-bold w-5 text-center ${i < 3 ? 'text-amber-500' : 'text-gray-300'}`}>{i + 1}</span>
+                          <div className="w-7 h-7 rounded-full overflow-hidden shrink-0">
+                            {v.avatarUrl ? <img src={v.avatarUrl} alt="" className="w-full h-full object-cover" /> :
+                              <div className="w-full h-full bg-[#00CC00] flex items-center justify-center text-white text-xs font-bold">{v.firstName[0]}{v.lastName[0]}</div>}
+                          </div>
+                          <Link href={`/admin/users/${v.id}`} className="flex-1 text-sm text-gray-800 hover:text-[#00CC00] truncate">
+                            {v.firstName} {v.lastName}
+                          </Link>
+                          <span className="text-xs text-gray-500 shrink-0">{v.completedTasks} задач</span>
+                          <span className="text-xs font-bold text-[#00CC00] shrink-0">{Number(v.trustScore).toFixed(1)}★</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                {/* Топ организаторов */}
+                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                  <div className="px-5 py-3 border-b border-gray-100">
+                    <p className="text-sm font-semibold text-gray-700">Топ организаторов</p>
+                  </div>
+                  {analytics.topOrganizers?.length === 0 ? (
+                    <div className="p-6 text-center text-gray-400 text-sm">Нет данных</div>
+                  ) : (
+                    <ul className="divide-y divide-gray-50">
+                      {analytics.topOrganizers?.slice(0, 5).map((o: any, i: number) => (
+                        <li key={o.id} className="flex items-center gap-3 px-5 py-2.5 hover:bg-gray-50 transition-colors">
+                          <span className={`text-sm font-bold w-5 text-center ${i < 3 ? 'text-amber-500' : 'text-gray-300'}`}>{i + 1}</span>
+                          <div className="w-7 h-7 rounded-full overflow-hidden shrink-0">
+                            {o.avatarUrl ? <img src={o.avatarUrl} alt="" className="w-full h-full object-cover" /> :
+                              <div className="w-full h-full bg-purple-500 flex items-center justify-center text-white text-xs font-bold">{o.firstName[0]}{o.lastName[0]}</div>}
+                          </div>
+                          <Link href={`/admin/users/${o.id}`} className="flex-1 text-sm text-gray-800 hover:text-[#00CC00] truncate">
+                            {o.firstName} {o.lastName}
+                          </Link>
+                          <span className="text-xs text-gray-500 shrink-0">{o.organizationName || o.city}</span>
+                          <span className="text-xs font-bold text-gray-700 shrink-0">{o.projectsCount} проектов</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </DynamicContent>
       </div>
     </SidebarProvider>
