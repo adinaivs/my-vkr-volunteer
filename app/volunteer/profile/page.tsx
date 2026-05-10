@@ -100,6 +100,144 @@ export default function VolunteerProfilePage() {
 
   // Avatar state
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [generatingBooklet, setGeneratingBooklet] = useState(false);
+
+  const handleDownloadBooklet = async () => {
+    setGeneratingBooklet(true);
+    try {
+      const res = await fetch('/api/volunteer/booklet');
+      if (!res.ok) { toast.error('Ошибка при загрузке данных'); return; }
+      const data = await res.json();
+      const { user: u, projects, achievements } = data;
+
+      const statusLabels: Record<string, string> = {
+        recruiting: 'Набор', upcoming: 'Скоро', active: 'Активный',
+        completed: 'Завершён', cancelled: 'Отменён', draft: 'Черновик',
+      };
+
+      const projectRows = projects.map((p: { title: string; categoryName: string; location: string; startDate: string; endDate: string; status: string; confirmedTasksCount: number; totalTasksCount: number }) => `
+        <tr>
+          <td>${p.title}</td>
+          <td>${p.categoryName}</td>
+          <td>${p.location}</td>
+          <td>${new Date(p.startDate).toLocaleDateString('ru-RU')} — ${new Date(p.endDate).toLocaleDateString('ru-RU')}</td>
+          <td>${statusLabels[p.status] ?? p.status}</td>
+          <td>${p.confirmedTasksCount} / ${p.totalTasksCount}</td>
+        </tr>`).join('');
+
+      const achievementItems = achievements.map((a: { icon: string; name: string; description: string; createdAt: string }) => `
+        <div class="achievement">
+          <span class="ach-icon">${a.icon}</span>
+          <div>
+            <strong>${a.name}</strong>
+            <div class="ach-desc">${a.description}</div>
+            <div class="ach-date">Получено: ${new Date(a.createdAt).toLocaleDateString('ru-RU')}</div>
+          </div>
+        </div>`).join('');
+
+      const html = `<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"/>
+<title>Волонтёрская книжка — ${u.firstName} ${u.lastName}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #1a1a1a; background: #fff; padding: 32px; }
+  .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid #00CC00; padding-bottom: 16px; margin-bottom: 24px; }
+  .header-title { font-size: 22px; font-weight: bold; color: #00CC00; }
+  .header-sub { font-size: 12px; color: #666; margin-top: 4px; }
+  .logo { font-size: 28px; font-weight: bold; color: #00CC00; }
+  .section { margin-bottom: 24px; }
+  .section-title { font-size: 15px; font-weight: bold; color: #333; border-left: 4px solid #00CC00; padding-left: 10px; margin-bottom: 12px; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; }
+  .info-row { display: flex; flex-direction: column; }
+  .info-label { font-size: 10px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; }
+  .info-value { font-size: 13px; font-weight: 500; color: #222; margin-top: 2px; }
+  .stats { display: flex; gap: 16px; margin-bottom: 20px; }
+  .stat-box { flex: 1; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; text-align: center; }
+  .stat-num { font-size: 26px; font-weight: bold; color: #16a34a; }
+  .stat-lbl { font-size: 10px; color: #666; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: #f8faf8; text-align: left; padding: 8px 10px; border-bottom: 2px solid #e5e7eb; color: #555; font-weight: 600; }
+  td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; color: #333; }
+  tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 600; }
+  .badge-completed { background: #dcfce7; color: #166534; }
+  .badge-active { background: #dbeafe; color: #1e40af; }
+  .badge-other { background: #f3f4f6; color: #6b7280; }
+  .skills { display: flex; flex-wrap: wrap; gap: 6px; }
+  .skill-tag { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 3px 10px; border-radius: 9999px; font-size: 11px; }
+  .achievement { display: flex; gap: 12px; align-items: flex-start; padding: 10px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; margin-bottom: 8px; }
+  .ach-icon { font-size: 24px; flex-shrink: 0; }
+  .ach-desc { font-size: 11px; color: #666; margin-top: 2px; }
+  .ach-date { font-size: 10px; color: #999; margin-top: 3px; }
+  .footer { margin-top: 32px; border-top: 1px solid #e5e7eb; padding-top: 12px; display: flex; justify-content: space-between; color: #999; font-size: 10px; }
+  .no-data { color: #aaa; font-style: italic; font-size: 12px; padding: 8px 0; }
+  @media print { body { padding: 16px; } @page { margin: 16mm; } }
+</style></head>
+<body>
+<div class="header">
+  <div>
+    <div class="header-title">Волонтёрская книжка</div>
+    <div class="header-sub">Официальный документ об участии в волонтёрской деятельности</div>
+  </div>
+  <div class="logo">ВолонтёрКР</div>
+</div>
+
+<div class="section">
+  <div class="section-title">Личные данные</div>
+  <div class="info-grid">
+    <div class="info-row"><span class="info-label">ФИО</span><span class="info-value">${u.lastName} ${u.firstName}</span></div>
+    <div class="info-row"><span class="info-label">Email</span><span class="info-value">${u.email}</span></div>
+    <div class="info-row"><span class="info-label">Телефон</span><span class="info-value">${u.phone || '—'}</span></div>
+    <div class="info-row"><span class="info-label">Город</span><span class="info-value">${u.city || '—'}</span></div>
+    <div class="info-row"><span class="info-label">Волонтёр с</span><span class="info-value">${new Date(u.createdAt).toLocaleDateString('ru-RU')}</span></div>
+    <div class="info-row"><span class="info-label">Рейтинг</span><span class="info-value">${u.ratingCount > 0 ? u.trustScore.toFixed(1) + ' / 5.0' : 'Нет оценок'}</span></div>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat-box"><div class="stat-num">${u.completedProjects}</div><div class="stat-lbl">Завершено проектов</div></div>
+  <div class="stat-box"><div class="stat-num">${u.completedTasks}</div><div class="stat-lbl">Выполнено задач</div></div>
+  <div class="stat-box"><div class="stat-num">${achievements.length}</div><div class="stat-lbl">Достижений</div></div>
+</div>
+
+${u.skills.length > 0 ? `
+<div class="section">
+  <div class="section-title">Навыки</div>
+  <div class="skills">${u.skills.map((s: string) => `<span class="skill-tag">${s}</span>`).join('')}</div>
+</div>` : ''}
+
+<div class="section">
+  <div class="section-title">Участие в проектах</div>
+  ${projects.length > 0 ? `
+  <table>
+    <thead><tr><th>Проект</th><th>Категория</th><th>Место</th><th>Период</th><th>Статус</th><th>Задачи</th></tr></thead>
+    <tbody>${projectRows}</tbody>
+  </table>` : '<div class="no-data">Проектов пока нет</div>'}
+</div>
+
+${achievements.length > 0 ? `
+<div class="section">
+  <div class="section-title">Достижения</div>
+  ${achievementItems}
+</div>` : ''}
+
+<div class="footer">
+  <span>Сформировано: ${new Date().toLocaleDateString('ru-RU')}</span>
+  <span>ВолонтёрКР — платформа волонтёрства</span>
+</div>
+</body></html>`;
+
+      const win = window.open('', '_blank');
+      if (!win) { toast.error('Разрешите всплывающие окна в браузере'); return; }
+      win.document.write(html);
+      win.document.close();
+      win.onload = () => { win.print(); };
+    } catch {
+      toast.error('Ошибка при формировании книжки');
+    } finally {
+      setGeneratingBooklet(false);
+    }
+  };
 
   // Skills state
   const [allSkills, setAllSkills] = useState<Skill[]>([]);
@@ -328,7 +466,7 @@ export default function VolunteerProfilePage() {
                   />
                 </div>
 
-                <div className="flex gap-3 sm:mt-12">
+                <div className="flex flex-wrap gap-3 sm:mt-12">
                   <button
                     onClick={() => {
                       if (editing) {
@@ -347,6 +485,16 @@ export default function VolunteerProfilePage() {
                     className="px-6 py-2 bg-[#00CC00] text-white rounded-full font-medium hover:bg-[#00b300] transition-colors"
                   >
                     {editing ? 'Отменить' : 'Редактировать'}
+                  </button>
+                  <button
+                    onClick={handleDownloadBooklet}
+                    disabled={generatingBooklet}
+                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-full font-medium hover:bg-blue-700 transition-colors disabled:opacity-60"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    {generatingBooklet ? 'Формирование...' : 'Книжка PDF'}
                   </button>
                   <button
                     onClick={handleLogout}

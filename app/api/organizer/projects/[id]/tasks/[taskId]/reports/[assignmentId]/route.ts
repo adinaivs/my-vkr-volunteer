@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { checkAchievementsOnTaskConfirmed } from '@/lib/achievements';
 
 // PATCH /api/organizer/projects/[id]/tasks/[taskId]/reports/[assignmentId] - Подтвердить или отклонить отчёт
 export async function PATCH(
@@ -128,6 +129,9 @@ export async function PATCH(
           data: { completedTasks: { increment: 1 } },
         });
       }
+
+      // Проверяем и выдаём достижения волонтёру
+      checkAchievementsOnTaskConfirmed(assignment.volunteerId).catch(console.error);
 
       return NextResponse.json({
         message: 'Выполнение задачи подтверждено',

@@ -14,7 +14,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { icon, conditionType, conditionValue, isActive, nameRu, descRu, nameKg, descKg } = body;
+    const { icon, conditionType, conditionValue, isActive, nameRu, descRu, nameKg, descKg, rewards } = body;
 
     if (!nameRu?.trim() || !descRu?.trim() || !icon?.trim() || !conditionType) {
       return NextResponse.json({ error: 'Название, описание, иконка и условие обязательны' }, { status: 400 });
@@ -47,7 +47,23 @@ export async function PUT(
         });
       }
 
-      return tx.achievement.findUnique({ where: { id }, include: { translations: true } });
+      // Обновляем награды: удаляем старые, создаём новые
+      const rewardsList: { partnerId: string; rewardText: string; validForDays: number }[] =
+        Array.isArray(rewards) ? rewards.filter((r: { partnerId?: string; rewardText?: string }) => r.partnerId && r.rewardText?.trim()) : [];
+      await tx.achievementReward.deleteMany({ where: { achievementId: id } });
+      if (rewardsList.length > 0) {
+        await tx.achievementReward.createMany({
+          data: rewardsList.map(r => ({
+            achievementId: id,
+            partnerId: r.partnerId,
+            rewardText: r.rewardText.trim(),
+            validForDays: parseInt(String(r.validForDays)) || 30,
+            isActive: true,
+          })),
+        });
+      }
+
+      return tx.achievement.findUnique({ where: { id }, include: { translations: true, rewards: { include: { partner: true } } } });
     });
 
     return NextResponse.json({ achievement });

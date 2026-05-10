@@ -10,7 +10,10 @@ export async function GET() {
     }
 
     const achievements = await prisma.achievement.findMany({
-      include: { translations: true },
+      include: {
+        translations: true,
+        rewards: { include: { partner: true } },
+      },
       orderBy: { name: 'asc' },
     });
 
@@ -29,11 +32,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { icon, conditionType, conditionValue, isActive, nameRu, descRu, nameKg, descKg } = body;
+    const { icon, conditionType, conditionValue, isActive, nameRu, descRu, nameKg, descKg, rewards } = body;
 
     if (!nameRu?.trim() || !descRu?.trim() || !icon?.trim() || !conditionType) {
       return NextResponse.json({ error: 'Название, описание, иконка и условие обязательны' }, { status: 400 });
     }
+
+    const rewardsList: { partnerId: string; rewardText: string; validForDays: number }[] =
+      Array.isArray(rewards) ? rewards.filter((r: { partnerId?: string; rewardText?: string; validForDays?: number }) => r.partnerId && r.rewardText?.trim()) : [];
 
     const achievement = await prisma.achievement.create({
       data: {
@@ -51,8 +57,16 @@ export async function POST(request: NextRequest) {
               : []),
           ],
         },
+        rewards: {
+          create: rewardsList.map(r => ({
+            partnerId: r.partnerId,
+            rewardText: r.rewardText.trim(),
+            validForDays: parseInt(String(r.validForDays)) || 30,
+            isActive: true,
+          })),
+        },
       },
-      include: { translations: true },
+      include: { translations: true, rewards: { include: { partner: true } } },
     });
 
     return NextResponse.json({ achievement }, { status: 201 });
