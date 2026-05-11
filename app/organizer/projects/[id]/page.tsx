@@ -111,13 +111,6 @@ export default function ProjectDetailsPage() {
   const [showMapModal, setShowMapModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   
-  // Состояния для QR-кода
-  const [showQRModal, setShowQRModal] = useState(false);
-  const [selectedTaskForQR, setSelectedTaskForQR] = useState<Task | null>(null);
-  const [qrCodeData, setQrCodeData] = useState<any>(null);
-  const [loadingQR, setLoadingQR] = useState(false);
-  const [qrError, setQrError] = useState<string | null>(null);
-  
   // Состояния для участников
   const [participants, setParticipants] = useState<any[]>([]);
   const [loadingParticipants, setLoadingParticipants] = useState(false);
@@ -144,7 +137,7 @@ export default function ProjectDetailsPage() {
 
   // Блокировка скролла при открытии модального окна карты или назначения
   useEffect(() => {
-    if (showMapModal || showAssignModal || showRejectModal || showApplicationModal || showQRModal || showReportModal) {
+    if (showMapModal || showAssignModal || showRejectModal || showApplicationModal || showReportModal) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -153,7 +146,7 @@ export default function ProjectDetailsPage() {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [showMapModal, showAssignModal, showRejectModal, showApplicationModal, showQRModal, showReportModal]);
+  }, [showMapModal, showAssignModal, showRejectModal, showApplicationModal, showReportModal]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -509,49 +502,6 @@ export default function ProjectDetailsPage() {
       console.error('Error rejecting application:', error);
       toast.error('Произошла ошибка при отклонении заявки');
     }
-  };
-
-  const handleShowQRCode = async (task: Task) => {
-    setSelectedTaskForQR(task);
-    setShowQRModal(true);
-    setLoadingQR(true);
-    setQrError(null);
-    setQrCodeData(null);
-
-    try {
-      const response = await fetch(
-        `/api/organizer/projects/${projectId}/tasks/${task.id}/qr-code`,
-        {
-          credentials: 'include'
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Ошибка при генерации QR-кода');
-      }
-
-      const data = await response.json();
-      setQrCodeData(data);
-    } catch (error) {
-      console.error('Error generating QR code:', error);
-      setQrError(error instanceof Error ? error.message : 'Неизвестная ошибка');
-    } finally {
-      setLoadingQR(false);
-    }
-  };
-
-  const handleRefreshQRCode = () => {
-    if (selectedTaskForQR) {
-      handleShowQRCode(selectedTaskForQR);
-    }
-  };
-
-  const handleCloseQRModal = () => {
-    setShowQRModal(false);
-    setSelectedTaskForQR(null);
-    setQrCodeData(null);
-    setQrError(null);
   };
 
   const handleDeleteProject = async () => {
@@ -1230,31 +1180,6 @@ export default function ProjectDetailsPage() {
                               )}
                             </div>
                             
-                            {/* Кнопка QR-кода - только для активных проектов */}
-                            {project.status === 'active' && (
-                              <div className="flex justify-end">
-                                <button
-                                  onClick={() => handleShowQRCode(task)}
-                                  className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                                  title={`Показать QR-код для задачи: ${task.title}`}
-                                >
-                                  <svg
-                                    className="w-5 h-5 mr-2"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
-                                    />
-                                  </svg>
-                                  QR-код
-                                </button>
-                              </div>
-                            )}
                           </div>
                         ))}
                       </div>
@@ -2009,138 +1934,6 @@ export default function ProjectDetailsPage() {
         </div>
       )}
 
-      {/* QR Code Modal */}
-      {showQRModal && selectedTaskForQR && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-          onClick={handleCloseQRModal}
-        >
-          <div 
-            className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-blue-100">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">QR-код для подтверждения задачи</h2>
-                <p className="text-sm text-gray-600 mt-1">{selectedTaskForQR.title}</p>
-              </div>
-              <button
-                onClick={handleCloseQRModal}
-                className="p-2 hover:bg-white/50 rounded-lg transition-colors"
-              >
-                <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6">
-              {loadingQR ? (
-                <div className="text-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="mt-4 text-gray-600">Генерация QR-кода...</p>
-                </div>
-              ) : qrError ? (
-                <div className="text-center py-12">
-                  <div className="text-red-500 text-5xl mb-4">⚠️</div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Ошибка</h3>
-                  <p className="text-gray-600 mb-6">{qrError}</p>
-                  <button
-                    onClick={handleRefreshQRCode}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                  >
-                    Попробовать снова
-                  </button>
-                </div>
-              ) : qrCodeData ? (
-                <>
-                  {/* QR Code Display */}
-                  <div className="flex justify-center mb-6">
-                    <div className="bg-white p-6 rounded-lg border-4 border-blue-600 shadow-xl">
-                      <img
-                        src={qrCodeData.qrCode}
-                        alt="QR код для верификации задачи"
-                        className="w-full h-auto"
-                        style={{ maxWidth: '400px' }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Instructions */}
-                  <div className="bg-blue-50 rounded-lg p-6 mb-6">
-                    <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      Инструкция:
-                    </h3>
-                    <ol className="list-decimal list-inside space-y-2 text-gray-700 text-sm">
-                      <li>Покажите этот QR-код волонтеру</li>
-                      <li>Волонтер должен отсканировать код в своем приложении</li>
-                      <li>После сканирования задача будет отмечена как выполненная</li>
-                    </ol>
-                  </div>
-
-                  {/* Expiry Time */}
-                  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <svg
-                          className="h-5 w-5 text-yellow-400"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm text-yellow-700">
-                          <span className="font-medium">Код действителен до:</span>{' '}
-                          {new Date(qrCodeData.expiresAt).toLocaleString('ru-RU')}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex gap-3">
-                    <button
-                      onClick={handleRefreshQRCode}
-                      className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium flex items-center justify-center gap-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                      Обновить код
-                    </button>
-                    <button
-                      onClick={() => window.print()}
-                      className="flex-1 bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition font-medium flex items-center justify-center gap-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                      </svg>
-                      Распечатать
-                    </button>
-                    <button
-                      onClick={handleCloseQRModal}
-                      className="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition font-medium"
-                    >
-                      Закрыть
-                    </button>
-                  </div>
-                </>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Report View Modal */}
       {showReportModal && (
