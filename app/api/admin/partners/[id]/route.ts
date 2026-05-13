@@ -2,18 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
     if (!session || session.role !== 'admin') {
       return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 });
     }
+    const { id } = await params;
     const { name, logoUrl, contactInfo, isActive } = await request.json();
     if (!name?.trim()) {
       return NextResponse.json({ error: 'Название обязательно' }, { status: 400 });
     }
     const partner = await prisma.partner.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         name: name.trim(),
         logoUrl: logoUrl?.trim() || null,
@@ -28,13 +29,14 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
     if (!session || session.role !== 'admin') {
       return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 });
     }
-    await prisma.partner.delete({ where: { id: params.id } });
+    const { id } = await params;
+    await prisma.partner.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error(error);

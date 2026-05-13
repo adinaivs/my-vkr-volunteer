@@ -1,185 +1,200 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { openai, AI_CONFIG } from '@/lib/openai';
-import { prisma } from '@/lib/prisma';
+import { NextRequest } from 'next/server';
+import { openai, AI_CONFIG, SYSTEM_PROMPT } from '@/lib/openai';
 import { getSession } from '@/lib/auth';
+import { AI_FUNCTIONS, executeFunction } from '@/lib/ai-functions';
 
-const SYSTEM_PROMPT = `Ты ИИ-ассистент волонтёрской платформы VolunteerHub (Кыргызстан).
-Помогаешь волонтёрам и организаторам разобраться с платформой.
+// Конвертируем функции в формат tools для нового API OpenAI
+const AI_TOOLS = AI_FUNCTIONS.map(func => ({
+  type: 'function' as const,
+  function: func,
+}));
 
-ВАЖНЫЕ ПРАВИЛА:
-- Отвечай кратко и по делу на русском языке
-- Когда перечисляешь проекты — НЕ делай markdown-таблицу, просто напиши вводную фразу (1-2 предложения). Данные таблицы будут отображены системой автоматически.
-- Когда описываешь конкретный проект — включи описание из БД и добавь 1-2 предложения от себя
-- Будь дружелюбным, используй эмодзи умеренно`;
-
-// Определяем намерение пользователя
-function detectIntent(message: string): {
-  listProjects: boolean;
-  projectQuery: string | null;  // название или номер проекта
-  categories: boolean;
-  userStats: boolean;
-} {
-  const lower = message.toLowerCase();
-
-  // Ищем запрос по конкретному проекту: по номеру или названию
-  const byNumber = message.match(/проект\s*(?:№|#|номер)?\s*(\d+)/i);
-  const byName = message.match(/(?:расскаж[иа]|опиш[иа]|что такое|подробн|о проекте)\s+[«"]?([а-яёa-z0-9\s]+)[»"]?/i);
-
-  return {
-    listProjects:
-      lower.includes('проект') &&
-      (lower.includes('какие') || lower.includes('доступн') ||
-       lower.includes('список') || lower.includes('найди') ||
-       lower.includes('покажи') || lower.includes('есть')),
-    projectQuery: byNumber?.[1] ?? byName?.[1]?.trim() ?? null,
-    categories:
-      lower.includes('категори') || lower.includes('направлени'),
-    userStats:
-      lower.includes('мои') || lower.includes('статистик'),
-  };
+// Определяем, нужны ли функции для запроса
+function detectIfNeedsFunctions(message: string): boolean {
+  const lowerMessage = message.toLowerCase();
+  
+  // Ключевые слова, которые требуют данных из БД
+  const keywords = [
+    'проект',
+    'категори',
+    'статистик',
+    'заявк',
+    'мои',
+    'покажи',
+    'список',
+    'какие',
+    'сколько',
+    'найди',
+    'поиск',
+    'предстоящ',
+    'активн',
+    'доступн',
+  ];
+  
+  return keywords.some(keyword => lowerMessage.includes(keyword));
 }
 
+// Умный чат с доступом к данным платформы через Function Calling + Streaming
 export async function POST(request: NextRequest) {
   try {
     const { message, conversationHistory = [] } = await request.json();
 
-    if (!message?.trim()) {
-      return NextResponse.json({ error: 'Сообщение обязательно' }, { status: 400 });
+    if (!message || typeof message !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'Сообщение обязательно' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
+    // Получаем сессию пользователя
     const session = await getSession();
-    const userId = session?.userId as string | undefined;
+    const userId = session?.userId;
+    const userRole = session?.role;
 
-    const intent = detectIntent(message);
-    let contextText = '';
-    let projectsData: any[] | null = null;
-    let projectDetail: any | null = null;
+    // Ограничиваем историю последними 5 сообщениями для экономии токенов
+    const limitedHistory = conversationHistory.slice(-5);
 
-    // ── Список проектов ──────────────────────────────────────────
-    if (intent.listProjects) {
-      const projects = await prisma.project.findMany({
-        where: { status: { in: ['recruiting', 'upcoming'] } },
-        take: 10,
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          title: true,
-          location: true,
-          startDate: true,
-          endDate: true,
-          maxVolunteers: true,
-          currentVolunteers: true,
-          status: true,
-          category: {
-            include: { translations: { where: { locale: 'ru' } } },
-          },
-        },
-      });
+    const messages: any[] = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      ...limitedHistory,
+      { role: 'user', content: message },
+    ];
 
-      projectsData = projects.map((p, i) => ({
-        num: i + 1,
-        id: p.id,
-        title: p.title,
-        category:
-          p.category.translations[0]?.name ?? p.category.slug,
-        location: p.location,
-        dates: `${new Date(p.startDate).toLocaleDateString('ru-RU')} – ${new Date(p.endDate).toLocaleDateString('ru-RU')}`,
-        volunteers: `${p.currentVolunteers}/${p.maxVolunteers}`,
-        status: p.status === 'recruiting' ? 'Набор волонтёров' : 'Скоро начнётся',
-      }));
-
-      contextText += `\nДоступных проектов: ${projects.length}. Список будет показан пользователю в виде таблицы — ты только напиши вводную фразу.`;
-    }
-
-    // ── Конкретный проект ────────────────────────────────────────
-    if (intent.projectQuery) {
-      const q = intent.projectQuery;
-      const isNum = /^\d+$/.test(q);
-
-      let project = null;
-
-      if (isNum) {
-        // По порядковому номеру (берём все проекты и выбираем нужный)
-        const all = await prisma.project.findMany({
-          where: { status: { in: ['recruiting', 'upcoming', 'active'] } },
-          orderBy: { createdAt: 'desc' },
-          select: {
-            id: true, title: true, description: true, location: true,
-            startDate: true, endDate: true, maxVolunteers: true,
-            currentVolunteers: true, status: true,
-            category: { include: { translations: { where: { locale: 'ru' } } } },
-          },
-        });
-        project = all[parseInt(q) - 1] ?? null;
-      } else {
-        // По названию (нечёткий поиск)
-        project = await prisma.project.findFirst({
-          where: { title: { contains: q, mode: 'insensitive' } },
-          select: {
-            id: true, title: true, description: true, location: true,
-            startDate: true, endDate: true, maxVolunteers: true,
-            currentVolunteers: true, status: true,
-            category: { include: { translations: { where: { locale: 'ru' } } } },
-          },
-        });
-      }
-
-      if (project) {
-        projectDetail = {
-          title: project.title,
-          category: (project.category as any).translations?.[0]?.name ?? '',
-          location: project.location,
-          dates: `${new Date(project.startDate).toLocaleDateString('ru-RU')} – ${new Date(project.endDate).toLocaleDateString('ru-RU')}`,
-          volunteers: `${project.currentVolunteers}/${project.maxVolunteers}`,
-          status: project.status,
-          description: project.description,
-        };
-        contextText += `\n\nПРОЕКТ ДЛЯ ОПИСАНИЯ:\nНазвание: ${project.title}\nОписание: ${project.description}\nМесто: ${project.location}\nДаты: ${projectDetail.dates}\nВолонтёры: ${projectDetail.volunteers}\n\nВключи это описание в ответ и добавь 1-2 предложения от себя.`;
-      } else {
-        contextText += `\nПроект "${q}" не найден. Сообщи об этом пользователю.`;
-      }
-    }
-
-    // ── Категории ────────────────────────────────────────────────
-    if (intent.categories) {
-      const cats = await prisma.category.findMany({
-        include: { translations: { where: { locale: 'ru' } } },
-      });
-      contextText += `\n\nКАТЕГОРИИ: ${cats.map(c => c.translations[0]?.name ?? c.slug).join(', ')}`;
-    }
-
-    // ── Статистика пользователя ──────────────────────────────────
-    if (intent.userStats && userId) {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        include: {
-          _count: { select: { applications: true, taskAssignments: true } },
-        },
-      });
-      if (user) {
-        contextText += `\n\nСТАТИСТИКА: заявок ${user._count.applications}, задач ${user._count.taskAssignments}`;
-      }
-    }
-
-    // ── Запрос к ИИ ──────────────────────────────────────────────
-    const systemContent = SYSTEM_PROMPT + (contextText ? `\n\nКОНТЕКСТ:${contextText}` : '');
-
-    const completion = await openai.chat.completions.create({
+    // Первый запрос к OpenAI с функциями
+    console.log('📤 Отправка запроса в OpenAI с функциями...');
+    console.log('📝 Сообщение пользователя:', message);
+    console.log('👤 userId:', userId, 'role:', userRole);
+    console.log('🔧 Доступно функций:', AI_TOOLS.length);
+    
+    // Определяем, нужны ли функции для этого запроса
+    const needsFunctions = detectIfNeedsFunctions(message);
+    
+    console.log('🤔 Нужны ли функции?', needsFunctions ? 'ДА' : 'НЕТ');
+    
+    let completion = await openai.chat.completions.create({
       model: AI_CONFIG.model,
-      messages: [
-        { role: 'system', content: systemContent },
-        ...conversationHistory.slice(-6) as any,
-        { role: 'user', content: message },
-      ],
+      messages: messages,
       temperature: AI_CONFIG.temperature,
       max_tokens: AI_CONFIG.max_tokens,
+      tools: AI_TOOLS,
+      tool_choice: needsFunctions ? 'required' : 'auto',
+      stream: false, // Сначала без streaming для обработки функций
     });
 
-    const reply = completion.choices[0]?.message?.content ?? 'Извините, не могу ответить';
+    console.log('📥 Получен ответ от OpenAI');
+    
+    let responseMessage = completion.choices[0]?.message;
+    const functionCallsExecuted: string[] = [];
 
-    return NextResponse.json({ reply, projectsData, projectDetail });
-  } catch (error) {
-    console.error('AI Chat error:', error);
-    return NextResponse.json({ error: 'Ошибка ИИ-ассистента' }, { status: 500 });
+    console.log('🔍 Проверка на вызов функций:', responseMessage?.tool_calls ? 'ДА (' + responseMessage.tool_calls.length + ')' : 'НЕТ');
+
+    // Обрабатываем вызовы функций (может быть несколько итераций)
+    let iterationCount = 0;
+    const maxIterations = 5;
+
+    while (responseMessage?.tool_calls && responseMessage.tool_calls.length > 0 && iterationCount < maxIterations) {
+      iterationCount++;
+
+      messages.push(responseMessage);
+
+      for (const toolCall of responseMessage.tool_calls) {
+        if (toolCall.type !== 'function') continue;
+        const functionName = toolCall.function.name;
+        const functionArgs = JSON.parse(toolCall.function.arguments || '{}');
+
+        if (userId) {
+          functionArgs.userId = userId;
+        }
+        if (userRole) {
+          functionArgs.userRole = userRole;
+        }
+
+        console.log(`🔧 Вызов функции: ${functionName}`, functionArgs);
+        functionCallsExecuted.push(functionName);
+
+        const functionResult = await executeFunction(functionName, functionArgs);
+
+        console.log(`✅ Результат функции ${functionName}:`, functionResult.substring(0, 200) + '...');
+
+        messages.push({
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: functionResult,
+        });
+      }
+
+      console.log('🔄 Отправка нового запроса с результатами функций...');
+      
+      completion = await openai.chat.completions.create({
+        model: AI_CONFIG.model,
+        messages: messages,
+        temperature: AI_CONFIG.temperature,
+        max_tokens: AI_CONFIG.max_tokens,
+        tools: AI_TOOLS,
+        tool_choice: 'auto',
+        stream: false,
+      });
+
+      responseMessage = completion.choices[0]?.message;
+      console.log('🔍 Проверка на новые вызовы функций:', responseMessage?.tool_calls ? 'ДА (' + responseMessage.tool_calls.length + ')' : 'НЕТ');
+    }
+
+    console.log('✅ Финальный ответ готов. Использовано функций:', functionCallsExecuted.length);
+    console.log('🌊 Начинаем streaming ответа...');
+
+    // Теперь делаем streaming запрос для финального ответа
+    const streamCompletion = await openai.chat.completions.create({
+      model: AI_CONFIG.model,
+      messages: messages,
+      temperature: AI_CONFIG.temperature,
+      max_tokens: AI_CONFIG.max_tokens,
+      stream: true, // Включаем streaming
+    });
+
+    // Создаем ReadableStream для отправки данных клиенту
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of streamCompletion) {
+            const content = chunk.choices[0]?.delta?.content || '';
+            if (content) {
+              // Отправляем каждый кусочек текста
+              const data = JSON.stringify({ content, done: false });
+              controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+            }
+          }
+          
+          // Отправляем сигнал завершения
+          const doneData = JSON.stringify({ 
+            content: '', 
+            done: true,
+            functionsUsed: functionCallsExecuted,
+            iterations: iterationCount,
+          });
+          controller.enqueue(encoder.encode(`data: ${doneData}\n\n`));
+          controller.close();
+        } catch (error) {
+          console.error('❌ Streaming error:', error);
+          controller.error(error);
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
+
+  } catch (error: any) {
+    console.error('❌ AI Chat with Context Error:', error);
+    
+    return new Response(
+      JSON.stringify({ error: 'Ошибка AI помощника: ' + error.message }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 }

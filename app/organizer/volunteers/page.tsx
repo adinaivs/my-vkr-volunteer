@@ -95,6 +95,7 @@ export default function OrganizerVolunteers() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<VolunteerDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [creatingChat, setCreatingChat] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -123,6 +124,38 @@ export default function OrganizerVolunteers() {
   };
 
   const closeProfile = () => { setSelectedId(null); setDetail(null); };
+
+  const handleStartChat = async (volunteerId: string) => {
+    console.log('[handleStartChat] Начало, volunteerId:', volunteerId);
+    setCreatingChat(true);
+    try {
+      console.log('[handleStartChat] Отправка запроса на /api/direct-chats');
+      const res = await fetch('/api/direct-chats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ otherUserId: volunteerId }),
+      });
+
+      console.log('[handleStartChat] Ответ получен, status:', res.status);
+
+      if (res.ok) {
+        const data = await res.json();
+        console.log('[handleStartChat] Данные:', data);
+        const { chatId } = data;
+        console.log('[handleStartChat] Переход на чат:', chatId);
+        router.push(`/organizer/chats/direct-${chatId}`);
+      } else {
+        const errorData = await res.json();
+        console.error('[handleStartChat] Ошибка от сервера:', errorData);
+        alert(`Ошибка: ${errorData.error || 'Неизвестная ошибка'}\n${errorData.details || ''}`);
+      }
+    } catch (error) {
+      console.error('[handleStartChat] Исключение:', error);
+      alert(`Ошибка при создании чата: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setCreatingChat(false);
+    }
+  };
 
   useEffect(() => {
     document.body.style.overflow = selectedId ? 'hidden' : '';
@@ -429,11 +462,23 @@ export default function OrganizerVolunteers() {
               {/* Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
                 <h2 className="text-lg font-bold text-gray-900">Профиль волонтёра</h2>
-                <button onClick={closeProfile} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors text-gray-500">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => detail && handleStartChat(detail.id)}
+                    disabled={creatingChat}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#00CC00] text-white rounded-xl text-sm font-medium hover:bg-[#00b300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    {creatingChat ? 'Загрузка...' : 'Написать'}
+                  </button>
+                  <button onClick={closeProfile} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors text-gray-500">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               {detailLoading ? (

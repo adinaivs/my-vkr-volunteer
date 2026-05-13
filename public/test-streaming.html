@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест Streaming</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #00CC00;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #00b300;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 5px;
+            min-height: 100px;
+            white-space: pre-wrap;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+        }
+        .loading {
+            color: #666;
+            font-style: italic;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+        h1 {
+            color: #333;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .status {
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+        }
+        .streaming-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: #00CC00;
+            border-radius: 50%;
+            animation: pulse 1s infinite;
+            margin-right: 5px;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌊 Тест Streaming</h1>
+        
+        <div class="info">
+            <strong>Инструкция:</strong><br>
+            1. Убедитесь, что сервер запущен (npm run dev)<br>
+            2. Нажмите на одну из кнопок ниже<br>
+            3. Наблюдайте, как текст появляется постепенно!
+        </div>
+
+        <div>
+            <button onclick="testStreaming('Какие проекты доступны?')" id="btn1">
+                Тест: Какие проекты доступны?
+            </button>
+            <button onclick="testStreaming('Расскажи про первый проект')" id="btn2">
+                Тест: Расскажи про первый проект
+            </button>
+            <button onclick="testStreaming('Какие категории есть?')" id="btn3">
+                Тест: Какие категории есть?
+            </button>
+        </div>
+
+        <div id="status" class="status"></div>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const resultDiv = document.getElementById('result');
+        const statusDiv = document.getElementById('status');
+        let isStreaming = false;
+
+        async function testStreaming(message) {
+            if (isStreaming) return;
+            
+            isStreaming = true;
+            resultDiv.innerHTML = '<div class="loading">⏳ Отправка запроса...</div>';
+            statusDiv.innerHTML = '';
+            
+            // Отключаем все кнопки
+            document.querySelectorAll('button').forEach(btn => btn.disabled = true);
+            
+            try {
+                console.log('📤 Отправка запроса:', message);
+                
+                const response = await fetch('/api/ai/chat-with-context', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        conversationHistory: []
+                    })
+                });
+
+                console.log('📥 Получен ответ, статус:', response.status);
+                console.log('📋 Content-Type:', response.headers.get('content-type'));
+
+                if (!response.ok) {
+                    throw new Error('Ошибка запроса: ' + response.status);
+                }
+
+                const contentType = response.headers.get('content-type');
+                
+                if (contentType?.includes('text/event-stream')) {
+                    console.log('🌊 Начинаем обработку streaming...');
+                    statusDiv.innerHTML = '<span class="streaming-indicator"></span>Streaming активен...';
+                    
+                    resultDiv.innerHTML = '';
+                    let accumulatedContent = '';
+                    let chunkCount = 0;
+
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        
+                        if (done) {
+                            console.log('✅ Streaming завершен');
+                            statusDiv.innerHTML = '✅ Streaming завершен. Получено частей: ' + chunkCount;
+                            break;
+                        }
+
+                        const chunk = decoder.decode(value);
+                        const lines = chunk.split('\n');
+
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                try {
+                                    const data = JSON.parse(line.slice(6));
+                                    
+                                    if (data.done) {
+                                        console.log('🏁 Получен сигнал завершения');
+                                        if (data.functionsUsed) {
+                                            statusDiv.innerHTML += '<br>🔧 Использованы функции: ' + data.functionsUsed.join(', ');
+                                        }
+                                        break;
+                                    }
+                                    
+                                    if (data.content) {
+                                        chunkCount++;
+                                        accumulatedContent += data.content;
+                                        resultDiv.textContent = accumulatedContent;
+                                        
+                                        // Прокручиваем вниз
+                                        resultDiv.scrollTop = resultDiv.scrollHeight;
+                                    }
+                                } catch (e) {
+                                    console.warn('⚠️ Ошибка парсинга:', e);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Fallback: обычный JSON
+                    console.log('📄 Получен обычный JSON ответ');
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+
+                    resultDiv.textContent = data.reply || 'Нет ответа';
+                    statusDiv.innerHTML = '⚠️ Streaming не активен (получен JSON)';
+                }
+            } catch (error) {
+                console.error('❌ Ошибка:', error);
+                resultDiv.innerHTML = '<div class="error">❌ ОШИБКА:<br>' + error.message + '</div>';
+                statusDiv.innerHTML = '';
+            } finally {
+                isStreaming = false;
+                // Включаем все кнопки
+                document.querySelectorAll('button').forEach(btn => btn.disabled = false);
+            }
+        }
+    </script>
+</body>
+</html>

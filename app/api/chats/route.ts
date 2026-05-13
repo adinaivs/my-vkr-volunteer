@@ -54,17 +54,38 @@ export async function GET() {
       orderBy: { joinedAt: 'desc' },
     });
 
-    const chats = memberships.map((m) => ({
-      id: m.chat.id,
-      name: m.chat.name,
-      createdAt: m.chat.createdAt,
-      project: m.chat.project,
-      membersCount: m.chat.members.length,
-      members: m.chat.members.map((mem) => mem.user),
-      lastMessage: m.chat.messages[0] ?? null,
-    }));
+    // Подсчитываем непрочитанные сообщения для каждого чата
+    const chatsWithUnread = await Promise.all(
+      memberships.map(async (m) => {
+        const unreadCount = await prisma.projectChatMessage.count({
+          where: {
+            chatId: m.chat.id,
+            senderId: { not: session.userId },
+            NOT: {
+              readBy: { has: session.userId },
+            },
+          },
+        });
 
-    return NextResponse.json({ chats });
+        return {
+          id: m.chat.id,
+          name: m.chat.name,
+          createdAt: m.chat.createdAt,
+          project: m.chat.project,
+          membersCount: m.chat.members.length,
+          members: m.chat.members.map((mem) => mem.user),
+          lastMessage: m.chat.messages[0] ?? null,
+          unreadCount,
+          // Добавляем поле для сортировки
+          sortTime: m.chat.messages[0]?.createdAt ?? m.chat.createdAt,
+        };
+      })
+    );
+
+    // Сортируем по времени последнего сообщения (самые свежие сверху)
+    chatsWithUnread.sort((a, b) => new Date(b.sortTime).getTime() - new Date(a.sortTime).getTime());
+
+    return NextResponse.json({ chats: chatsWithUnread });
   } catch (error) {
     console.error('Ошибка при получении чатов:', error);
     return NextResponse.json({ error: 'Ошибка сервера' }, { status: 500 });

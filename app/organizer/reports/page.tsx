@@ -230,6 +230,14 @@ export default function OrganizerReports() {
 
   const handleGenerateExcel = async (params?: { type: string; startDate: string; endDate: string }) => {
     const p = params || { type: reportType, startDate, endDate };
+    
+    // Запрашиваем название файла у пользователя
+    const fileName = prompt('Введите название файла для отчёта:', 'Отчёт по проектам');
+    if (!fileName) {
+      toast.error('Название файла не указано');
+      return;
+    }
+
     setGenerating(true);
     try {
       const projects = await fetchReportData(p);
@@ -239,42 +247,95 @@ export default function OrganizerReports() {
       const XLSX = await import('xlsx');
       const wb = XLSX.utils.book_new();
 
-      const summaryRows = [
-        ['Название', 'Статус', 'Категория', 'Локация', 'Начало', 'Конец', 'Волонтёры', 'Макс.', 'Задачи', 'Выполнено', '%'],
-        ...projects.map((proj) => [
-          proj.title,
-          STATUS_LABELS[proj.status] || proj.status,
-          proj.category,
-          proj.location,
-          proj.startDate,
-          proj.endDate,
-          proj.currentVolunteers,
-          proj.maxVolunteers,
-          proj.totalTasks,
-          proj.completedTasks,
-          proj.completionRate + '%',
-        ]),
-      ];
-      const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
-      wsSummary['!cols'] = [
-        { wch: 35 }, { wch: 20 }, { wch: 15 }, { wch: 20 },
-        { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 8 },
-        { wch: 10 }, { wch: 12 }, { wch: 8 },
-      ];
-      XLSX.utils.book_append_sheet(wb, wsSummary, 'Проекты');
+      // Формируем данные для одного листа
+      const periodStr = p.startDate && p.endDate
+        ? `${p.startDate} — ${p.endDate}`
+        : 'Все даты';
+      
+      const totalProjects = projects.length;
+      const totalParticipants = projects.reduce((s, p) => s + p.totalParticipants, 0);
+      const totalTasks = projects.reduce((s, p) => s + p.totalTasks, 0);
+      const completedTasks = projects.reduce((s, p) => s + p.completedTasks, 0);
+      const totalVolunteers = projects.reduce((s, p) => s + p.currentVolunteers, 0);
 
-      const participantRows = [
-        ['Проект', 'Участник', 'Email', 'Город', 'Дата вступления'],
-        ...projects.flatMap((proj) =>
-          proj.participants.map((part) => [proj.title, part.name, part.email, part.city, part.joinedAt])
-        ),
+      const rows: any[][] = [
+        ['ОТЧЁТ ПО ПРОЕКТАМ'],
+        [],
+        ['Организатор:', `${user?.firstName} ${user?.lastName}`],
+        ['Тип отчёта:', TYPE_LABELS[p.type] || p.type],
+        ['Период:', periodStr],
+        ['Дата формирования:', new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' })],
+        [],
+        ['ОБЩАЯ СТАТИСТИКА'],
+        ['Всего проектов:', totalProjects],
+        ['Всего участников:', totalParticipants],
+        ['Всего волонтёров:', totalVolunteers],
+        ['Всего задач:', totalTasks],
+        ['Выполнено задач:', completedTasks],
+        ['Процент выполнения:', `${totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0}%`],
+        [],
+        ['═══════════════════════════════════════════════════════════════════════════════════════════════════'],
+        [],
       ];
-      const wsParticipants = XLSX.utils.aoa_to_sheet(participantRows);
-      wsParticipants['!cols'] = [{ wch: 35 }, { wch: 25 }, { wch: 30 }, { wch: 15 }, { wch: 15 }];
-      XLSX.utils.book_append_sheet(wb, wsParticipants, 'Участники');
 
-      const periodStr = p.startDate && p.endDate ? `_${p.startDate}_${p.endDate}` : '';
-      XLSX.writeFile(wb, `otchet_proekty${periodStr}.xlsx`);
+      // Добавляем каждый проект отдельным блоком
+      projects.forEach((proj, index) => {
+        rows.push(
+          [`ПРОЕКТ ${index + 1}: ${proj.title}`],
+          [],
+          ['Статус:', STATUS_LABELS[proj.status] || proj.status],
+          ['Категория:', proj.category],
+          ['Локация:', proj.location],
+          ['Дата начала:', proj.startDate],
+          ['Дата окончания:', proj.endDate],
+          [],
+          ['СТАТИСТИКА ПРОЕКТА'],
+          ['Волонтёры (текущие):', proj.currentVolunteers],
+          ['Волонтёры (максимум):', proj.maxVolunteers],
+          ['Всего участников:', proj.totalParticipants],
+          ['Задачи (всего):', proj.totalTasks],
+          ['Задачи (выполнено):', proj.completedTasks],
+          ['Процент выполнения:', proj.completionRate + '%'],
+          [],
+        );
+
+        // Добавляем участников проекта
+        if (proj.participants.length > 0) {
+          rows.push(
+            ['УЧАСТНИКИ ПРОЕКТА'],
+            ['Имя', 'Email', 'Город', 'Дата вступления'],
+          );
+          proj.participants.forEach((part) => {
+            rows.push([part.name, part.email, part.city || '—', part.joinedAt]);
+          });
+        } else {
+          rows.push(['УЧАСТНИКИ ПРОЕКТА'], ['Нет участников']);
+        }
+
+        // Разделитель между проектами
+        rows.push(
+          [],
+          ['═══════════════════════════════════════════════════════════════════════════════════════════════════'],
+          [],
+        );
+      });
+
+      // Создаём лист
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      
+      // Настраиваем ширину колонок
+      ws['!cols'] = [
+        { wch: 30 },  // Первая колонка
+        { wch: 35 },  // Вторая колонка
+        { wch: 20 },  // Третья колонка
+        { wch: 20 },  // Четвёртая колонка
+      ];
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Отчёт');
+
+      // Сохраняем файл с пользовательским названием
+      const sanitizedFileName = fileName.replace(/[^a-zA-Zа-яА-ЯёЁ0-9\s\-_]/g, '');
+      XLSX.writeFile(wb, `${sanitizedFileName}.xlsx`);
 
       if (!params) saveToHistory('excel', p);
       toast.success('Excel отчёт скачан');

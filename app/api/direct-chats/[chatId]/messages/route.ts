@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-// GET /api/chats/[chatId]/messages - Получить сообщения чата
+// GET /api/direct-chats/[chatId]/messages - Получить сообщения личного чата
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ chatId: string }> }
@@ -15,19 +15,23 @@ export async function GET(
 
     const { chatId } = await params;
 
-    // Проверяем, что пользователь — участник чата
-    const membership = await prisma.projectChatMember.findUnique({
-      where: { chatId_userId: { chatId, userId: session.userId } },
+    // Проверяем, что пользователь является участником чата
+    const chat = await prisma.directChat.findUnique({
+      where: { id: chatId },
     });
 
-    if (!membership) {
+    if (!chat) {
+      return NextResponse.json({ error: 'Чат не найден' }, { status: 404 });
+    }
+
+    if (chat.user1Id !== session.userId && chat.user2Id !== session.userId) {
       return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
     const before = searchParams.get('before'); // ISO timestamp для пагинации
 
-    const messages = await prisma.projectChatMessage.findMany({
+    const messages = await prisma.directMessage.findMany({
       where: {
         chatId,
         ...(before ? { createdAt: { lt: new Date(before) } } : {}),
@@ -54,7 +58,7 @@ export async function GET(
     });
 
     // Помечаем все сообщения как доставленные текущему пользователю
-    await prisma.projectChatMessage.updateMany({
+    await prisma.directMessage.updateMany({
       where: {
         chatId,
         senderId: { not: session.userId },
@@ -68,7 +72,7 @@ export async function GET(
     });
 
     // Помечаем все непрочитанные сообщения как прочитанные
-    await prisma.projectChatMessage.updateMany({
+    await prisma.directMessage.updateMany({
       where: {
         chatId,
         senderId: { not: session.userId },
@@ -88,44 +92,40 @@ export async function GET(
   }
 }
 
-// POST /api/chats/[chatId]/messages - Отправить сообщение
+// POST /api/direct-chats/[chatId]/messages - Отправить сообщение в личный чат
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ chatId: string }> }
 ) {
   try {
-    console.log('[GroupChat POST] Начало обработки запроса');
-    
     const session = await getSession();
-    console.log('[GroupChat POST] Сессия:', session ? `userId: ${session.userId}` : 'нет сессии');
-    
     if (!session) {
       return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
     }
 
     const { chatId } = await params;
-    console.log('[GroupChat POST] chatId:', chatId);
 
-    const membership = await prisma.projectChatMember.findUnique({
-      where: { chatId_userId: { chatId, userId: session.userId } },
+    // Проверяем, что пользователь является участником чата
+    const chat = await prisma.directChat.findUnique({
+      where: { id: chatId },
     });
-    console.log('[GroupChat POST] Членство:', membership ? 'найдено' : 'не найдено');
 
-    if (!membership) {
+    if (!chat) {
+      return NextResponse.json({ error: 'Чат не найден' }, { status: 404 });
+    }
+
+    if (chat.user1Id !== session.userId && chat.user2Id !== session.userId) {
       return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 });
     }
 
     const body = await request.json();
-    console.log('[GroupChat POST] Тело запроса:', body);
     const { content } = body;
 
     if (!content?.trim()) {
-      console.log('[GroupChat POST] Ошибка: пустое сообщение');
       return NextResponse.json({ error: 'Сообщение не может быть пустым' }, { status: 400 });
     }
 
-    console.log('[GroupChat POST] Создание сообщения, content:', content.trim());
-    const message = await prisma.projectChatMessage.create({
+    const message = await prisma.directMessage.create({
       data: {
         chatId,
         senderId: session.userId,
@@ -149,15 +149,10 @@ export async function POST(
         },
       },
     });
-    console.log('[GroupChat POST] Сообщение создано:', message.id);
 
     return NextResponse.json({ message });
   } catch (error) {
-    console.error('[GroupChat POST] ОШИБКА:', error);
-    console.error('[GroupChat POST] Stack trace:', error instanceof Error ? error.stack : 'нет stack trace');
-    return NextResponse.json({ 
-      error: 'Ошибка сервера',
-      details: error instanceof Error ? error.message : String(error)
-    }, { status: 500 });
+    console.error('Ошибка при отправке сообщения:', error);
+    return NextResponse.json({ error: 'Ошибка сервера' }, { status: 500 });
   }
 }

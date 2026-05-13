@@ -83,7 +83,7 @@ export async function checkAchievementsOnTaskConfirmed(volunteerId: string) {
     const monthAssignments = await prisma.taskAssignment.findMany({
       where: {
         volunteerId,
-        assignedAt: { gte: monthStart },
+        createdAt: { gte: monthStart },
       },
       include: { task: true },
     });

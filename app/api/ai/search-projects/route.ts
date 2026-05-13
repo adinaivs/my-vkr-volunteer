@@ -48,24 +48,24 @@ export async function POST(request: NextRequest) {
     // Ищем проекты в БД
     const projects = await prisma.project.findMany({
       where: {
-        status: 'ACTIVE',
+        status: 'active',
         OR: [
           {
             title: {
               contains: query,
-              mode: 'insensitive',
+              mode: 'insensitive' as const,
             },
           },
           {
             description: {
               contains: query,
-              mode: 'insensitive',
+              mode: 'insensitive' as const,
             },
           },
           ...(parsed.keywords || []).map((keyword: string) => ({
             OR: [
-              { title: { contains: keyword, mode: 'insensitive' } },
-              { description: { contains: keyword, mode: 'insensitive' } },
+              { title: { contains: keyword, mode: 'insensitive' as const } },
+              { description: { contains: keyword, mode: 'insensitive' as const } },
             ],
           })),
         ],
@@ -74,7 +74,8 @@ export async function POST(request: NextRequest) {
       include: {
         organizer: {
           select: {
-            organizationName: true,
+            firstName: true,
+            lastName: true,
           },
         },
         _count: {

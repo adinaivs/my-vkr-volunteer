@@ -6,6 +6,7 @@ import VolunteerNav from '../../components/VolunteerNav';
 import VolunteerSidebar from '../../components/VolunteerSidebar';
 import AiSupportButton from '@/app/components/AiSupportButton';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
+import MessageStatus from '@/app/components/MessageStatus';
 
 interface ChatUser {
   id: string;
@@ -15,7 +16,7 @@ interface ChatUser {
   role: string;
 }
 
-interface Chat {
+interface GroupChat {
   id: string;
   name: string;
   createdAt: string;
@@ -25,10 +26,20 @@ interface Chat {
   lastMessage: { content: string; createdAt: string; sender: { id: string; firstName: string; lastName: string } } | null;
 }
 
+interface DirectChat {
+  id: string;
+  otherUser: ChatUser;
+  lastMessage: { content: string; createdAt: string; sender: { id: string; firstName: string; lastName: string } } | null;
+  createdAt: string;
+}
+
 interface Message {
   id: string;
   content: string;
   createdAt: string;
+  senderId: string;
+  deliveredTo?: string[];
+  readBy?: string[];
   sender: ChatUser;
 }
 
@@ -37,8 +48,10 @@ export default function VolunteerChatRoomPage() {
   const { chatId } = useParams<{ chatId: string }>();
 
   const [me, setMe] = useState<ChatUser | null>(null);
-  const [chats, setChats] = useState<Chat[]>([]);
-  const [currentChat, setCurrentChat] = useState<Chat | null>(null);
+  const [groupChats, setGroupChats] = useState<GroupChat[]>([]);
+  const [directChats, setDirectChats] = useState<DirectChat[]>([]);
+  const [currentGroupChat, setCurrentGroupChat] = useState<GroupChat | null>(null);
+  const [currentDirectChat, setCurrentDirectChat] = useState<DirectChat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
@@ -49,13 +62,29 @@ export default function VolunteerChatRoomPage() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Определяем тип чата по chatId
+  const isDirectChat = chatId.startsWith('direct-');
+  const actualChatId = isDirectChat ? chatId.replace('direct-', '') : chatId;
+
   const fetchMessages = useCallback(async () => {
-    const res = await fetch(`/api/chats/${chatId}/messages`);
-    if (res.ok) {
-      const data = await res.json();
-      setMessages(data.messages);
+    console.log('[fetchMessages] Загрузка сообщений для chatId:', actualChatId, 'isDirect:', isDirectChat);
+    try {
+      const endpoint = isDirectChat 
+        ? `/api/direct-chats/${actualChatId}/messages`
+        : `/api/chats/${actualChatId}/messages`;
+      const res = await fetch(endpoint);
+      console.log('[fetchMessages] Ответ получен, status:', res.status);
+      if (res.ok) {
+        const data = await res.json();
+        console.log('[fetchMessages] Получено сообщений:', data.messages?.length || 0);
+        setMessages(data.messages);
+      } else {
+        console.error('[fetchMessages] Ошибка:', res.status, res.statusText);
+      }
+    } catch (error) {
+      console.error('[fetchMessages] Исключение:', error);
     }
-  }, [chatId]);
+  }, [actualChatId, isDirectChat]);
 
   useEffect(() => {
     const init = async () => {
@@ -66,16 +95,37 @@ export default function VolunteerChatRoomPage() {
         if (meData.role !== 'volunteer') { router.push('/dashboard'); return; }
         setMe(meData);
 
-        const chatsRes = await fetch('/api/chats');
-        if (chatsRes.ok) {
-          const data = await chatsRes.json();
-          setChats(data.chats);
-          const chat = data.chats.find((c: Chat) => c.id === chatId);
-          if (chat) {
-            setCurrentChat(chat);
-          } else {
-            router.push('/volunteer/chats');
-            return;
+        // Загружаем групповые чаты
+        const groupChatsRes = await fetch('/api/chats');
+        if (groupChatsRes.ok) {
+          const data = await groupChatsRes.json();
+          setGroupChats(data.chats);
+          
+          if (!isDirectChat) {
+            const chat = data.chats.find((c: GroupChat) => c.id === actualChatId);
+            if (chat) {
+              setCurrentGroupChat(chat);
+            } else {
+              router.push('/volunteer/chats');
+              return;
+            }
+          }
+        }
+
+        // Загружаем личные чаты
+        const directChatsRes = await fetch('/api/direct-chats');
+        if (directChatsRes.ok) {
+          const data = await directChatsRes.json();
+          setDirectChats(data.chats);
+          
+          if (isDirectChat) {
+            const chat = data.chats.find((c: DirectChat) => c.id === actualChatId);
+            if (chat) {
+              setCurrentDirectChat(chat);
+            } else {
+              router.push('/volunteer/chats');
+              return;
+            }
           }
         }
 
@@ -85,7 +135,7 @@ export default function VolunteerChatRoomPage() {
       }
     };
     init();
-  }, [chatId, router, fetchMessages]);
+  }, [chatId, actualChatId, isDirectChat, router, fetchMessages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -93,26 +143,65 @@ export default function VolunteerChatRoomPage() {
 
   useEffect(() => {
     if (loading) return;
-    pollRef.current = setInterval(fetchMessages, 4000);
+    pollRef.current = setInterval(fetchMessages, 3000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [loading, fetchMessages]);
 
+  // Отдельный интервал для обновления списков чатов (для индикаторов непрочитанных)
+  useEffect(() => {
+    if (loading) return;
+    
+    const updateChatLists = async () => {
+      const groupChatsRes = await fetch('/api/chats');
+      if (groupChatsRes.ok) {
+        const groupData = await groupChatsRes.json();
+        setGroupChats(groupData.chats);
+      }
+      
+      const directChatsRes = await fetch('/api/direct-chats');
+      if (directChatsRes.ok) {
+        const directData = await directChatsRes.json();
+        setDirectChats(directData.chats);
+      }
+    };
+
+    const interval = setInterval(updateChatLists, 3000);
+    return () => clearInterval(interval);
+  }, [loading]);
+
   const handleSend = async () => {
     if (!text.trim() || sending) return;
+    console.log('[handleSend] Начало отправки, текст:', text.trim());
     setSending(true);
     const content = text.trim();
     setText('');
     try {
-      const res = await fetch(`/api/chats/${chatId}/messages`, {
+      const endpoint = isDirectChat
+        ? `/api/direct-chats/${actualChatId}/messages`
+        : `/api/chats/${actualChatId}/messages`;
+      console.log('[handleSend] Отправка запроса на', endpoint);
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content }),
       });
+      console.log('[handleSend] Ответ получен, status:', res.status);
+      
       if (res.ok) {
+        const data = await res.json();
+        console.log('[handleSend] Сообщение отправлено:', data);
         await fetchMessages();
+        console.log('[handleSend] Сообщения обновлены');
       } else {
+        const errorData = await res.json();
+        console.error('[handleSend] Ошибка от сервера:', errorData);
         setText(content);
+        alert(`Ошибка отправки: ${errorData.error || 'Неизвестная ошибка'}`);
       }
+    } catch (error) {
+      console.error('[handleSend] Исключение:', error);
+      setText(content);
+      alert(`Ошибка отправки сообщения: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setSending(false);
       inputRef.current?.focus();
@@ -123,6 +212,31 @@ export default function VolunteerChatRoomPage() {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  const handleMessageMember = async (memberId: string) => {
+    if (memberId === me?.id) return; // Не можем написать самому себе
+    
+    try {
+      // Создаем или получаем существующий личный чат
+      const res = await fetch('/api/direct-chats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ otherUserId: memberId }),
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        // Переходим в личный чат
+        router.push(`/volunteer/chats/direct-${data.chatId}`);
+      } else {
+        const errorData = await res.json();
+        alert(`Ошибка: ${errorData.error || 'Не удалось создать чат'}`);
+      }
+    } catch (error) {
+      console.error('Ошибка при создании чата:', error);
+      alert('Ошибка при создании чата');
     }
   };
 
@@ -162,7 +276,39 @@ export default function VolunteerChatRoomPage() {
 
   if (!me) return null;
 
-  const members = currentChat?.members ?? [];
+  const members = currentGroupChat?.members ?? [];
+  const chatName = isDirectChat 
+    ? `${currentDirectChat?.otherUser.firstName} ${currentDirectChat?.otherUser.lastName}`
+    : currentGroupChat?.name;
+  const chatSubtitle = isDirectChat
+    ? 'Организатор'
+    : `${members.length} участников`;
+
+  // Объединяем все чаты для списка справа
+  const allChats = [
+    ...directChats.map(chat => ({
+      id: `direct-${chat.id}`,
+      type: 'direct' as const,
+      name: `${chat.otherUser.firstName} ${chat.otherUser.lastName}`,
+      avatar: chat.otherUser.avatarUrl,
+      initials: `${chat.otherUser.firstName[0]}${chat.otherUser.lastName[0]}`,
+      subtitle: 'Организатор',
+      lastMessage: chat.lastMessage,
+      lastMessageTime: chat.lastMessage?.createdAt || chat.createdAt,
+      unreadCount: chat.unreadCount || 0,
+    })),
+    ...groupChats.map(chat => ({
+      id: chat.id,
+      type: 'group' as const,
+      name: chat.name,
+      avatar: null,
+      initials: null,
+      subtitle: `${chat.membersCount} участников`,
+      lastMessage: chat.lastMessage,
+      lastMessageTime: chat.lastMessage?.createdAt || chat.createdAt,
+      unreadCount: chat.unreadCount || 0,
+    })),
+  ].sort((a, b) => new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime());
 
   return (
     <SidebarProvider>
@@ -177,24 +323,40 @@ export default function VolunteerChatRoomPage() {
             <div className="flex-1 bg-white rounded-2xl border border-gray-200 flex flex-col overflow-hidden">
               {/* Header */}
               <div className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-100 bg-white shrink-0">
-                <div className="w-9 h-9 bg-gradient-to-br from-[#00CC00] to-emerald-500 rounded-xl flex items-center justify-center shrink-0">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
+                {isDirectChat ? (
+                  currentDirectChat?.otherUser.avatarUrl ? (
+                    <img 
+                      src={currentDirectChat.otherUser.avatarUrl} 
+                      alt="" 
+                      className="w-9 h-9 rounded-full object-cover shrink-0" 
+                    />
+                  ) : (
+                    <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shrink-0 text-white font-bold text-sm">
+                      {currentDirectChat?.otherUser.firstName[0]}{currentDirectChat?.otherUser.lastName[0]}
+                    </div>
+                  )
+                ) : (
+                  <div className="w-9 h-9 bg-gradient-to-br from-[#00CC00] to-emerald-500 rounded-xl flex items-center justify-center shrink-0">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
-                  <h2 className="font-semibold text-gray-900 truncate text-sm">{currentChat?.name}</h2>
-                  <p className="text-xs text-gray-500">{members.length} участников</p>
+                  <h2 className="font-semibold text-gray-900 truncate text-sm">{chatName}</h2>
+                  <p className="text-xs text-gray-500">{chatSubtitle}</p>
                 </div>
-                <button
-                  onClick={() => setShowMembers(!showMembers)}
-                  className={`p-2 rounded-xl transition-colors ${showMembers ? 'bg-green-50 text-[#00CC00]' : 'hover:bg-gray-100 text-gray-500'}`}
-                  title="Участники"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                </button>
+                {!isDirectChat && (
+                  <button
+                    onClick={() => setShowMembers(!showMembers)}
+                    className={`p-2 rounded-xl transition-colors ${showMembers ? 'bg-green-50 text-[#00CC00]' : 'hover:bg-gray-100 text-gray-500'}`}
+                    title="Участники"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                  </button>
+                )}
               </div>
 
               <div className="flex flex-1 overflow-hidden">
@@ -250,7 +412,17 @@ export default function VolunteerChatRoomPage() {
                               }`}>
                                 {msg.content}
                               </div>
-                              <span className="text-xs text-gray-400 mt-0.5 px-1">{formatTime(msg.createdAt)}</span>
+                              <div className="flex items-center gap-1 mt-0.5 px-1">
+                                <span className="text-xs text-gray-400">{formatTime(msg.createdAt)}</span>
+                                {isMe && (
+                                  <MessageStatus
+                                    message={msg}
+                                    currentUserId={me.id}
+                                    otherUserId={isDirectChat ? currentDirectChat?.otherUser.id : undefined}
+                                    chatMembers={!isDirectChat ? members : undefined}
+                                  />
+                                )}
+                              </div>
                             </div>
                           </div>
                         );
@@ -261,23 +433,34 @@ export default function VolunteerChatRoomPage() {
                 </div>
 
                 {/* Members panel */}
-                {showMembers && (
-                  <div className="w-52 border-l border-gray-100 bg-gray-50 overflow-y-auto p-3 shrink-0">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Участники</p>
+                {showMembers && !isDirectChat && (
+                  <div className="w-64 border-l border-gray-100 bg-gray-50 overflow-y-auto p-3 shrink-0">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Участники ({members.length})</p>
                     <div className="space-y-2">
                       {members.map((m) => (
-                        <div key={m.id} className="flex items-center gap-2">
+                        <div key={m.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-white transition-colors">
                           {m.avatarUrl ? (
-                            <img src={m.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
+                            <img src={m.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
                           ) : (
-                            <div className="w-7 h-7 rounded-full bg-[#00CC00] flex items-center justify-center text-white text-xs font-bold shrink-0">
+                            <div className="w-8 h-8 rounded-full bg-[#00CC00] flex items-center justify-center text-white text-xs font-bold shrink-0">
                               {m.firstName[0]}
                             </div>
                           )}
-                          <div className="min-w-0">
+                          <div className="flex-1 min-w-0">
                             <p className="text-xs font-medium text-gray-900 truncate">{m.firstName} {m.lastName}</p>
                             <p className="text-xs text-gray-400">{m.role === 'organizer' ? 'Организатор' : 'Волонтёр'}</p>
                           </div>
+                          {m.id !== me?.id && (
+                            <button
+                              onClick={() => handleMessageMember(m.id)}
+                              className="p-1.5 rounded-lg bg-[#00CC00] hover:bg-[#00b300] text-white transition-colors shrink-0"
+                              title="Написать"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                              </svg>
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -287,11 +470,21 @@ export default function VolunteerChatRoomPage() {
 
               {/* Input */}
               <div className="px-4 py-3 border-t border-gray-100 bg-white shrink-0">
-                <div className="flex items-end gap-2">
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    console.log('[Form onSubmit] Форма отправлена');
+                    handleSend();
+                  }}
+                  className="flex items-end gap-2"
+                >
                   <textarea
                     ref={inputRef}
                     value={text}
-                    onChange={(e) => setText(e.target.value)}
+                    onChange={(e) => {
+                      console.log('[Textarea onChange] Новое значение:', e.target.value);
+                      setText(e.target.value);
+                    }}
                     onKeyDown={handleKeyDown}
                     placeholder="Введите сообщение... (Enter — отправить)"
                     rows={1}
@@ -299,7 +492,13 @@ export default function VolunteerChatRoomPage() {
                     style={{ overflowY: 'auto' }}
                   />
                   <button
-                    onClick={handleSend}
+                    type="button"
+                    onClick={() => {
+                      console.log('[Button Click] Клик по кнопке отправки');
+                      console.log('[Button Click] text:', text);
+                      console.log('[Button Click] sending:', sending);
+                      handleSend();
+                    }}
                     disabled={!text.trim() || sending}
                     className="w-10 h-10 bg-[#00CC00] text-white rounded-xl flex items-center justify-center hover:bg-[#00b300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
                   >
@@ -307,18 +506,18 @@ export default function VolunteerChatRoomPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                     </svg>
                   </button>
-                </div>
+                </form>
               </div>
             </div>
 
             {/* ПРАВАЯ ПАНЕЛЬ — список чатов */}
             <div className="w-80 shrink-0 bg-white rounded-2xl border border-gray-200 flex flex-col overflow-hidden">
               <div className="px-4 py-4 border-b border-gray-100">
-                <h1 className="text-lg font-bold text-gray-900">Чаты</h1>
-                <p className="text-xs text-gray-400 mt-0.5">Групповые чаты проектов</p>
+                <h1 className="text-lg font-bold text-gray-900">Сообщения</h1>
+                <p className="text-xs text-gray-400 mt-0.5">Всего чатов: {allChats.length}</p>
               </div>
               <div className="flex-1 overflow-y-auto">
-                {chats.length === 0 ? (
+                {allChats.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full p-6 text-center">
                     <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
                       <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -326,10 +525,10 @@ export default function VolunteerChatRoomPage() {
                       </svg>
                     </div>
                     <p className="text-sm text-gray-500">Нет активных чатов</p>
-                    <p className="text-xs text-gray-400 mt-1">Вступите в проект — чат появится, когда набор завершится</p>
+                    <p className="text-xs text-gray-400 mt-1">Вступите в проект или дождитесь сообщения от организатора</p>
                   </div>
                 ) : (
-                  chats.map((chat) => {
+                  allChats.map((chat) => {
                     const isActive = chat.id === chatId;
                     return (
                       <button
@@ -340,16 +539,42 @@ export default function VolunteerChatRoomPage() {
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                            isActive ? 'bg-[#00CC00]' : 'bg-gradient-to-br from-[#00CC00] to-emerald-500'
-                          }`}>
-                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
+                          {/* Аватар/Иконка */}
+                          <div className="relative">
+                            {chat.type === 'direct' ? (
+                              chat.avatar ? (
+                                <img 
+                                  src={chat.avatar} 
+                                  alt="" 
+                                  className="w-10 h-10 rounded-full object-cover shrink-0" 
+                                />
+                              ) : (
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-white font-bold text-sm ${
+                                  isActive ? 'bg-blue-600' : 'bg-gradient-to-br from-blue-500 to-blue-600'
+                                }`}>
+                                  {chat.initials}
+                                </div>
+                              )
+                            ) : (
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                                isActive ? 'bg-[#00CC00]' : 'bg-gradient-to-br from-[#00CC00] to-emerald-500'
+                              }`}>
+                                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                              </div>
+                            )}
+                            {chat.unreadCount > 0 && (
+                              <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-[#00CC00] text-white rounded-full border-2 border-white">
+                                {chat.unreadCount > 99 ? '99+' : chat.unreadCount}
+                              </span>
+                            )}
                           </div>
+                          
+                          {/* Информация о чате */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-1">
-                              <span className={`font-semibold text-sm truncate ${isActive ? 'text-[#00CC00]' : 'text-gray-900'}`}>
+                              <span className={`text-sm truncate ${chat.unreadCount > 0 ? 'font-bold text-gray-900' : isActive ? 'font-semibold text-[#00CC00]' : 'font-semibold text-gray-900'}`}>
                                 {chat.name}
                               </span>
                               {chat.lastMessage && (
@@ -358,9 +583,11 @@ export default function VolunteerChatRoomPage() {
                                 </span>
                               )}
                             </div>
-                            <p className="text-xs text-gray-400 mb-0.5">{chat.membersCount} участников</p>
+                            <p className={`text-xs mb-0.5 ${chat.type === 'direct' ? 'text-blue-600' : 'text-green-600'}`}>
+                              {chat.subtitle}
+                            </p>
                             {chat.lastMessage ? (
-                              <p className="text-xs text-gray-500 truncate">
+                              <p className={`text-xs truncate ${chat.unreadCount > 0 ? 'font-semibold text-gray-700' : 'text-gray-500'}`}>
                                 <span className="font-medium">{chat.lastMessage.sender.firstName}:</span>{' '}{chat.lastMessage.content}
                               </p>
                             ) : (

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSidebar } from '@/app/contexts/SidebarContext';
+import { useUnreadCount } from '@/app/hooks/useUnreadCount';
 
 interface User {
   firstName: string;
@@ -18,6 +19,7 @@ interface VolunteerSidebarProps {
 export default function VolunteerSidebar({ user }: VolunteerSidebarProps) {
   const { collapsed, setCollapsed } = useSidebar();
   const pathname = usePathname();
+  const unreadCount = useUnreadCount();
 
   const navItems = [
     {
@@ -42,8 +44,8 @@ export default function VolunteerSidebar({ user }: VolunteerSidebarProps) {
     },
     {
       href: '/volunteer/chats',
-      label: 'Чаты',
-      icon: 'M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z'
+      label: 'Сообщения',
+      icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z'
     },
     {
       href: '/volunteer/profile',
@@ -64,7 +66,7 @@ export default function VolunteerSidebar({ user }: VolunteerSidebarProps) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative ${
                 isActive(item.href)
                   ? 'bg-[#00CC00] text-white shadow-lg shadow-[#00CC00]/30'
                   : 'text-gray-600 hover:bg-gray-100'
@@ -75,6 +77,13 @@ export default function VolunteerSidebar({ user }: VolunteerSidebarProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
               </svg>
               {!collapsed && <span className="font-medium">{item.label}</span>}
+              {item.href === '/volunteer/chats' && unreadCount > 0 && (
+                <span className={`absolute ${collapsed ? 'top-2 right-2' : 'right-3'} flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold rounded-full ${
+                  isActive(item.href) ? 'bg-white text-[#00CC00]' : 'bg-[#00CC00] text-white'
+                }`}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </Link>
           ))}
         </nav>
@@ -149,7 +158,7 @@ export default function VolunteerSidebar({ user }: VolunteerSidebarProps) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center gap-1 py-3 px-4 transition-colors ${
+              className={`flex flex-col items-center gap-1 py-3 px-4 transition-colors relative ${
                 isActive(item.href)
                   ? 'text-[#00CC00]'
                   : 'text-gray-600'
@@ -159,6 +168,9 @@ export default function VolunteerSidebar({ user }: VolunteerSidebarProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
               </svg>
               <span className="text-xs font-medium">{item.label.split(' ')[0]}</span>
+              {item.href === '/volunteer/chats' && unreadCount > 0 && (
+                <span className="absolute top-1 right-2 w-2 h-2 bg-[#00CC00] rounded-full border-2 border-white"></span>
+              )}
             </Link>
           ))}
         </div>

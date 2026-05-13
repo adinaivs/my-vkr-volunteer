@@ -120,6 +120,9 @@ model User {
   aiChats             AiChat[]
   chatMemberships     ProjectChatMember[]
   chatMessages        ProjectChatMessage[] @relation("ChatMessageSender")
+  directChatsAsUser1  DirectChat[]         @relation("DirectChatUser1")
+  directChatsAsUser2  DirectChat[]         @relation("DirectChatUser2")
+  directMessages      DirectMessage[]      @relation("DirectMessageSender")
 
   @@map("users")
 }
@@ -535,14 +538,46 @@ model ProjectChatMember {
 }
 
 model ProjectChatMessage {
-  id        String   @id @default(uuid()) @db.Uuid
-  chatId    String   @map("chat_id") @db.Uuid
-  senderId  String   @map("sender_id") @db.Uuid
-  content   String
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  id          String   @id @default(uuid()) @db.Uuid
+  chatId      String   @map("chat_id") @db.Uuid
+  senderId    String   @map("sender_id") @db.Uuid
+  content     String
+  deliveredTo String[] @default([]) @map("delivered_to") @db.Uuid
+  readBy      String[] @default([]) @map("read_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
 
   chat   ProjectChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
   sender User        @relation("ChatMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@map("project_chat_messages")
+}
+
+// Личные чаты между пользователями (организатор <-> волонтер)
+model DirectChat {
+  id        String   @id @default(uuid()) @db.Uuid
+  user1Id   String   @map("user1_id") @db.Uuid
+  user2Id   String   @map("user2_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  user1    User            @relation("DirectChatUser1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2    User            @relation("DirectChatUser2", fields: [user2Id], references: [id], onDelete: Cascade)
+  messages DirectMessage[]
+
+  @@unique([user1Id, user2Id])
+  @@map("direct_chats")
+}
+
+model DirectMessage {
+  id          String   @id @default(uuid()) @db.Uuid
+  chatId      String   @map("chat_id") @db.Uuid
+  senderId    String   @map("sender_id") @db.Uuid
+  content     String
+  deliveredTo String[] @default([]) @map("delivered_to") @db.Uuid
+  readBy      String[] @default([]) @map("read_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  chat   DirectChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender User       @relation("DirectMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("direct_messages")
 }

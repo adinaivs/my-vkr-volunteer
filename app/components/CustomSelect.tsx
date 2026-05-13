@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 interface Option {
   value: string;
   label: string;
+  disabled?: boolean;
 }
 
 interface CustomSelectProps {
