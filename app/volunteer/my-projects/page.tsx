@@ -9,6 +9,7 @@ import AiSupportButton from '@/app/components/AiSupportButton';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { useToast } from '@/app/components/ToastContainer';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface User {
   id: string;
@@ -112,6 +113,7 @@ interface Application {
 export default function MyProjects() {
   const router = useRouter();
   const toast = useToast();
+  const { t } = useTranslation('volunteer');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'applications'>('active');
@@ -417,8 +419,8 @@ export default function MyProjects() {
         <DynamicContent>
           {/* Page Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Мои проекты</h1>
-            <p className="text-gray-600">Управляйте своими проектами и заявками</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{t.myProjects?.title || 'Мои проекты'}</h1>
+            <p className="text-gray-600">{t.myProjects?.noActiveHint || 'Управляйте своими проектами и заявками'}</p>
           </div>
 
           {/* Tabs */}
@@ -436,7 +438,7 @@ export default function MyProjects() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
-                  Активные проекты
+                  {t.myProjects?.tabActive || 'Активные'}
                 </div>
               </button>
               <button
@@ -451,7 +453,7 @@ export default function MyProjects() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  Завершённые
+                  {t.myProjects?.tabCompleted || 'Завершённые'}
                 </div>
               </button>
               <button
@@ -466,7 +468,7 @@ export default function MyProjects() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  Мои заявки
+                  {t.myProjects?.tabApplications || 'Заявки'}
                 </div>
               </button>
             </div>
@@ -488,7 +490,7 @@ export default function MyProjects() {
                         </svg>
                       </div>
                       <h3 className="text-xl font-bold text-gray-900 mb-2">
-                        {activeTab === 'active' ? 'У вас пока нет активных проектов' : 'Нет завершённых проектов'}
+                        {activeTab === 'active' ? (t.myProjects?.noActive || 'У вас пока нет активных проектов') : (t.myProjects?.noCompleted || 'Нет завершённых проектов')}
                       </h3>
                       <p className="text-gray-600 mb-6">
                         {activeTab === 'active' 
@@ -607,8 +609,8 @@ export default function MyProjects() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                       </div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-2">У вас пока нет заявок</h3>
-                      <p className="text-gray-600 mb-6">Подайте заявку на участие в проекте</p>
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">{t.myProjects?.noApplications || 'У вас пока нет заявок'}</h3>
+                      <p className="text-gray-600 mb-6">{t.myProjects?.noActiveHint || 'Подайте заявку на участие в проекте'}</p>
                       <Link 
                         href="/volunteer/projects"
                         className="inline-block px-6 py-3 bg-[#00CC00] text-white rounded-xl font-semibold hover:bg-[#00b300] transition-colors shadow-lg"

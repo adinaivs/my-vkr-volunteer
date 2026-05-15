@@ -7,20 +7,9 @@ import AdminNav from '../components/AdminNav';
 import AdminSidebar from '../components/AdminSidebar';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface AdminUser { id: string; firstName: string; lastName: string; email: string; role: string; avatarUrl?: string; }
-
-const PROJECT_STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  draft: { label: 'Черновики', color: 'bg-gray-400' },
-  moderation: { label: 'На модерации', color: 'bg-yellow-400' },
-  rejected: { label: 'Отклонённые', color: 'bg-red-400' },
-  recruiting: { label: 'Набор', color: 'bg-blue-400' },
-  upcoming: { label: 'Скоро', color: 'bg-purple-400' },
-  active: { label: 'Активные', color: 'bg-green-500' },
-  completed: { label: 'Завершённые', color: 'bg-emerald-500' },
-  cancelled: { label: 'Отменённые', color: 'bg-orange-400' },
-  blocked: { label: 'Заблокированные', color: 'bg-red-600' },
-};
 
 function BarChart({ data, maxVal, color = 'bg-[#00CC00]' }: { data: { label: string; count: number }[]; maxVal: number; color?: string }) {
   return (
@@ -58,6 +47,7 @@ function HorizontalBar({ label, count, total, color }: { label: string; count: n
 
 export default function AdminAnalyticsPage() {
   const router = useRouter();
+  const { t } = useTranslation('admin');
   const [me, setMe] = useState<AdminUser | null>(null);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -90,23 +80,35 @@ export default function AdminAnalyticsPage() {
   const maxProj = Math.max(...(monthlyProjects?.map((d: any) => d.count) || [1]), 1);
   const totalProjectsAll = projectsByStatus?.reduce((s: number, p: any) => s + p.count, 0) || 1;
 
+  const PROJECT_STATUS_LABELS: Record<string, { label: string; color: string }> = {
+    draft: { label: t.analytics?.projectStatusDraft || 'Черновики', color: 'bg-gray-400' },
+    moderation: { label: t.analytics?.projectStatusModeration || 'На модерации', color: 'bg-yellow-400' },
+    rejected: { label: t.analytics?.projectStatusRejected || 'Отклонённые', color: 'bg-red-400' },
+    recruiting: { label: t.analytics?.projectStatusRecruiting || 'Набор', color: 'bg-blue-400' },
+    upcoming: { label: t.analytics?.projectStatusUpcoming || 'Скоро', color: 'bg-purple-400' },
+    active: { label: t.analytics?.projectStatusActive || 'Активные', color: 'bg-green-500' },
+    completed: { label: t.analytics?.projectStatusCompleted || 'Завершённые', color: 'bg-emerald-500' },
+    cancelled: { label: t.analytics?.projectStatusCancelled || 'Отменённые', color: 'bg-orange-400' },
+    blocked: { label: t.analytics?.projectStatusBlocked || 'Заблокированные', color: 'bg-red-600' },
+  };
+
   return (
     <SidebarProvider>
       <div className="min-h-screen bg-green-50">
         {me && <><AdminNav user={me} /><AdminSidebar user={me} /></>}
         <DynamicContent>
           <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">Аналитика</h1>
-            <p className="text-gray-500 mt-1 text-sm">Статистика платформы</p>
+            <h1 className="text-3xl font-bold text-gray-900">{t.analytics?.title || 'Аналитика'}</h1>
+            <p className="text-gray-500 mt-1 text-sm">{t.analytics?.subtitle || 'Статистика платформы'}</p>
           </div>
 
           {/* Totals */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
             {[
-              { label: 'Всего пользователей', value: totals.totalUsers, icon: '👥', sub: `${totals.totalVolunteers} волонтёров, ${totals.totalOrganizers} орг.` },
-              { label: 'Всего проектов', value: totals.totalProjects, icon: '📁', sub: `${totals.totalCompletedProjects} завершено` },
-              { label: 'Всего задач', value: totals.totalTasks, icon: '✅', sub: `${totals.totalCompletedTasks} выполнено` },
-              { label: 'Завершённых проектов', value: totals.totalCompletedProjects, icon: '🏆', sub: totals.totalProjects > 0 ? `${Math.round((totals.totalCompletedProjects / totals.totalProjects) * 100)}% от всех` : '—' },
+              { label: t.analytics?.totalUsers || 'Всего пользователей', value: totals.totalUsers, icon: '👥', sub: `${totals.totalVolunteers} ${t.analytics?.volunteersOrgSuffix || 'волонтёров'}, ${totals.totalOrganizers} ${t.analytics?.organizersSuffix || 'орг.'}` },
+              { label: t.analytics?.totalProjects || 'Всего проектов', value: totals.totalProjects, icon: '📁', sub: `${totals.totalCompletedProjects} ${t.analytics?.completedSuffix || 'завершено'}` },
+              { label: t.analytics?.totalTasks || 'Всего задач', value: totals.totalTasks, icon: '✅', sub: `${totals.totalCompletedTasks} ${t.analytics?.doneSuffix || 'выполнено'}` },
+              { label: t.analytics?.completedProjects || 'Завершённых проектов', value: totals.totalCompletedProjects, icon: '🏆', sub: totals.totalProjects > 0 ? `${Math.round((totals.totalCompletedProjects / totals.totalProjects) * 100)}${t.analytics?.ofAllSuffix || '% от всех'}` : '—' },
             ].map((s) => (
               <div key={s.label} className="bg-white rounded-2xl border border-gray-200 p-5">
                 <div className="text-2xl mb-2">{s.icon}</div>
@@ -120,13 +122,13 @@ export default function AdminAnalyticsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
             {/* Monthly registrations */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">Регистрации за 6 месяцев</h2>
+              <h2 className="text-base font-semibold text-gray-900 mb-4">{t.analytics?.monthlyRegistrations || 'Регистрации за 6 месяцев'}</h2>
               <BarChart data={monthlyRegistrations} maxVal={maxReg} color="bg-[#00CC00]" />
             </div>
 
             {/* Monthly projects */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">Проекты за 6 месяцев</h2>
+              <h2 className="text-base font-semibold text-gray-900 mb-4">{t.analytics?.monthlyProjects || 'Проекты за 6 месяцев'}</h2>
               <BarChart data={monthlyProjects} maxVal={maxProj} color="bg-blue-500" />
             </div>
           </div>
@@ -134,7 +136,7 @@ export default function AdminAnalyticsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
             {/* Projects by status */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">Проекты по статусам</h2>
+              <h2 className="text-base font-semibold text-gray-900 mb-4">{t.analytics?.projectsByStatus || 'Проекты по статусам'}</h2>
               <div className="space-y-2">
                 {projectsByStatus?.map((p: any) => {
                   const st = PROJECT_STATUS_LABELS[p.status] || { label: p.status, color: 'bg-gray-400' };
@@ -147,7 +149,7 @@ export default function AdminAnalyticsPage() {
 
             {/* Projects by category */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">Проекты по категориям</h2>
+              <h2 className="text-base font-semibold text-gray-900 mb-4">{t.analytics?.projectsByCategory || 'Проекты по категориям'}</h2>
               <div className="space-y-2">
                 {categoriesWithCount?.slice(0, 8).map((c: any) => (
                   <HorizontalBar key={c.id} label={`${c.icon} ${c.name}`} count={c.projectsCount} total={totalProjectsAll} color="bg-purple-400" />
@@ -159,10 +161,10 @@ export default function AdminAnalyticsPage() {
           {/* Top volunteers */}
           <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-5">
             <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="text-base font-semibold text-gray-900">Топ волонтёров</h2>
+              <h2 className="text-base font-semibold text-gray-900">{t.analytics?.topVolunteersTitle || 'Топ волонтёров'}</h2>
             </div>
             {topVolunteers?.length === 0 ? (
-              <div className="p-8 text-center text-gray-400 text-sm">Нет данных</div>
+              <div className="p-8 text-center text-gray-400 text-sm">{t.analytics?.noData || 'Нет данных'}</div>
             ) : (
               <div className="divide-y divide-gray-50">
                 {topVolunteers?.map((v: any, i: number) => (
@@ -187,11 +189,11 @@ export default function AdminAnalyticsPage() {
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-sm font-bold text-gray-900">{v.completedTasks}</p>
-                      <p className="text-xs text-gray-400">задач</p>
+                      <p className="text-xs text-gray-400">{t.analytics?.tasksLabel || 'задач'}</p>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-sm font-bold text-[#00CC00]">{Number(v.trustScore).toFixed(1)}</p>
-                      <p className="text-xs text-gray-400">рейтинг</p>
+                      <p className="text-xs text-gray-400">{t.analytics?.ratingLabel || 'рейтинг'}</p>
                     </div>
                   </div>
                 ))}
@@ -202,10 +204,10 @@ export default function AdminAnalyticsPage() {
           {/* Top organizers */}
           <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="text-base font-semibold text-gray-900">Топ организаторов</h2>
+              <h2 className="text-base font-semibold text-gray-900">{t.analytics?.topOrganizersTitle || 'Топ организаторов'}</h2>
             </div>
             {topOrganizers?.length === 0 ? (
-              <div className="p-8 text-center text-gray-400 text-sm">Нет данных</div>
+              <div className="p-8 text-center text-gray-400 text-sm">{t.analytics?.noData || 'Нет данных'}</div>
             ) : (
               <div className="divide-y divide-gray-50">
                 {topOrganizers?.map((o: any, i: number) => (
@@ -230,7 +232,7 @@ export default function AdminAnalyticsPage() {
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-sm font-bold text-gray-900">{o.projectsCount}</p>
-                      <p className="text-xs text-gray-400">проектов</p>
+                      <p className="text-xs text-gray-400">{t.analytics?.projectsLabel || 'проектов'}</p>
                     </div>
                   </div>
                 ))}

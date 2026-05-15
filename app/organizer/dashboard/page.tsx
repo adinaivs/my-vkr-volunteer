@@ -9,6 +9,7 @@ import AiSupportButton from '@/app/components/AiSupportButton';
 import ApprovalStatus from '../components/ApprovalStatus';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface User {
   id: string;
@@ -68,6 +69,7 @@ function formatDate(iso: string) {
 
 export default function OrganizerDashboard() {
   const router = useRouter();
+  const { t } = useTranslation('organizer');
   const [user, setUser] = useState<User | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,7 +102,7 @@ export default function OrganizerDashboard() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00CC00] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Загрузка...</p>
+          <p className="mt-4 text-gray-600">{t.common?.loading || 'Загрузка...'}</p>
         </div>
       </div>
     );
@@ -133,9 +135,9 @@ export default function OrganizerDashboard() {
           {/* Welcome */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Добро пожаловать, {user.firstName}!
+              {t.dashboard?.welcome || 'Добро пожаловать,'} {user.firstName}!
             </h1>
-            <p className="text-gray-600">Вот обзор ваших проектов и активности</p>
+            <p className="text-gray-600">{t.dashboard?.subtitle || 'Вот обзор ваших проектов и активности'}</p>
           </div>
 
           {/* Stats Grid */}
@@ -148,34 +150,34 @@ export default function OrganizerDashboard() {
                   </svg>
                 </div>
                 <div className="text-2xl font-bold">{user.organizerProfile?.freePostsRemaining ?? 0}</div>
-                <div className="text-xs text-emerald-50">Бесплатных публикаций</div>
+                <div className="text-xs text-emerald-50">{t.dashboard?.freePosts || 'Бесплатных публикаций'}</div>
               </div>
             </div>
 
             <StatCard
               value={stats?.totalProjects ?? 0}
-              label="Всего проектов"
+              label={t.dashboard?.totalProjects || 'Всего проектов'}
               iconPath="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
               iconBg="bg-blue-100"
               iconColor="text-blue-600"
             />
             <StatCard
               value={stats?.activeProjects ?? 0}
-              label="Активных"
+              label={t.dashboard?.activeProjects || 'Активных'}
               iconPath="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
               iconBg="bg-green-100"
               iconColor="text-green-600"
             />
             <StatCard
               value={stats?.totalVolunteers ?? 0}
-              label="Волонтёров"
+              label={t.dashboard?.totalVolunteers || 'Волонтёров'}
               iconPath="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
               iconBg="bg-purple-100"
               iconColor="text-purple-600"
             />
             <StatCard
               value={stats?.pendingApplications ?? 0}
-              label="Заявок ожидают"
+              label={t.dashboard?.pendingApplications || 'Заявок ожидают'}
               iconPath="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
               iconBg="bg-orange-100"
               iconColor="text-orange-600"
@@ -187,7 +189,7 @@ export default function OrganizerDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             {/* Project status distribution */}
             <div className="bg-white rounded-2xl p-6 shadow-xl border border-gray-300">
-              <h3 className="text-lg font-bold text-gray-900 mb-5">Статус проектов</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-5">{t.dashboard?.projectStatus || 'Статус проектов'}</h3>
               {totalForChart > 0 && stats ? (
                 <div className="space-y-3">
                   {Object.entries(stats.statusCounts).map(([status, count]) => {
@@ -210,23 +212,23 @@ export default function OrganizerDashboard() {
                   })}
                 </div>
               ) : (
-                <EmptyChart text="Диаграмма появится после создания проектов" />
+                <EmptyChart text={t.dashboard?.chartEmpty || 'Диаграмма появится после создания проектов'} />
               )}
             </div>
 
             {/* Completion stats */}
             <div className="bg-white rounded-2xl p-6 shadow-xl border border-gray-300">
-              <h3 className="text-lg font-bold text-gray-900 mb-5">Сводка</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-5">{t.dashboard?.summary || 'Сводка'}</h3>
               {stats && stats.totalProjects > 0 ? (
                 <div className="space-y-5">
                   <SummaryRow
-                    label="Завершено проектов"
+                    label={t.dashboard?.completedProjects || 'Завершено проектов'}
                     value={stats.completedProjects}
                     total={stats.totalProjects}
                     color="bg-emerald-400"
                   />
                   <SummaryRow
-                    label="Активных проектов"
+                    label={t.dashboard?.activeProjects || 'Активных проектов'}
                     value={stats.activeProjects}
                     total={stats.totalProjects}
                     color="bg-blue-400"
@@ -234,16 +236,16 @@ export default function OrganizerDashboard() {
                   <div className="pt-4 border-t border-gray-100 grid grid-cols-2 gap-4">
                     <div className="text-center">
                       <div className="text-3xl font-bold text-gray-900">{stats.totalVolunteers}</div>
-                      <div className="text-xs text-gray-500 mt-1">Всего волонтёров участвовало</div>
+                      <div className="text-xs text-gray-500 mt-1">{t.dashboard?.allVolunteers || 'Всего волонтёров участвовало'}</div>
                     </div>
                     <div className="text-center">
                       <div className="text-3xl font-bold text-orange-500">{stats.pendingApplications}</div>
-                      <div className="text-xs text-gray-500 mt-1">Заявок на рассмотрении</div>
+                      <div className="text-xs text-gray-500 mt-1">{t.dashboard?.pendingReview || 'Заявок на рассмотрении'}</div>
                     </div>
                   </div>
                 </div>
               ) : (
-                <EmptyChart text="Данные появятся после создания проектов" />
+                <EmptyChart text={t.dashboard?.summaryEmpty || 'Данные появятся после создания проектов'} />
               )}
             </div>
           </div>
@@ -251,9 +253,9 @@ export default function OrganizerDashboard() {
           {/* Recent Applications */}
           <div className="bg-white rounded-2xl p-6 shadow-xl border border-gray-300 mb-8">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-gray-900">Последние заявки</h3>
+              <h3 className="text-lg font-bold text-gray-900">{t.dashboard?.recentApplications || 'Последние заявки'}</h3>
               <Link href="/organizer/volunteers" className="text-sm text-[#00CC00] font-medium hover:underline">
-                Смотреть все
+                {t.common?.viewAll || 'Смотреть все'}
               </Link>
             </div>
 
@@ -293,12 +295,12 @@ export default function OrganizerDashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <p className="text-gray-500 text-sm mb-4">Заявок пока нет</p>
+                <p className="text-gray-500 text-sm mb-4">{t.dashboard?.noApplications || 'Заявок пока нет'}</p>
                 <Link
                   href="/organizer/projects"
                   className="inline-block px-5 py-2.5 bg-[#00CC00] text-white rounded-full text-sm font-medium hover:bg-[#00b300] transition-colors"
                 >
-                  Создать проект
+                  {t.dashboard?.createProject || 'Создать проект'}
                 </Link>
               </div>
             )}
@@ -315,8 +317,8 @@ export default function OrganizerDashboard() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
               </div>
-              <h4 className="text-lg font-bold mb-1">Создать проект</h4>
-              <p className="text-sm text-emerald-50">Опубликуйте новый волонтёрский проект</p>
+              <h4 className="text-lg font-bold mb-1">{t.dashboard?.createProject || 'Создать проект'}</h4>
+              <p className="text-sm text-emerald-50">{t.dashboard?.createProjectDesc || 'Опубликуйте новый волонтёрский проект'}</p>
             </Link>
 
             <Link
@@ -328,8 +330,8 @@ export default function OrganizerDashboard() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               </div>
-              <h4 className="text-lg font-bold text-gray-900 mb-1">Волонтёры</h4>
-              <p className="text-sm text-gray-600">Просмотр заявок и волонтёров</p>
+              <h4 className="text-lg font-bold text-gray-900 mb-1">{t.dashboard?.volunteersTitle || 'Волонтёры'}</h4>
+              <p className="text-sm text-gray-600">{t.dashboard?.volunteersDesc || 'Просмотр заявок и волонтёров'}</p>
             </Link>
 
             <Link
@@ -341,8 +343,8 @@ export default function OrganizerDashboard() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <h4 className="text-lg font-bold text-gray-900 mb-1">Отчёты</h4>
-              <p className="text-sm text-gray-600">Скачать отчёты по проектам</p>
+              <h4 className="text-lg font-bold text-gray-900 mb-1">{t.dashboard?.reportsTitle || 'Отчёты'}</h4>
+              <p className="text-sm text-gray-600">{t.dashboard?.reportsDesc || 'Скачать отчёты по проектам'}</p>
             </Link>
           </div>
         </DynamicContent>

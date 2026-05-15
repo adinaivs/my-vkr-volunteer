@@ -7,6 +7,7 @@ import VolunteerSidebar from '../components/VolunteerSidebar';
 import AiSupportButton from '@/app/components/AiSupportButton';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface User {
   id: string;
@@ -58,6 +59,7 @@ function getAchDesc(ach: Achievement) {
 
 export default function VolunteerAchievementsPage() {
   const router = useRouter();
+  const { t } = useTranslation('volunteer');
   const [user, setUser] = useState<User | null>(null);
   const [achievements, setAchievements] = useState<UserAchievement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,23 +120,23 @@ export default function VolunteerAchievementsPage() {
         <DynamicContent maxWidth="max-w-4xl">
           {/* Заголовок */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Мои достижения</h1>
-            <p className="text-gray-500 mt-1 text-sm">Ваши награды и достижения на платформе</p>
+            <h1 className="text-3xl font-bold text-gray-900">{t.achievements?.title || 'Достижения'}</h1>
+            <p className="text-gray-500 mt-1 text-sm">{t.achievements?.noAchievementsHint || 'Ваши награды и достижения на платформе'}</p>
           </div>
 
           {/* Статистика */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
               <div className="text-3xl font-bold text-[#00CC00]">{achievements.length}</div>
-              <div className="text-sm text-gray-500 mt-1">Всего получено</div>
+              <div className="text-sm text-gray-500 mt-1">{t.achievements?.earned || 'Получено'}</div>
             </div>
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
               <div className="text-3xl font-bold text-blue-600">{active.length}</div>
-              <div className="text-sm text-gray-500 mt-1">Активных</div>
+              <div className="text-sm text-gray-500 mt-1">{t.achievements?.progress || 'Активных'}</div>
             </div>
             <div className="col-span-2 md:col-span-1 bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
               <div className="text-3xl font-bold text-gray-400">{expired.length}</div>
-              <div className="text-sm text-gray-500 mt-1">Истёкших</div>
+              <div className="text-sm text-gray-500 mt-1">{t.achievements?.locked || 'Не получено'}</div>
             </div>
           </div>
 
@@ -167,11 +169,11 @@ export default function VolunteerAchievementsPage() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
               <div className="text-5xl mb-4">{tab === 'active' ? '🏆' : '📋'}</div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                {tab === 'active' ? 'Нет активных достижений' : 'Нет истёкших достижений'}
+                {tab === 'active' ? (t.achievements?.noAchievements || 'Нет активных достижений') : (t.achievements?.noAchievements || 'Нет истёкших достижений')}
               </h3>
               <p className="text-gray-500 text-sm">
                 {tab === 'active'
-                  ? 'Участвуйте в проектах и выполняйте задачи, чтобы получать достижения'
+                  ? (t.achievements?.noAchievementsHint || 'Участвуйте в проектах и выполняйте задачи, чтобы получать достижения')
                   : 'Здесь будут отображаться достижения с истёкшим сроком действия'}
               </p>
             </div>

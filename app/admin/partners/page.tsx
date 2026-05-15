@@ -6,6 +6,7 @@ import AdminNav from '../components/AdminNav';
 import AdminSidebar from '../components/AdminSidebar';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { useToast } from '@/app/components/ToastContainer';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface User {
   id: string;
@@ -30,6 +31,7 @@ const EMPTY_FORM = { name: '', logoUrl: '', contactInfo: '', isActive: true };
 export default function AdminPartnersPage() {
   const router = useRouter();
   const toast = useToast();
+  const { t } = useTranslation('admin');
 
   const [user, setUser] = useState<User | null>(null);
   const [partners, setPartners] = useState<Partner[]>([]);
@@ -116,7 +118,7 @@ export default function AdminPartnersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-green-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00CC00]" />
       </div>
     );
@@ -126,7 +128,7 @@ export default function AdminPartnersPage() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-green-50">
         <AdminSidebar user={user} />
         <AdminNav user={user} />
 
@@ -134,7 +136,7 @@ export default function AdminPartnersPage() {
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Партнёры</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{t.partners?.title || 'Партнёры'}</h1>
               <p className="text-sm text-gray-500 mt-1">Управление партнёрами для наград достижений</p>
             </div>
             <button
@@ -144,7 +146,7 @@ export default function AdminPartnersPage() {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              Добавить
+              {t.partners?.createPartner || 'Добавить партнёра'}
             </button>
           </div>
 
@@ -152,7 +154,7 @@ export default function AdminPartnersPage() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
             <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
               <div className="text-2xl font-bold text-gray-900">{partners.length}</div>
-              <div className="text-xs text-gray-500 mt-0.5">Всего партнёров</div>
+              <div className="text-xs text-gray-500 mt-0.5">{t.partners?.title || 'Партнёры'}</div>
             </div>
             <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
               <div className="text-2xl font-bold text-green-600">{partners.filter(p => p.isActive).length}</div>
@@ -174,13 +176,13 @@ export default function AdminPartnersPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Партнёры не добавлены</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">{t.partners?.noPartners || 'Нет партнёров'}</h3>
               <p className="text-gray-500 text-sm mb-5">Добавьте первого партнёра для привязки к наградам достижений</p>
               <button
                 onClick={openCreate}
                 className="px-5 py-2.5 bg-[#00CC00] text-white rounded-xl font-medium hover:bg-[#00b300] transition-colors"
               >
-                Добавить партнёра
+                {t.partners?.createPartner || 'Добавить партнёра'}
               </button>
             </div>
           ) : (
@@ -254,7 +256,7 @@ export default function AdminPartnersPage() {
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
               <div className="flex items-center justify-between p-6 border-b border-gray-100">
                 <h2 className="text-lg font-bold text-gray-900">
-                  {editingId ? 'Редактировать партнёра' : 'Новый партнёр'}
+                  {editingId ? (t.partners?.editPartner || 'Редактировать') : (t.partners?.createPartner || 'Добавить партнёра')}
                 </h2>
                 <button onClick={() => setShowModal(false)} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -265,7 +267,7 @@ export default function AdminPartnersPage() {
 
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Название *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.partners?.partnerName || 'Название'} *</label>
                   <input
                     type="text"
                     value={form.name}
@@ -322,14 +324,14 @@ export default function AdminPartnersPage() {
                   onClick={() => setShowModal(false)}
                   className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
                 >
-                  Отмена
+                  {t.common?.cancel || 'Отмена'}
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={saving}
                   className="flex-1 px-4 py-2.5 bg-[#00CC00] text-white rounded-xl text-sm font-medium hover:bg-[#00b300] transition-colors disabled:opacity-60"
                 >
-                  {saving ? 'Сохранение...' : editingId ? 'Сохранить' : 'Создать'}
+                  {saving ? 'Сохранение...' : editingId ? (t.common?.save || 'Сохранить') : (t.common?.create || 'Создать')}
                 </button>
               </div>
             </div>
@@ -345,7 +347,7 @@ export default function AdminPartnersPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 text-center mb-2">Удалить партнёра?</h3>
+              <h3 className="text-lg font-bold text-gray-900 text-center mb-2">{t.partners?.deleteConfirm || 'Удалить этого партнёра?'}</h3>
               <p className="text-sm text-gray-500 text-center mb-6">
                 Это действие нельзя отменить. Все связанные награды потеряют привязку к партнёру.
               </p>
@@ -354,14 +356,14 @@ export default function AdminPartnersPage() {
                   onClick={() => setDeleteId(null)}
                   className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
                 >
-                  Отмена
+                  {t.common?.cancel || 'Отмена'}
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={saving}
                   className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-60"
                 >
-                  {saving ? 'Удаление...' : 'Удалить'}
+                  {saving ? 'Удаление...' : (t.common?.delete || 'Удалить')}
                 </button>
               </div>
             </div>

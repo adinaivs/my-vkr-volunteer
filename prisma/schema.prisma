@@ -123,6 +123,7 @@ model User {
   directChatsAsUser1  DirectChat[]         @relation("DirectChatUser1")
   directChatsAsUser2  DirectChat[]         @relation("DirectChatUser2")
   directMessages      DirectMessage[]      @relation("DirectMessageSender")
+  calendarEvents      CalendarEvent[]
 
   @@map("users")
 }
@@ -283,10 +284,11 @@ model Task {
   status              TaskStatus @default(pending)
   createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
 
-  project      Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  skill        Skill?           @relation(fields: [requiredSkillId], references: [id])
-  assignments  TaskAssignment[]
-  applications Application[]
+  project        Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  skill          Skill?           @relation(fields: [requiredSkillId], references: [id])
+  assignments    TaskAssignment[]
+  applications   Application[]
+  calendarEvents CalendarEvent[]
 
   @@map("tasks")
 }
@@ -580,4 +582,25 @@ model DirectMessage {
   sender User       @relation("DirectMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@map("direct_messages")
+}
+
+model CalendarEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  title       String   @db.VarChar(255)
+  description String?
+  startDate   DateTime @map("start_date") @db.Date
+  endDate     DateTime @map("end_date") @db.Date
+  startTime   String?  @map("start_time") @db.VarChar(5)
+  endTime     String?  @map("end_time") @db.VarChar(5)
+  color       String   @default("#00CC00") @db.VarChar(20)
+  isAllDay    Boolean  @default(true) @map("is_all_day")
+  location    String?  @db.VarChar(255)
+  taskId      String?  @map("task_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@map("calendar_events")
 }

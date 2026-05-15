@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import NavLanguageSwitcher from '@/app/i18n/NavLanguageSwitcher';
 
 interface User {
   firstName: string;
@@ -27,8 +28,11 @@ export default function OrganizerNav({ user }: OrganizerNavProps) {
 
           {/* Right Side - User Menu & Settings */}
           <div className="flex items-center gap-3">
+            {/* Language Switcher */}
+            <NavLanguageSwitcher />
+
             {/* Settings Button */}
-            <button 
+            <button
               className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
               title="Настройки"
             >

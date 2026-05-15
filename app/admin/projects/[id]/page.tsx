@@ -8,43 +8,9 @@ import AdminSidebar from '../../components/AdminSidebar';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { useToast } from '@/app/components/ToastContainer';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface AdminUser { id: string; firstName: string; lastName: string; email: string; role: string; avatarUrl?: string; }
-
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  draft: { label: 'Черновик', color: 'bg-gray-100 text-gray-600' },
-  moderation: { label: 'На модерации', color: 'bg-yellow-100 text-yellow-700' },
-  rejected: { label: 'Отклонён', color: 'bg-red-100 text-red-700' },
-  recruiting: { label: 'Набор', color: 'bg-blue-100 text-blue-700' },
-  upcoming: { label: 'Скоро', color: 'bg-purple-100 text-purple-700' },
-  active: { label: 'Активен', color: 'bg-green-100 text-green-700' },
-  completed: { label: 'Завершён', color: 'bg-emerald-100 text-emerald-700' },
-  cancelled: { label: 'Отменён', color: 'bg-orange-100 text-orange-700' },
-  blocked: { label: 'Заблокирован', color: 'bg-red-100 text-red-800' },
-};
-
-const TASK_STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  pending: { label: 'Ожидает', color: 'bg-gray-100 text-gray-600' },
-  in_progress: { label: 'В процессе', color: 'bg-blue-100 text-blue-700' },
-  completed: { label: 'Завершена', color: 'bg-green-100 text-green-700' },
-  overdue: { label: 'Просрочена', color: 'bg-red-100 text-red-700' },
-  cancelled: { label: 'Отменена', color: 'bg-orange-100 text-orange-600' },
-};
-
-const APP_STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  pending: { label: 'Ожидает', color: 'bg-yellow-100 text-yellow-700' },
-  approved: { label: 'Принят', color: 'bg-green-100 text-green-700' },
-  rejected: { label: 'Отклонён', color: 'bg-red-100 text-red-700' },
-  cancelled: { label: 'Отменён', color: 'bg-gray-100 text-gray-600' },
-};
-
-const ASSIGN_STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  assigned: { label: 'Назначен', color: 'bg-blue-100 text-blue-700' },
-  completed: { label: 'Выполнил', color: 'bg-yellow-100 text-yellow-700' },
-  confirmed: { label: 'Подтверждено', color: 'bg-green-100 text-green-700' },
-  rejected: { label: 'Отклонён', color: 'bg-red-100 text-red-700' },
-  cancelled: { label: 'Отменён', color: 'bg-gray-100 text-gray-600' },
-};
 
 function Avatar({ user, size = 'sm' }: { user: { firstName: string; lastName: string; avatarUrl?: string | null }; size?: 'sm' | 'md' }) {
   const s = size === 'md' ? 'w-12 h-12 text-base' : 'w-8 h-8 text-xs';
@@ -62,6 +28,42 @@ export default function AdminProjectDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const toast = useToast();
+  const { t } = useTranslation('admin');
+
+  const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+    draft: { label: t.projects?.projectStatusDraft || 'Черновик', color: 'bg-gray-100 text-gray-600' },
+    moderation: { label: t.projects?.projectStatusModeration || 'На модерации', color: 'bg-yellow-100 text-yellow-700' },
+    rejected: { label: t.projects?.assignStatusRejected || 'Отклонён', color: 'bg-red-100 text-red-700' },
+    recruiting: { label: t.projects?.projectStatusRecruiting || 'Набор', color: 'bg-blue-100 text-blue-700' },
+    upcoming: { label: t.projects?.projectStatusUpcoming || 'Скоро', color: 'bg-purple-100 text-purple-700' },
+    active: { label: t.common?.active || 'Активен', color: 'bg-green-100 text-green-700' },
+    completed: { label: t.projects?.projectStatusCompleted || 'Завершён', color: 'bg-emerald-100 text-emerald-700' },
+    cancelled: { label: t.projects?.projectStatusCancelled || 'Отменён', color: 'bg-orange-100 text-orange-700' },
+    blocked: { label: t.common?.blocked || 'Заблокирован', color: 'bg-red-100 text-red-800' },
+  };
+
+  const TASK_STATUS_LABELS: Record<string, { label: string; color: string }> = {
+    pending: { label: t.projects?.taskStatusPending || 'Ожидает', color: 'bg-gray-100 text-gray-600' },
+    in_progress: { label: t.projects?.taskStatusInProgress || 'В процессе', color: 'bg-blue-100 text-blue-700' },
+    completed: { label: t.projects?.taskStatusCompleted || 'Завершена', color: 'bg-green-100 text-green-700' },
+    overdue: { label: t.projects?.taskStatusOverdue || 'Просрочена', color: 'bg-red-100 text-red-700' },
+    cancelled: { label: t.projects?.taskStatusCancelled || 'Отменена', color: 'bg-orange-100 text-orange-600' },
+  };
+
+  const APP_STATUS_LABELS: Record<string, { label: string; color: string }> = {
+    pending: { label: t.projects?.appStatusPending || 'Ожидает', color: 'bg-yellow-100 text-yellow-700' },
+    approved: { label: t.projects?.appStatusApproved || 'Принят', color: 'bg-green-100 text-green-700' },
+    rejected: { label: t.projects?.appStatusRejected || 'Отклонён', color: 'bg-red-100 text-red-700' },
+    cancelled: { label: t.projects?.appStatusCancelled || 'Отменён', color: 'bg-gray-100 text-gray-600' },
+  };
+
+  const ASSIGN_STATUS_LABELS: Record<string, { label: string; color: string }> = {
+    assigned: { label: t.projects?.assignStatusAssigned || 'Назначен', color: 'bg-blue-100 text-blue-700' },
+    completed: { label: t.projects?.assignStatusCompleted || 'Выполнил', color: 'bg-yellow-100 text-yellow-700' },
+    confirmed: { label: t.projects?.assignStatusConfirmed || 'Подтверждено', color: 'bg-green-100 text-green-700' },
+    rejected: { label: t.projects?.assignStatusRejected || 'Отклонён', color: 'bg-red-100 text-red-700' },
+    cancelled: { label: t.projects?.assignStatusCancelled || 'Отменён', color: 'bg-gray-100 text-gray-600' },
+  };
 
   const [me, setMe] = useState<AdminUser | null>(null);
   const [project, setProject] = useState<any>(null);
@@ -91,13 +93,13 @@ export default function AdminProjectDetailPage() {
     setActionLoading(true);
     try {
       const res = await fetch(`/api/admin/projects/${id}/approve`, { method: 'POST' });
-      if (res.ok) { toast.success('Проект одобрен'); setProject((p: any) => ({ ...p, status: 'recruiting' })); }
+      if (res.ok) { toast.success(t.projects?.approved || 'Проект одобрен'); setProject((p: any) => ({ ...p, status: 'recruiting' })); }
       else toast.error((await res.json()).error || 'Ошибка');
     } finally { setActionLoading(false); }
   };
 
   const handleReject = async () => {
-    if (!rejectReason.trim()) { toast.error('Укажите причину отклонения'); return; }
+    if (!rejectReason.trim()) { toast.error(t.projects?.rejectReasonRequired || 'Укажите причину отклонения'); return; }
     setActionLoading(true);
     try {
       const res = await fetch(`/api/admin/projects/${id}/reject`, {
@@ -106,7 +108,7 @@ export default function AdminProjectDetailPage() {
         body: JSON.stringify({ reason: rejectReason }),
       });
       if (res.ok) {
-        toast.success('Проект отклонён');
+        toast.success(t.projects?.rejected || 'Проект отклонён');
         setProject((p: any) => ({ ...p, status: 'rejected', rejectionReason: rejectReason }));
         setRejectModal(false);
       } else toast.error((await res.json()).error || 'Ошибка');
@@ -114,11 +116,11 @@ export default function AdminProjectDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm('Удалить проект? Это действие нельзя отменить.')) return;
+    if (!confirm(t.projects?.deleteConfirm || 'Удалить проект? Это действие нельзя отменить.')) return;
     setActionLoading(true);
     try {
       const res = await fetch(`/api/admin/projects/${id}`, { method: 'DELETE' });
-      if (res.ok) { toast.success('Проект удалён'); router.push('/admin/projects'); }
+      if (res.ok) { toast.success(t.projects?.deleteProject || 'Проект удалён'); router.push('/admin/projects'); }
       else toast.error((await res.json()).error || 'Ошибка');
     } finally { setActionLoading(false); }
   };
@@ -134,7 +136,7 @@ export default function AdminProjectDetailPage() {
   if (!project) return null;
 
   const st = STATUS_LABELS[project.status] || { label: project.status, color: 'bg-gray-100 text-gray-600' };
-  const catName = project.category?.translations?.find((t: any) => t.locale === 'ru')?.name || project.category?.slug;
+  const catName = project.category?.translations?.find((tr: any) => tr.locale === 'ru')?.name || project.category?.slug;
 
   return (
     <SidebarProvider>
@@ -143,7 +145,7 @@ export default function AdminProjectDetailPage() {
         <DynamicContent>
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-            <Link href="/admin/projects" className="hover:text-[#00CC00] transition-colors">Проекты</Link>
+            <Link href="/admin/projects" className="hover:text-[#00CC00] transition-colors">{t.projects?.title || 'Проекты'}</Link>
             <span>/</span>
             <span className="text-gray-800 truncate max-w-xs">{project.title}</span>
           </div>
@@ -160,7 +162,7 @@ export default function AdminProjectDetailPage() {
                     <span className="text-xl">{project.category?.icon}</span>
                     <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{catName}</span>
                     <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${st.color}`}>{st.label}</span>
-                    {project.isPaid && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full">Платный</span>}
+                    {project.isPaid && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full">{t.projects?.paidLabel || 'Платный'}</span>}
                   </div>
                   <h1 className="text-2xl font-bold text-gray-900 mb-1">{project.title}</h1>
                   <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
@@ -174,23 +176,23 @@ export default function AdminProjectDetailPage() {
                     <>
                       <button onClick={handleApprove} disabled={actionLoading}
                         className="px-4 py-2 bg-[#00CC00] text-white rounded-xl text-sm hover:bg-[#00b300] transition-colors disabled:opacity-50">
-                        Одобрить
+                        {t.projects?.approveBtn || 'Одобрить'}
                       </button>
                       <button onClick={() => setRejectModal(true)} disabled={actionLoading}
                         className="px-4 py-2 bg-red-500 text-white rounded-xl text-sm hover:bg-red-600 transition-colors disabled:opacity-50">
-                        Отклонить
+                        {t.projects?.rejectBtn || 'Отклонить'}
                       </button>
                     </>
                   )}
                   <button onClick={handleDelete} disabled={actionLoading}
                     className="px-4 py-2 border border-red-200 text-red-500 rounded-xl text-sm hover:bg-red-50 transition-colors disabled:opacity-50">
-                    Удалить
+                    {t.projects?.deleteBtn || 'Удалить'}
                   </button>
                 </div>
               </div>
               {project.rejectionReason && (
                 <div className="mt-4 p-3 bg-red-50 rounded-xl text-sm text-red-700">
-                  <span className="font-medium">Причина отклонения:</span> {project.rejectionReason}
+                  <span className="font-medium">{t.projects?.rejectionReasonLabel || 'Причина отклонения:'}</span> {project.rejectionReason}
                 </div>
               )}
             </div>
@@ -201,18 +203,18 @@ export default function AdminProjectDetailPage() {
             <div className="lg:col-span-2 space-y-5">
               {/* Description */}
               <div className="bg-white rounded-2xl border border-gray-200 p-6">
-                <h2 className="text-base font-semibold text-gray-900 mb-3">Описание</h2>
+                <h2 className="text-base font-semibold text-gray-900 mb-3">{t.projects?.descriptionLabel || 'Описание'}</h2>
                 <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{project.description}</p>
               </div>
 
               {/* Tasks */}
               <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                  <h2 className="text-base font-semibold text-gray-900">Задачи</h2>
+                  <h2 className="text-base font-semibold text-gray-900">{t.projects?.tasksLabel || 'Задачи'}</h2>
                   <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{project.tasks?.length || 0}</span>
                 </div>
                 {(!project.tasks || project.tasks.length === 0) ? (
-                  <div className="p-8 text-center text-gray-400 text-sm">Задачи не добавлены</div>
+                  <div className="p-8 text-center text-gray-400 text-sm">{t.projects?.noTasks || 'Задачи не добавлены'}</div>
                 ) : (
                   <div className="divide-y divide-gray-50">
                     {project.tasks.map((task: any) => {
@@ -228,8 +230,8 @@ export default function AdminProjectDetailPage() {
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-900">{task.title}</p>
                               <p className="text-xs text-gray-400">
-                                {task.skill?.name && <span>Навык: {task.skill.name} · </span>}
-                                До {fmt(task.deadline)} · {task.currentVolunteers}/{task.requiredVolunteers} волонтёров
+                                {task.skill?.name && <span>{t.projects?.skillLabel || 'Навык:'} {task.skill.name} · </span>}
+                                {t.projects?.deadlinePrefix || 'До'} {fmt(task.deadline)} · {task.currentVolunteers}/{task.requiredVolunteers} {t.projects?.volunteers || 'волонтёров'}
                               </p>
                             </div>
                             <span className={`text-xs px-2 py-1 rounded-full ${ts.color}`}>{ts.label}</span>
@@ -239,7 +241,7 @@ export default function AdminProjectDetailPage() {
                               <p className="text-sm text-gray-600 mb-3">{task.description}</p>
                               {task.assignments?.length > 0 && (
                                 <div className="space-y-2">
-                                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Назначенные волонтёры</p>
+                                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{t.projects?.assignedVolunteers || 'Назначенные волонтёры'}</p>
                                   {task.assignments.map((a: any) => {
                                     const as = ASSIGN_STATUS_LABELS[a.status] || { label: a.status, color: 'bg-gray-100 text-gray-600' };
                                     return (
@@ -253,7 +255,7 @@ export default function AdminProjectDetailPage() {
                                           {a.rating && <p className="text-xs text-yellow-600">{'★'.repeat(a.rating)}</p>}
                                         </div>
                                         <span className={`text-xs px-2 py-1 rounded-full ${as.color}`}>{as.label}</span>
-                                        {a.report && <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">Отчёт</span>}
+                                        {a.report && <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">{t.projects?.reportLabel || 'Отчёт'}</span>}
                                       </div>
                                     );
                                   })}
@@ -271,11 +273,11 @@ export default function AdminProjectDetailPage() {
               {/* Applications */}
               <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                  <h2 className="text-base font-semibold text-gray-900">Заявки волонтёров</h2>
+                  <h2 className="text-base font-semibold text-gray-900">{t.projects?.applicationsLabel || 'Заявки волонтёров'}</h2>
                   <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{project.applications?.length || 0}</span>
                 </div>
                 {(!project.applications || project.applications.length === 0) ? (
-                  <div className="p-8 text-center text-gray-400 text-sm">Заявок нет</div>
+                  <div className="p-8 text-center text-gray-400 text-sm">{t.projects?.noApplications || 'Заявок нет'}</div>
                 ) : (
                   <div className="divide-y divide-gray-50">
                     {project.applications.map((app: any) => {
@@ -290,7 +292,7 @@ export default function AdminProjectDetailPage() {
                               </Link>
                               {app.volunteer.volunteerProfile && (
                                 <span className="text-xs text-gray-400">
-                                  Рейтинг: {Number(app.volunteer.volunteerProfile.trustScore).toFixed(1)}
+                                  {t.projects?.ratingLabel || 'Рейтинг:'} {Number(app.volunteer.volunteerProfile.trustScore).toFixed(1)}
                                 </span>
                               )}
                             </div>
@@ -311,7 +313,7 @@ export default function AdminProjectDetailPage() {
             <div className="space-y-5">
               {/* Organizer */}
               <div className="bg-white rounded-2xl border border-gray-200 p-5">
-                <h2 className="text-base font-semibold text-gray-900 mb-4">Организатор</h2>
+                <h2 className="text-base font-semibold text-gray-900 mb-4">{t.projects?.organizerLabel || 'Организатор'}</h2>
                 <div className="flex items-center gap-3 mb-4">
                   <Avatar user={project.organizer} size="md" />
                   <div>
@@ -333,11 +335,11 @@ export default function AdminProjectDetailPage() {
               {/* Participants */}
               <div className="bg-white rounded-2xl border border-gray-200 p-5">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-base font-semibold text-gray-900">Участники</h2>
+                  <h2 className="text-base font-semibold text-gray-900">{t.projects?.participantsLabel || 'Участники'}</h2>
                   <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{project.participants?.length || 0}</span>
                 </div>
                 {(!project.participants || project.participants.length === 0) ? (
-                  <p className="text-xs text-gray-400 text-center py-2">Участников нет</p>
+                  <p className="text-xs text-gray-400 text-center py-2">{t.projects?.noParticipants || 'Участников нет'}</p>
                 ) : (
                   <div className="space-y-2">
                     {project.participants.slice(0, 8).map((p: any) => (
@@ -346,11 +348,11 @@ export default function AdminProjectDetailPage() {
                         <Link href={`/admin/users/${p.volunteer.id}`} className="text-xs text-gray-700 hover:text-[#00CC00] truncate">
                           {p.volunteer.firstName} {p.volunteer.lastName}
                         </Link>
-                        {!p.isActive && <span className="text-xs text-gray-400">(вышел)</span>}
+                        {!p.isActive && <span className="text-xs text-gray-400">{t.projects?.leftLabel || '(вышел)'}</span>}
                       </div>
                     ))}
                     {project.participants.length > 8 && (
-                      <p className="text-xs text-gray-400 text-center">+{project.participants.length - 8} ещё</p>
+                      <p className="text-xs text-gray-400 text-center">+{project.participants.length - 8} {t.projects?.moreParticipants || 'ещё'}</p>
                     )}
                   </div>
                 )}
@@ -358,24 +360,24 @@ export default function AdminProjectDetailPage() {
 
               {/* Dates and meta */}
               <div className="bg-white rounded-2xl border border-gray-200 p-5">
-                <h2 className="text-base font-semibold text-gray-900 mb-4">Информация</h2>
+                <h2 className="text-base font-semibold text-gray-900 mb-4">{t.projects?.infoLabel || 'Информация'}</h2>
                 <div className="space-y-2 text-xs text-gray-600">
-                  <div className="flex justify-between"><span className="text-gray-400">Создан</span><span>{fmt(project.createdAt)}</span></div>
-                  {project.publishedAt && <div className="flex justify-between"><span className="text-gray-400">Опубликован</span><span>{fmt(project.publishedAt)}</span></div>}
-                  {project.moderatedAt && <div className="flex justify-between"><span className="text-gray-400">Промодерирован</span><span>{fmt(project.moderatedAt)}</span></div>}
-                  <div className="flex justify-between"><span className="text-gray-400">Задач</span><span>{project.tasks?.length || 0}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-400">Заявок</span><span>{project.applications?.length || 0}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-400">{t.projects?.createdLabel || 'Создан'}</span><span>{fmt(project.createdAt)}</span></div>
+                  {project.publishedAt && <div className="flex justify-between"><span className="text-gray-400">{t.projects?.publishedLabel || 'Опубликован'}</span><span>{fmt(project.publishedAt)}</span></div>}
+                  {project.moderatedAt && <div className="flex justify-between"><span className="text-gray-400">{t.projects?.moderatedLabel || 'Промодерирован'}</span><span>{fmt(project.moderatedAt)}</span></div>}
+                  <div className="flex justify-between"><span className="text-gray-400">{t.projects?.tasksCount || 'Задач'}</span><span>{project.tasks?.length || 0}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-400">{t.projects?.applicationsCount || 'Заявок'}</span><span>{project.applications?.length || 0}</span></div>
                 </div>
               </div>
 
               {/* Chat */}
               {project.chat && (
                 <div className="bg-white rounded-2xl border border-gray-200 p-5">
-                  <h2 className="text-base font-semibold text-gray-900 mb-3">Групповой чат</h2>
+                  <h2 className="text-base font-semibold text-gray-900 mb-3">{t.projects?.groupChatLabel || 'Групповой чат'}</h2>
                   <div className="space-y-1.5 text-xs text-gray-600">
-                    <div className="flex justify-between"><span className="text-gray-400">Название</span><span className="truncate ml-2">{project.chat.name}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-400">Участников</span><span>{project.chat._count.members}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-400">Сообщений</span><span>{project.chat._count.messages}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-400">{t.projects?.chatNameLabel || 'Название'}</span><span className="truncate ml-2">{project.chat.name}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-400">{t.projects?.chatMembersLabel || 'Участников'}</span><span>{project.chat._count.members}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-400">{t.projects?.chatMessagesLabel || 'Сообщений'}</span><span>{project.chat._count.messages}</span></div>
                   </div>
                 </div>
               )}
@@ -387,18 +389,18 @@ export default function AdminProjectDetailPage() {
       {rejectModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Отклонить проект</h3>
-            <label className="text-xs font-medium text-gray-600 mb-1 block">Причина отклонения *</label>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{t.projects?.rejectModalTitle || 'Отклонить проект'}</h3>
+            <label className="text-xs font-medium text-gray-600 mb-1 block">{t.projects?.rejectReason || 'Причина отклонения *'}</label>
             <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={4}
-              placeholder="Опишите причину отклонения..."
+              placeholder={t.projects?.rejectReasonPlaceholder || 'Опишите причину отклонения...'}
               className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none mb-4" />
             <div className="flex gap-3">
               <button onClick={() => setRejectModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50">
-                Отмена
+                {t.projects?.cancelBtn || 'Отмена'}
               </button>
               <button onClick={handleReject} disabled={actionLoading}
                 className="flex-1 px-4 py-2 bg-red-500 text-white rounded-xl text-sm hover:bg-red-600 disabled:opacity-50">
-                Отклонить
+                {t.projects?.rejectBtn || 'Отклонить'}
               </button>
             </div>
           </div>

@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import VolunteerNav from '../../components/VolunteerNav';
 import AiSupportButton from '@/app/components/AiSupportButton';
 import LocationViewer from '@/app/components/LocationViewer';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface User {
   id: string;
@@ -68,7 +69,8 @@ export default function ProjectDetail() {
   const router = useRouter();
   const params = useParams();
   const projectId = params.id as string;
-  
+  const { t } = useTranslation('volunteer');
+
   const [user, setUser] = useState<User | null>(null);
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -258,11 +260,11 @@ export default function ProjectDetail() {
                         : applicationStatus === 'rejected'
                         ? '✗ Заявка отклонена'
                         : '⏳ Ожидание ответа'
-                      : !isActive 
-                      ? 'Проект завершен' 
-                      : spotsLeft === 0 
-                      ? 'Мест нет' 
-                      : 'Подать заявку'
+                      : !isActive
+                      ? (t.status?.completed || 'Проект завершен')
+                      : spotsLeft === 0
+                      ? 'Мест нет'
+                      : (t.projects?.applyButton || 'Подать заявку')
                     }
                   </button>
                 </div>
@@ -278,7 +280,7 @@ export default function ProjectDetail() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Main Info Card */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h2 className="text-lg font-bold text-gray-900 mb-4">Основная информация</h2>
+                  <h2 className="text-lg font-bold text-gray-900 mb-4">{t.projects?.description || 'Основная информация'}</h2>
                   
                   <div className="space-y-4">
                     {/* Organizer */}
@@ -378,7 +380,7 @@ export default function ProjectDetail() {
 
               {/* Description */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h2 className="text-lg font-bold text-gray-900 mb-4">Описание</h2>
+                <h2 className="text-lg font-bold text-gray-900 mb-4">{t.projects?.description || 'Описание'}</h2>
                 <div className="prose prose-sm max-w-none">
                   <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
                     {project.description}
@@ -389,7 +391,7 @@ export default function ProjectDetail() {
               {/* Tasks */}
               {tasks.length > 0 && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h2 className="text-lg font-bold text-gray-900 mb-4">Задачи проекта</h2>
+                  <h2 className="text-lg font-bold text-gray-900 mb-4">{t.projects?.tasks || 'Задачи проекта'}</h2>
                   <div className="space-y-3">
                     {tasks.map((task) => (
                       <div key={task.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
@@ -425,7 +427,7 @@ export default function ProjectDetail() {
               {/* Required Skills */}
               {tasks.some(task => task.requiredSkill) && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h2 className="text-lg font-bold text-gray-900 mb-4">Требуемые навыки</h2>
+                  <h2 className="text-lg font-bold text-gray-900 mb-4">{t.projects?.requirements || 'Требуемые навыки'}</h2>
                   <div className="flex flex-wrap gap-2">
                     {Array.from(new Set(tasks.filter(task => task.requiredSkill).map(task => task.requiredSkill!.name))).map((skill) => (
                       <span key={skill} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">

@@ -8,6 +8,7 @@ import AiSupportButton from '@/app/components/AiSupportButton';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { useToast } from '@/app/components/ToastContainer';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface OrganizerProfileData {
   organizationName: string;
@@ -49,6 +50,7 @@ interface Stats {
 export default function OrganizerProfile() {
   const router = useRouter();
   const toast = useToast();
+  const { t } = useTranslation('organizer');
 
   const [user, setUser] = useState<UserData | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -197,7 +199,7 @@ export default function OrganizerProfile() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00CC00] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Загрузка...</p>
+          <p className="mt-4 text-gray-600">{t.common?.loading || 'Загрузка...'}</p>
         </div>
       </div>
     );
@@ -280,7 +282,7 @@ export default function OrganizerProfile() {
                     }}
                     className="px-6 py-2 bg-[#00CC00] text-white rounded-full font-medium hover:bg-[#00b300] transition-colors"
                   >
-                    {editing ? 'Отменить' : 'Редактировать'}
+                    {editing ? (t.common?.cancel || 'Отменить') : (t.profile?.editProfile || 'Редактировать')}
                   </button>
                   <button
                     onClick={handleLogout}
@@ -359,7 +361,7 @@ export default function OrganizerProfile() {
                 </svg>
               </div>
               <div className="text-2xl font-bold text-gray-900">{stats?.totalProjects ?? 0}</div>
-              <div className="text-xs text-gray-500 mt-1">Всего проектов</div>
+              <div className="text-xs text-gray-500 mt-1">{t.profile?.totalProjects || 'Всего проектов'}</div>
             </div>
 
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
@@ -369,7 +371,7 @@ export default function OrganizerProfile() {
                 </svg>
               </div>
               <div className="text-2xl font-bold text-gray-900">{stats?.activeProjects ?? 0}</div>
-              <div className="text-xs text-gray-500 mt-1">Активных</div>
+              <div className="text-xs text-gray-500 mt-1">{t.profile?.activeProjects || 'Активных'}</div>
             </div>
 
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
@@ -379,7 +381,7 @@ export default function OrganizerProfile() {
                 </svg>
               </div>
               <div className="text-2xl font-bold text-gray-900">{stats?.volunteersCount ?? 0}</div>
-              <div className="text-xs text-gray-500 mt-1">Волонтёров</div>
+              <div className="text-xs text-gray-500 mt-1">{t.profile?.totalVolunteers || 'Волонтёров'}</div>
             </div>
 
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
@@ -389,13 +391,13 @@ export default function OrganizerProfile() {
                 </svg>
               </div>
               <div className="text-2xl font-bold text-gray-900">{profile?.freePostsRemaining ?? 0}</div>
-              <div className="text-xs text-gray-500 mt-1">Бесплатных публикаций</div>
+              <div className="text-xs text-gray-500 mt-1">{t.projects?.freePostsLeft || 'Бесплатных публикаций'}</div>
             </div>
           </div>
 
           {/* Personal Information */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Личная информация</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">{t.profile?.title || 'Личная информация'}</h2>
 
             {editing ? (
               <form onSubmit={handleSave} className="space-y-6">
@@ -449,14 +451,14 @@ export default function OrganizerProfile() {
                     disabled={saving}
                     className="px-6 py-3 bg-[#00CC00] text-white rounded-xl font-medium hover:bg-[#00b300] transition-colors disabled:opacity-60"
                   >
-                    {saving ? 'Сохранение...' : 'Сохранить изменения'}
+                    {saving ? (t.common?.loading || 'Сохранение...') : (t.profile?.saveChanges || 'Сохранить изменения')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setEditing(false)}
                     className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
                   >
-                    Отменить
+                    {t.common?.cancel || 'Отменить'}
                   </button>
                 </div>
               </form>

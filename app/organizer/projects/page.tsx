@@ -11,6 +11,7 @@ import LocationPicker from '@/app/components/LocationPicker';
 import { useToast } from '@/app/components/ToastContainer';
 import CustomSelect from '@/app/components/CustomSelect';
 import CustomDatePicker from '@/app/components/CustomDatePicker';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface User {
   id: string;
@@ -31,6 +32,7 @@ interface Task {
 export default function OrganizerProjects() {
   const router = useRouter();
   const toast = useToast();
+  const { t } = useTranslation('organizer');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -712,7 +714,7 @@ export default function OrganizerProjects() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00CC00] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Загрузка...</p>
+          <p className="mt-4 text-gray-600">{t.common?.loading || 'Загрузка...'}</p>
         </div>
       </div>
     );
@@ -733,7 +735,7 @@ export default function OrganizerProjects() {
         {/* Page Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Мои проекты</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{t.projects?.title || 'Мои проекты'}</h1>
             <p className="text-gray-600">Управляйте своими волонтёрскими проектами</p>
           </div>
           <button
@@ -750,7 +752,7 @@ export default function OrganizerProjects() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Создать проект
+            {t.projects?.createNew || 'Создать проект'}
           </button>
         </div>
 
@@ -762,7 +764,7 @@ export default function OrganizerProjects() {
             <div className="flex-1 relative">
               <input
                 type="text"
-                placeholder="Поиск по названию и описанию..."
+                placeholder={t.projects?.searchPlaceholder || 'Поиск по названию и описанию...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
@@ -851,20 +853,20 @@ export default function OrganizerProjects() {
                 {/* Фильтр по статусу */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Статус
+                    {t.projects?.filterStatus || 'Статус'}
                   </label>
                   <CustomSelect
                     options={[
-                      { value: 'all', label: 'Все' },
-                      { value: 'draft', label: 'Черновики' },
-                      { value: 'moderation', label: 'На модерации' },
-                      { value: 'rejected', label: 'Отклоненные' },
-                      { value: 'recruiting', label: 'Набор волонтеров' },
-                      { value: 'upcoming', label: 'Скоро начнется' },
-                      { value: 'active', label: 'Активные' },
-                      { value: 'completed', label: 'Завершенные' },
-                      { value: 'cancelled', label: 'Отмененные' },
-                      { value: 'blocked', label: 'Заблокированные' },
+                      { value: 'all', label: t.projects?.allStatuses || 'Все' },
+                      { value: 'draft', label: t.status?.draft || 'Черновики' },
+                      { value: 'moderation', label: t.status?.moderation || 'На модерации' },
+                      { value: 'rejected', label: t.status?.rejected || 'Отклоненные' },
+                      { value: 'recruiting', label: t.status?.recruiting || 'Набор волонтеров' },
+                      { value: 'upcoming', label: t.status?.upcoming || 'Скоро начнется' },
+                      { value: 'active', label: t.status?.active || 'Активные' },
+                      { value: 'completed', label: t.status?.completed || 'Завершенные' },
+                      { value: 'cancelled', label: t.status?.cancelled || 'Отмененные' },
+                      { value: 'blocked', label: t.status?.blocked || 'Заблокированные' },
                     ]}
                     value={filterStatus}
                     onChange={setFilterStatus}
@@ -931,14 +933,14 @@ export default function OrganizerProjects() {
               </svg>
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-3">
-              {searchQuery || filterStatus !== 'all' || filterCategory !== 'all' 
-                ? 'Проекты не найдены' 
-                : 'У вас пока нет проектов'}
+              {searchQuery || filterStatus !== 'all' || filterCategory !== 'all'
+                ? 'Проекты не найдены'
+                : (t.projects?.noProjects || 'У вас пока нет проектов')}
             </h3>
             <p className="text-gray-600 max-w-md mx-auto mb-8">
               {searchQuery || filterStatus !== 'all' || filterCategory !== 'all'
                 ? 'Попробуйте изменить параметры поиска или фильтры'
-                : 'Создайте свой первый волонтёрский проект и начните привлекать волонтёров для реализации ваших идей'}
+                : (t.projects?.noProjectsHint || 'Создайте свой первый волонтёрский проект и начните привлекать волонтёров для реализации ваших идей')}
             </p>
             {!searchQuery && filterStatus === 'all' && filterCategory === 'all' && (
               <button
@@ -951,7 +953,7 @@ export default function OrganizerProjects() {
                 }}
                 className="inline-block px-8 py-3 bg-[#00CC00] text-white rounded-full font-medium hover:bg-[#00b300] transition-colors"
               >
-                Создать первый проект
+                {t.projects?.createNew || 'Создать первый проект'}
               </button>
             )}
           </div>

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import OrganizerNav from '../../components/OrganizerNav';
 import dynamic from 'next/dynamic';
 import { useToast } from '@/app/components/ToastContainer';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 // Динамический импорт карты для избежания SSR проблем
 const OpenStreetMap = dynamic(() => import('@/app/components/OpenStreetMap'), {
@@ -94,6 +95,7 @@ export default function ProjectDetailsPage() {
   const params = useParams();
   const projectId = params.id as string;
   const toast = useToast();
+  const { t } = useTranslation('organizer');
 
   const [user, setUser] = useState<User | null>(null);
   const [project, setProject] = useState<Project | null>(null);
@@ -872,15 +874,15 @@ export default function ProjectDetailsPage() {
             <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            <span className="font-medium">Назад к проектам</span>
+            <span className="font-medium">{t.projectDetail?.backToProjects || 'Назад к проектам'}</span>
           </Link>
           
           <nav className="flex items-center gap-2 text-sm mt-3 ml-1">
-            <Link 
-              href="/organizer/projects" 
+            <Link
+              href="/organizer/projects"
               className="text-gray-500 hover:text-[#00CC00] transition-colors"
             >
-              Мои проекты
+              {t.projectDetail?.myProjects || 'Мои проекты'}
             </Link>
             <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -951,7 +953,7 @@ export default function ProjectDetailsPage() {
                 {/* Кнопки управления статусами */}
                 {getAvailableStatusTransitions(project.status).length > 0 && (
                   <div className="mb-4 space-y-2">
-                    <h3 className="text-sm font-semibold text-gray-700">Управление статусом</h3>
+                    <h3 className="text-sm font-semibold text-gray-700">{t.projectDetail?.statusManagement || 'Управление статусом'}</h3>
                     <div className="flex flex-col gap-2">
                       {getAvailableStatusTransitions(project.status).map((transition) => (
                         <button
@@ -976,19 +978,19 @@ export default function ProjectDetailsPage() {
 
                 {project.status === 'rejected' && project.rejectionReason && (
                   <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-400 rounded-r-lg">
-                    <p className="text-xs font-semibold text-red-900 mb-1">Причина отклонения:</p>
+                    <p className="text-xs font-semibold text-red-900 mb-1">{t.projectDetail?.rejectionReason || 'Причина отклонения'}:</p>
                     <p className="text-xs text-red-700">{project.rejectionReason}</p>
                   </div>
                 )}
 
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-700 mb-2">Описание</h3>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-2">{t.projectDetail?.description || 'Описание'}</h3>
                     <p className="text-sm text-gray-600 leading-relaxed">{project.description}</p>
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-700 mb-2">Категория</h3>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-2">{t.projectDetail?.category || 'Категория'}</h3>
                     <div className="flex items-center gap-2">
                       <span className="text-xl">{project.category.icon}</span>
                       <span className="text-sm text-gray-600">{project.category.slug}</span>
@@ -996,19 +998,19 @@ export default function ProjectDetailsPage() {
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-700 mb-2">Местоположение</h3>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-2">{t.projectDetail?.location || 'Местоположение'}</h3>
                     <p className="text-sm text-gray-600">{project.location}</p>
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-700 mb-2">Даты</h3>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-2">{t.projectDetail?.dates || 'Даты'}</h3>
                     <p className="text-sm text-gray-600">
                       {new Date(project.startDate).toLocaleDateString('ru-RU')} - {new Date(project.endDate).toLocaleDateString('ru-RU')}
                     </p>
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-700 mb-2">Волонтёры</h3>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-2">{t.projectDetail?.volunteers || 'Волонтёры'}</h3>
                     <div className="flex items-center gap-2">
                       <div className="flex-1 bg-gray-200 rounded-full h-2">
                         <div 
@@ -1022,7 +1024,7 @@ export default function ProjectDetailsPage() {
 
                   {project.latitude && project.longitude && (
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-700 mb-2">Карта</h3>
+                      <h3 className="text-sm font-semibold text-gray-700 mb-2">{t.common?.location || 'Карта'}</h3>
                       <button
                         onClick={() => setShowMapModal(true)}
                         className="w-full px-4 py-3 bg-[#00CC00] text-white rounded-lg text-sm font-medium hover:bg-[#00b300] transition-colors flex items-center justify-center gap-2"
@@ -1030,7 +1032,7 @@ export default function ProjectDetailsPage() {
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                         </svg>
-                        Показать на карте
+                        {t.projectDetail?.showOnMap || 'Показать на карте'}
                       </button>
                     </div>
                   )}
@@ -1057,7 +1059,7 @@ export default function ProjectDetailsPage() {
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                       </svg>
-                      Задачи ({filteredTasks.length})
+                      {t.projectDetail?.tabTasks || 'Задачи'} ({filteredTasks.length})
                     </div>
                   </button>
                   <button
@@ -1072,7 +1074,7 @@ export default function ProjectDetailsPage() {
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                       </svg>
-                      Участники ({participants.length})
+                      {t.projectDetail?.tabParticipants || 'Участники'} ({participants.length})
                     </div>
                   </button>
                   <button
@@ -1087,7 +1089,7 @@ export default function ProjectDetailsPage() {
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                       </svg>
-                      Заявки ({applications.length})
+                      {t.projectDetail?.tabApplications || 'Заявки'} ({applications.length})
                     </div>
                   </button>
                 </div>

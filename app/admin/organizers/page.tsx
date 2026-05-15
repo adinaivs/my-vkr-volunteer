@@ -8,6 +8,7 @@ import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { useToast } from '@/app/components/ToastContainer';
 import CustomSelect from '@/app/components/CustomSelect';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface User {
   id: string;
@@ -40,6 +41,7 @@ interface OrganizerProfile {
 export default function AdminOrganizersPage() {
   const router = useRouter();
   const toast = useToast();
+  const { t } = useTranslation('admin');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [organizers, setOrganizers] = useState<OrganizerProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -266,10 +268,10 @@ export default function AdminOrganizersPage() {
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Проверка организаторов
+              {t.organizers?.title || 'Организаторы'}
             </h1>
             <p className="text-gray-600">
-              Управление заявками на регистрацию организаторов
+              {t.organizers?.pendingApprovals || 'Ожидают одобрения'}
             </p>
           </div>
 
@@ -281,7 +283,7 @@ export default function AdminOrganizersPage() {
               <div className="flex-1 relative">
                 <input
                   type="text"
-                  placeholder="Поиск по названию, ФИО, email, телефону, ИНН, ОКПО..."
+                  placeholder={t.organizers?.searchPlaceholder || 'Поиск организатора...'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
@@ -392,7 +394,7 @@ export default function AdminOrganizersPage() {
           ) : getFilteredAndSortedOrganizers().length === 0 ? (
             <div className="bg-white rounded-xl shadow-xl border border-gray-300 p-12 text-center">
               <p className="text-gray-500">
-                {searchQuery ? 'Организаторы не найдены. Попробуйте изменить параметры поиска.' : 'Нет организаторов для отображения'}
+                {searchQuery ? (t.organizers?.noOrganizers || 'Организаторы не найдены') : (t.organizers?.noPending || 'Нет ожидающих одобрения')}
               </p>
             </div>
           ) : (
@@ -549,14 +551,14 @@ export default function AdminOrganizersPage() {
                           disabled={actionLoading}
                           className="px-4 py-2 bg-[#00CC00] text-white rounded-lg hover:bg-[#00b300] transition-colors disabled:opacity-50"
                         >
-                          Подтвердить
+                          {t.organizers?.approveOrg || 'Одобрить'}
                         </button>
                         <button
                           onClick={() => setSelectedOrganizer(organizer)}
                           disabled={actionLoading}
                           className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
                         >
-                          Отклонить
+                          {t.organizers?.rejectOrg || 'Отклонить'}
                         </button>
                       </div>
                     )}
@@ -568,7 +570,7 @@ export default function AdminOrganizersPage() {
                           disabled={actionLoading}
                           className="px-4 py-2 bg-[#00CC00] text-white rounded-lg hover:bg-[#00b300] transition-colors disabled:opacity-50"
                         >
-                          Подтвердить
+                          {t.organizers?.approveOrg || 'Одобрить'}
                         </button>
                       </div>
                     )}
@@ -585,7 +587,7 @@ export default function AdminOrganizersPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6">
             <h3 className="text-xl font-bold text-gray-900 mb-4">
-              Отклонить организатора
+              {t.organizers?.rejectOrg || 'Отклонить организатора'}
             </h3>
             <p className="text-gray-600 mb-4">
               Укажите причину отклонения заявки организатора{' '}
@@ -594,7 +596,7 @@ export default function AdminOrganizersPage() {
             <textarea
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="Причина отклонения..."
+              placeholder={t.organizers?.rejectReason || 'Причина отклонения...'}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00CC00] focus:border-transparent resize-none"
               rows={4}
             />
@@ -604,7 +606,7 @@ export default function AdminOrganizersPage() {
                 disabled={actionLoading || !rejectReason.trim()}
                 className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
               >
-                Отклонить
+                {t.organizers?.rejectOrg || 'Отклонить'}
               </button>
               <button
                 onClick={() => {
@@ -614,7 +616,7 @@ export default function AdminOrganizersPage() {
                 disabled={actionLoading}
                 className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50"
               >
-                Отмена
+                {t.common?.cancel || 'Отмена'}
               </button>
             </div>
           </div>

@@ -7,12 +7,14 @@ import AdminSidebar from '../components/AdminSidebar';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { useToast } from '@/app/components/ToastContainer';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface AdminUser { id: string; firstName: string; lastName: string; email: string; role: string; avatarUrl?: string; }
 
 export default function AdminNotificationsPage() {
   const router = useRouter();
   const toast = useToast();
+  const { t } = useTranslation('admin');
   const [me, setMe] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -75,8 +77,8 @@ export default function AdminNotificationsPage() {
         {me && <><AdminNav user={me} /><AdminSidebar user={me} /></>}
         <DynamicContent>
           <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">Объявления</h1>
-            <p className="text-gray-500 mt-1 text-sm">Системное объявление показывается всем пользователям платформы в виде баннера вверху страницы</p>
+            <h1 className="text-3xl font-bold text-gray-900">{t.notifications?.title || 'Объявления'}</h1>
+            <p className="text-gray-500 mt-1 text-sm">{t.notifications?.notificationText || 'Системное объявление показывается всем пользователям платформы в виде баннера вверху страницы'}</p>
           </div>
 
           {/* Preview */}
@@ -98,7 +100,7 @@ export default function AdminNotificationsPage() {
           <div className="bg-white rounded-2xl border border-gray-200 p-6 max-w-2xl">
             <div className="space-y-5">
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">Текст объявления</label>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">{t.notifications?.notificationText || 'Текст объявления'}</label>
                 <textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
@@ -121,12 +123,12 @@ export default function AdminNotificationsPage() {
                 <button onClick={handleSave} disabled={saving}
                   className="px-6 py-2 bg-[#00CC00] text-white rounded-xl text-sm hover:bg-[#00b300] transition-colors disabled:opacity-50 flex items-center gap-2">
                   {saving && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                  {saving ? 'Сохранение...' : 'Сохранить'}
+                  {saving ? (t.common?.loading || 'Сохранение...') : (t.common?.save || 'Сохранить')}
                 </button>
                 {(message || active) && (
                   <button onClick={handleClear} disabled={saving}
                     className="px-6 py-2 border border-red-200 text-red-500 rounded-xl text-sm hover:bg-red-50 transition-colors disabled:opacity-50">
-                    Удалить объявление
+                    {t.notifications?.deleteNotification || 'Удалить объявление'}
                   </button>
                 )}
               </div>

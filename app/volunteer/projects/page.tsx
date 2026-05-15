@@ -9,6 +9,7 @@ import AiSupportButton from '@/app/components/AiSupportButton';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import CustomSelect from '@/app/components/CustomSelect';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface User {
   id: string;
@@ -49,6 +50,7 @@ interface Project {
 
 export default function ProjectsCatalog() {
   const router = useRouter();
+  const { t } = useTranslation('volunteer');
   const [user, setUser] = useState<User | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
@@ -184,7 +186,7 @@ export default function ProjectsCatalog() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00CC00] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Загрузка...</p>
+          <p className="mt-4 text-gray-600">{t.common?.loading || 'Загрузка...'}</p>
         </div>
       </div>
     );
@@ -204,8 +206,8 @@ export default function ProjectsCatalog() {
         <DynamicContent>
         {/* Page Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">Каталог проектов</h1>
-          <p className="text-sm text-gray-600">Найдите проект, который вам по душе</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">{t.projects?.title || 'Каталог проектов'}</h1>
+          <p className="text-sm text-gray-600">{t.projects?.searchPlaceholder || 'Найдите проект, который вам по душе'}</p>
         </div>
 
         {/* Единый контейнер для поиска и фильтров */}
@@ -216,7 +218,7 @@ export default function ProjectsCatalog() {
             <div className="flex-1 relative">
               <input
                 type="text"
-                placeholder="Поиск по названию и описанию..."
+                placeholder={t.projects?.searchPlaceholder || 'Поиск по названию и описанию...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
@@ -310,11 +312,11 @@ export default function ProjectsCatalog() {
                 {/* Фильтр по категории */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Категория
+                    {t.common?.category || 'Категория'}
                   </label>
                   <CustomSelect
                     options={[
-                      { value: 'all', label: 'Все категории' },
+                      { value: 'all', label: t.projects?.allCategories || 'Все категории' },
                       ...categories.map((cat) => ({ value: cat.id, label: cat.name }))
                     ]}
                     value={selectedCategory}
@@ -326,7 +328,7 @@ export default function ProjectsCatalog() {
                 {/* Сортировка */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Сортировка
+                    {t.common?.sortBy || 'Сортировка'}
                   </label>
                   <CustomSelect
                     options={[
@@ -346,7 +348,7 @@ export default function ProjectsCatalog() {
                 {/* Фильтр по городу */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Город
+                    {t.common?.city || 'Город'}
                   </label>
                   <CustomSelect
                     options={cities.map((city) => ({
@@ -493,7 +495,7 @@ export default function ProjectsCatalog() {
               </svg>
             </div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">
-              {projects.length === 0 ? 'Проекты скоро появятся' : 'Проекты не найдены'}
+              {projects.length === 0 ? (t.projects?.noProjects || 'Проекты скоро появятся') : (t.projects?.noProjects || 'Проекты не найдены')}
             </h3>
             <p className="text-sm text-gray-600 max-w-md mx-auto mb-6">
               {projects.length === 0 

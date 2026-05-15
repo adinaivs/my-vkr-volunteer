@@ -8,6 +8,7 @@ import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { useToast } from '@/app/components/ToastContainer';
 import CustomSelect from '@/app/components/CustomSelect';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface User {
   id: string;
@@ -58,6 +59,7 @@ interface Project {
 export default function AdminProjectsPage() {
   const router = useRouter();
   const toast = useToast();
+  const { t } = useTranslation('admin');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -282,7 +284,7 @@ export default function AdminProjectsPage() {
             {/* Header */}
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Модерация проектов
+                {t.projects?.title || 'Проекты'}
               </h1>
               <p className="text-gray-600">
                 Управление проектами, отправленными на модерацию
@@ -295,7 +297,7 @@ export default function AdminProjectsPage() {
                 <div className="flex-1 relative">
                   <input
                     type="text"
-                    placeholder="Поиск по названию и описанию..."
+                    placeholder={t.projects?.searchPlaceholder || 'Поиск по названию...'}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
@@ -441,8 +443,8 @@ export default function AdminProjectsPage() {
               <div className="bg-white rounded-xl shadow-xl border border-gray-300 p-12 text-center">
                 <p className="text-gray-500">
                   {searchQuery || filterCategory !== 'all'
-                    ? 'Проекты не найдены. Попробуйте изменить параметры поиска или фильтры.'
-                    : 'Нет проектов для отображения'}
+                    ? (t.projects?.noProjects || 'Проекты не найдены')
+                    : (t.projects?.noProjects || 'Нет проектов для отображения')}
                 </p>
               </div>
             ) : (

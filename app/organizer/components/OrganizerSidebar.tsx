@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSidebar } from '@/app/contexts/SidebarContext';
 import { useUnreadCount } from '@/app/hooks/useUnreadCount';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface User {
   firstName: string;
@@ -20,36 +20,37 @@ export default function OrganizerSidebar({ user }: OrganizerSidebarProps) {
   const { collapsed, setCollapsed } = useSidebar();
   const pathname = usePathname();
   const unreadCount = useUnreadCount();
+  const { t } = useTranslation('organizer');
 
   const navItems = [
     {
       href: '/organizer/dashboard',
-      label: 'Дашборд',
+      label: t.nav?.dashboard || 'Дашборд',
       icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'
     },
     {
       href: '/organizer/projects',
-      label: 'Мои проекты',
+      label: t.nav?.projects || 'Мои проекты',
       icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
     },
     {
       href: '/organizer/volunteers',
-      label: 'Волонтёры',
+      label: t.nav?.volunteers || 'Волонтёры',
       icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z'
     },
     {
       href: '/organizer/chats',
-      label: 'Сообщения',
+      label: t.nav?.messages || 'Сообщения',
       icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z'
     },
     {
       href: '/organizer/reports',
-      label: 'Отчёты',
+      label: t.nav?.reports || 'Отчёты',
       icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
     },
     {
       href: '/organizer/profile',
-      label: 'Профиль',
+      label: t.nav?.profile || 'Профиль',
       icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'
     },
   ];
@@ -91,8 +92,8 @@ export default function OrganizerSidebar({ user }: OrganizerSidebarProps) {
         {/* User Profile */}
         <div className="p-4 border-t border-gray-100">
           <div className="flex items-center gap-2">
-            <Link 
-              href="/organizer/profile" 
+            <Link
+              href="/organizer/profile"
               className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-100 transition-colors flex-1 min-w-0"
             >
               {user.avatarUrl ? (
@@ -107,11 +108,11 @@ export default function OrganizerSidebar({ user }: OrganizerSidebarProps) {
                   <div className="text-sm font-medium text-gray-900 truncate">
                     {user.firstName} {user.lastName}
                   </div>
-                  <div className="text-xs text-gray-500">Организатор</div>
+                  <div className="text-xs text-gray-500">{t.nav?.role || 'Организатор'}</div>
                 </div>
               )}
             </Link>
-            
+
             {/* Collapse Toggle */}
             {!collapsed && (
               <button
@@ -119,18 +120,13 @@ export default function OrganizerSidebar({ user }: OrganizerSidebarProps) {
                 className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
                 title="Свернуть"
               >
-                <svg 
-                  className="w-5 h-5" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
                 </svg>
               </button>
             )}
           </div>
-          
+
           {/* Collapse Toggle for collapsed state */}
           {collapsed && (
             <button
@@ -138,12 +134,7 @@ export default function OrganizerSidebar({ user }: OrganizerSidebarProps) {
               className="mt-2 w-full flex items-center justify-center p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
               title="Развернуть"
             >
-              <svg 
-                className="w-5 h-5 rotate-180" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-5 h-5 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
               </svg>
             </button>

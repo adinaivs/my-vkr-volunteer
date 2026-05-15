@@ -8,6 +8,7 @@ import AiSupportButton from '@/app/components/AiSupportButton';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { useToast } from '@/app/components/ToastContainer';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface Skill {
   id: string;
@@ -84,6 +85,7 @@ function getRatingWord(count: number): string {
 export default function VolunteerProfilePage() {
   const router = useRouter();
   const toast = useToast();
+  const { t } = useTranslation('volunteer');
 
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -484,7 +486,7 @@ ${achievements.length > 0 ? `
                     }}
                     className="px-6 py-2 bg-[#00CC00] text-white rounded-full font-medium hover:bg-[#00b300] transition-colors"
                   >
-                    {editing ? 'Отменить' : 'Редактировать'}
+                    {editing ? (t.common?.cancel || 'Отменить') : (t.profile?.editProfile || 'Редактировать профиль')}
                   </button>
                   <button
                     onClick={handleDownloadBooklet}
@@ -518,7 +520,7 @@ ${achievements.length > 0 ? `
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">{profile?.completedProjects ?? 0}</div>
-                  <div className="text-sm text-gray-600">Завершено проектов</div>
+                  <div className="text-sm text-gray-600">{t.profile?.completedProjects || 'Проектов завершено'}</div>
                 </div>
               </div>
             </div>
@@ -532,7 +534,7 @@ ${achievements.length > 0 ? `
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">{profile?.completedTasks ?? 0}</div>
-                  <div className="text-sm text-gray-600">Выполнено задач</div>
+                  <div className="text-sm text-gray-600">{t.profile?.completedTasks || 'Задач выполнено'}</div>
                 </div>
               </div>
             </div>
@@ -548,7 +550,7 @@ ${achievements.length > 0 ? `
                   <div className="text-2xl font-bold text-gray-900">
                     {profile?.ratingCount ?? 0 > 0 ? Number(profile?.trustScore ?? 0).toFixed(1) : '—'}
                   </div>
-                  <div className="text-sm text-gray-600">Средний рейтинг</div>
+                  <div className="text-sm text-gray-600">{t.profile?.reliabilityScore || 'Средний рейтинг'}</div>
                 </div>
               </div>
             </div>
@@ -556,13 +558,13 @@ ${achievements.length > 0 ? `
 
           {/* Personal Information */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Личная информация</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">{t.profile?.title || 'Личная информация'}</h2>
 
             {editing ? (
               <form onSubmit={handleSave} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Имя</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{t.profile?.firstName || 'Имя'}</label>
                     <input
                       type="text"
                       value={formData.firstName}
@@ -572,7 +574,7 @@ ${achievements.length > 0 ? `
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Фамилия</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{t.profile?.lastName || 'Фамилия'}</label>
                     <input
                       type="text"
                       value={formData.lastName}
@@ -585,7 +587,7 @@ ${achievements.length > 0 ? `
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Телефон</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{t.profile?.phone || 'Телефон'}</label>
                     <input
                       type="tel"
                       value={formData.phone}
@@ -594,7 +596,7 @@ ${achievements.length > 0 ? `
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Город</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{t.profile?.city || 'Город'}</label>
                     <input
                       type="text"
                       value={formData.city}
@@ -605,7 +607,7 @@ ${achievements.length > 0 ? `
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">О себе</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t.profile?.bio || 'О себе'}</label>
                   <textarea
                     value={formData.bio}
                     onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
@@ -621,14 +623,14 @@ ${achievements.length > 0 ? `
                     disabled={saving}
                     className="px-6 py-3 bg-[#00CC00] text-white rounded-xl font-medium hover:bg-[#00b300] transition-colors disabled:opacity-60"
                   >
-                    {saving ? 'Сохранение...' : 'Сохранить изменения'}
+                    {saving ? (t.common?.saving || 'Сохранение...') : (t.profile?.saveChanges || 'Сохранить изменения')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setEditing(false)}
                     className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
                   >
-                    Отменить
+                    {t.common?.cancel || 'Отменить'}
                   </button>
                 </div>
               </form>
@@ -636,7 +638,7 @@ ${achievements.length > 0 ? `
               <div className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Имя</div>
+                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">{t.profile?.firstName || 'Имя'}</div>
                     <div className="text-gray-900 font-medium">{user.firstName} {user.lastName}</div>
                   </div>
                   <div>
@@ -646,7 +648,7 @@ ${achievements.length > 0 ? `
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Телефон</div>
+                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">{t.profile?.phone || 'Телефон'}</div>
                     <div className="text-gray-900 font-medium">{user.phone}</div>
                   </div>
                   <div>

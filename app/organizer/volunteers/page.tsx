@@ -7,6 +7,7 @@ import OrganizerSidebar from '../components/OrganizerSidebar';
 import AiSupportButton from '@/app/components/AiSupportButton';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
 
@@ -80,6 +81,7 @@ const fmtDate = (d?: string | Date) =>
 
 export default function OrganizerVolunteers() {
   const router = useRouter();
+  const { t } = useTranslation('organizer');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [volunteers, setVolunteers] = useState<VolunteerShort[]>([]);
@@ -212,7 +214,7 @@ export default function OrganizerVolunteers() {
           {/* Header */}
           <div className="mb-6 flex items-end justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Волонтёры</h1>
+              <h1 className="text-3xl font-bold text-gray-900">{t.volunteers?.title || 'Волонтёры'}</h1>
               <p className="text-gray-500 mt-1 text-sm">Всего: {volunteers.length}</p>
             </div>
           </div>
@@ -227,7 +229,7 @@ export default function OrganizerVolunteers() {
                 </svg>
                 <input
                   type="text"
-                  placeholder="Поиск по имени, городу или навыкам..."
+                  placeholder={t.volunteers?.searchPlaceholder || 'Поиск по имени, городу или навыкам...'}
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className="w-full pl-10 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
@@ -251,7 +253,7 @@ export default function OrganizerVolunteers() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
                 </svg>
-                Фильтры
+                {t.common?.filter || 'Фильтры'}
                 {hasFilters && <span className="w-2 h-2 bg-white rounded-full opacity-80" />}
               </button>
 
@@ -296,7 +298,7 @@ export default function OrganizerVolunteers() {
               <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {/* City */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Город</label>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">{t.volunteers?.city || 'Город'}</label>
                   <select
                     value={filterCity}
                     onChange={e => setFilterCity(e.target.value)}
@@ -342,10 +344,10 @@ export default function OrganizerVolunteers() {
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                {hasFilters ? 'Ничего не найдено' : 'Нет волонтёров'}
+                {hasFilters ? 'Ничего не найдено' : (t.volunteers?.noParticipants || 'Нет волонтёров')}
               </h3>
               <p className="text-gray-500 text-sm mb-4">
-                {hasFilters ? 'Попробуйте изменить параметры поиска' : 'Волонтёры появятся после регистрации на платформе'}
+                {hasFilters ? 'Попробуйте изменить параметры поиска' : (t.volunteers?.noParticipantsHint || 'Волонтёры появятся после регистрации на платформе')}
               </p>
               {hasFilters && (
                 <button onClick={resetFilters} className="px-4 py-2 bg-[#00CC00] text-white rounded-xl text-sm font-medium hover:bg-[#00b300] transition-colors">
@@ -461,7 +463,7 @@ export default function OrganizerVolunteers() {
             <div className="fixed top-0 right-0 h-full w-full max-w-lg bg-white z-50 shadow-2xl flex flex-col">
               {/* Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
-                <h2 className="text-lg font-bold text-gray-900">Профиль волонтёра</h2>
+                <h2 className="text-lg font-bold text-gray-900">{t.volunteers?.title || 'Профиль волонтёра'}</h2>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => detail && handleStartChat(detail.id)}
@@ -471,7 +473,7 @@ export default function OrganizerVolunteers() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                     </svg>
-                    {creatingChat ? 'Загрузка...' : 'Написать'}
+                    {creatingChat ? (t.common?.loading || 'Загрузка...') : 'Написать'}
                   </button>
                   <button onClick={closeProfile} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors text-gray-500">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

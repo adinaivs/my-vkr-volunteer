@@ -9,6 +9,7 @@ import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { useToast } from '@/app/components/ToastContainer';
 import CustomDatePicker from '@/app/components/CustomDatePicker';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface User {
   id: string;
@@ -64,6 +65,7 @@ const HISTORY_KEY = 'organizer_report_history';
 export default function OrganizerReports() {
   const router = useRouter();
   const toast = useToast();
+  const { t } = useTranslation('organizer');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -368,17 +370,17 @@ export default function OrganizerReports() {
 
         <DynamicContent maxWidth="max-w-5xl">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Отчёты</h1>
-            <p className="text-gray-600">Создавайте и скачивайте отчёты по вашим проектам</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{t.reports?.title || 'Отчёты'}</h1>
+            <p className="text-gray-600">{t.reports?.subtitle || 'Создавайте и скачивайте отчёты по вашим проектам'}</p>
           </div>
 
           {/* Генератор отчёта */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Создать отчёт</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-6">{t.reports?.generateReport || 'Создать отчёт'}</h2>
 
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">Тип отчёта</label>
+                <label className="block text-sm font-medium text-gray-700 mb-3">{t.reports?.reportType || 'Тип отчёта'}</label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   {[
                     { value: 'all', label: 'Все проекты' },
@@ -402,22 +404,22 @@ export default function OrganizerReports() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Период <span className="text-gray-400 font-normal">(необязательно)</span>
+                  {t.reports?.period || 'Период'} <span className="text-gray-400 font-normal">({t.reports?.optional || 'необязательно'})</span>
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs text-gray-600 mb-2">Дата начала</label>
+                    <label className="block text-xs text-gray-600 mb-2">{t.reports?.periodStart || 'Дата начала'}</label>
                     <CustomDatePicker value={startDate} onChange={setStartDate} placeholder="Выберите дату начала" />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-600 mb-2">Дата окончания</label>
+                    <label className="block text-xs text-gray-600 mb-2">{t.reports?.periodEnd || 'Дата окончания'}</label>
                     <CustomDatePicker value={endDate} onChange={setEndDate} placeholder="Выберите дату окончания" minDate={startDate} />
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">Формат отчёта</label>
+                <label className="block text-sm font-medium text-gray-700 mb-3">{t.reports?.generateReport || 'Формат отчёта'}</label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <button
                     onClick={() => handleGeneratePDF()}
@@ -430,7 +432,7 @@ export default function OrganizerReports() {
                       </svg>
                     </div>
                     <div className="text-left">
-                      <div className="font-bold text-gray-900">Скачать PDF</div>
+                      <div className="font-bold text-gray-900">{t.reports?.downloadPdf || 'Скачать PDF'}</div>
                       <div className="text-sm text-gray-600">Откроется страница для печати</div>
                     </div>
                   </button>
@@ -446,7 +448,7 @@ export default function OrganizerReports() {
                       </svg>
                     </div>
                     <div className="text-left">
-                      <div className="font-bold text-gray-900">Скачать Excel</div>
+                      <div className="font-bold text-gray-900">{t.reports?.downloadExcel || 'Скачать Excel'}</div>
                       <div className="text-sm text-gray-600">Для анализа данных</div>
                     </div>
                   </button>
@@ -465,7 +467,7 @@ export default function OrganizerReports() {
           {/* История отчётов */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">История отчётов</h2>
+              <h2 className="text-xl font-bold text-gray-900">{t.reports?.history || 'История отчётов'}</h2>
               {history.length > 0 && (
                 <button
                   onClick={() => {
@@ -474,7 +476,7 @@ export default function OrganizerReports() {
                   }}
                   className="text-xs text-gray-400 hover:text-red-500 transition-colors"
                 >
-                  Очистить
+                  {t.reports?.clearHistory || 'Очистить'}
                 </button>
               )}
             </div>
@@ -486,7 +488,7 @@ export default function OrganizerReports() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                 </div>
-                <p className="text-gray-500 text-sm">Созданные отчёты будут отображаться здесь</p>
+                <p className="text-gray-500 text-sm">{t.common?.noData || 'Созданные отчёты будут отображаться здесь'}</p>
               </div>
             ) : (
               <div className="space-y-3">

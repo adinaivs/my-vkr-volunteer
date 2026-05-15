@@ -7,6 +7,7 @@ import AdminSidebar from '../components/AdminSidebar';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { useToast } from '@/app/components/ToastContainer';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface AdminUser { id: string; firstName: string; lastName: string; email: string; role: string; avatarUrl?: string; }
 interface Translation { locale: string; name: string; }
@@ -28,6 +29,7 @@ const getName = (translations: Translation[], locale = 'ru') =>
 export default function AdminSkillsPage() {
   const router = useRouter();
   const toast = useToast();
+  const { t } = useTranslation('admin');
   const [me, setMe] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -130,7 +132,7 @@ export default function AdminSkillsPage() {
         <DynamicContent>
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Навыки</h1>
+              <h1 className="text-3xl font-bold text-gray-900">{t.skills?.title || 'Навыки'}</h1>
               <p className="text-gray-500 mt-1 text-sm">Управление навыками волонтёров</p>
             </div>
             <button onClick={() => openModal()}
@@ -138,7 +140,7 @@ export default function AdminSkillsPage() {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              Добавить
+              {t.skills?.createSkill || 'Добавить навык'}
             </button>
           </div>
 
@@ -149,7 +151,7 @@ export default function AdminSkillsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Поиск навыков..."
+                  placeholder={t.common?.search || 'Поиск'}
                   className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00CC00]" />
               </div>
             </div>
@@ -157,7 +159,7 @@ export default function AdminSkillsPage() {
             <div className="divide-y divide-gray-50">
               {filtered.length === 0 ? (
                 <div className="p-10 text-center text-gray-400 text-sm">
-                  {search ? 'Ничего не найдено' : 'Навыков пока нет'}
+                  {search ? 'Ничего не найдено' : (t.skills?.noSkills || 'Нет навыков')}
                 </div>
               ) : filtered.map((skill) => (
                 <div key={skill.id} className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors">
@@ -196,7 +198,7 @@ export default function AdminSkillsPage() {
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h3 className="text-lg font-semibold text-gray-900">
-                {modal.item ? 'Редактировать навык' : 'Новый навык'}
+                {modal.item ? (t.skills?.editSkill || 'Редактировать') : (t.skills?.createSkill || 'Добавить навык')}
               </h3>
               <button onClick={() => setModal(null)} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -225,12 +227,12 @@ export default function AdminSkillsPage() {
 
             <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
               <button onClick={() => setModal(null)} className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 transition-colors">
-                Отмена
+                {t.common?.cancel || 'Отмена'}
               </button>
               <button onClick={handleSave} disabled={saving}
                 className="flex-1 px-4 py-2 bg-[#00CC00] text-white rounded-xl text-sm hover:bg-[#00b300] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                 {saving && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                {saving ? 'Сохранение...' : 'Сохранить'}
+                {saving ? 'Сохранение...' : (t.common?.save || 'Сохранить')}
               </button>
             </div>
           </div>
@@ -240,14 +242,14 @@ export default function AdminSkillsPage() {
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Удалить «{deleteConfirm.name}»?</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">{t.skills?.deleteConfirm || 'Удалить этот навык?'} «{deleteConfirm.name}»?</h3>
             <p className="text-gray-500 text-sm mb-6">Нельзя удалить навык, используемый в задачах проектов.</p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteConfirm(null)} className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 transition-colors">
-                Отмена
+                {t.common?.cancel || 'Отмена'}
               </button>
               <button onClick={handleDelete} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-xl text-sm hover:bg-red-600 transition-colors">
-                Удалить
+                {t.common?.delete || 'Удалить'}
               </button>
             </div>
           </div>

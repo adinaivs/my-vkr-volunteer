@@ -7,6 +7,7 @@ import OrganizerSidebar from '../../components/OrganizerSidebar';
 import AiSupportButton from '@/app/components/AiSupportButton';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface User {
   id: string;
@@ -33,6 +34,7 @@ interface Message {
 export default function OrganizerDirectChatRoomPage() {
   const router = useRouter();
   const { chatId } = useParams<{ chatId: string }>();
+  const { t } = useTranslation('organizer');
 
   const [me, setMe] = useState<User | null>(null);
   const [chats, setChats] = useState<DirectChat[]>([]);
@@ -187,7 +189,7 @@ export default function OrganizerDirectChatRoomPage() {
                   <h2 className="font-semibold text-gray-900 truncate text-sm">
                     {currentChat?.otherUser.firstName} {currentChat?.otherUser.lastName}
                   </h2>
-                  <p className="text-xs text-gray-500">Волонтёр</p>
+                  <p className="text-xs text-gray-500">{t.chats?.volunteerLabel || 'Волонтёр'}</p>
                 </div>
               </div>
 
@@ -200,8 +202,8 @@ export default function OrganizerDirectChatRoomPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                       </svg>
                     </div>
-                    <p className="text-sm font-medium text-gray-600">Нет сообщений</p>
-                    <p className="text-xs text-gray-400 mt-1">Будьте первым — напишите что-нибудь!</p>
+                    <p className="text-sm font-medium text-gray-600">{t.chats?.noMessages || 'Нет сообщений'}</p>
+                    <p className="text-xs text-gray-400 mt-1">{t.chats?.beFirst || 'Будьте первым — напишите что-нибудь!'}</p>
                   </div>
                 )}
                 {grouped.map((group) => (
@@ -260,7 +262,7 @@ export default function OrganizerDirectChatRoomPage() {
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Введите сообщение... (Enter — отправить)"
+                    placeholder={`${t.chats?.typeMessage || 'Введите сообщение...'} (${t.chats?.typeHint || 'Enter — отправить'})`}
                     rows={1}
                     className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent resize-none max-h-32"
                     style={{ overflowY: 'auto' }}
@@ -281,8 +283,8 @@ export default function OrganizerDirectChatRoomPage() {
             {/* ПРАВАЯ ПАНЕЛЬ — список чатов */}
             <div className="w-80 shrink-0 bg-white rounded-2xl border border-gray-200 flex flex-col overflow-hidden">
               <div className="px-4 py-4 border-b border-gray-100">
-                <h1 className="text-lg font-bold text-gray-900">Личные сообщения</h1>
-                <p className="text-xs text-gray-400 mt-0.5">Переписка с волонтерами</p>
+                <h1 className="text-lg font-bold text-gray-900">{t.chats?.directMessages || 'Личные сообщения'}</h1>
+                <p className="text-xs text-gray-400 mt-0.5">{t.chats?.directSubtitle || 'Переписка с волонтерами'}</p>
               </div>
               <div className="flex-1 overflow-y-auto">
                 {chats.length === 0 ? (
@@ -292,8 +294,8 @@ export default function OrganizerDirectChatRoomPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                       </svg>
                     </div>
-                    <p className="text-sm text-gray-500">Нет активных чатов</p>
-                    <p className="text-xs text-gray-400 mt-1">Откройте профиль волонтера и нажмите «Написать»</p>
+                    <p className="text-sm text-gray-500">{t.chats?.noDirectChats || 'Нет активных чатов'}</p>
+                    <p className="text-xs text-gray-400 mt-1">{t.chats?.noDirectChatsHint || 'Откройте профиль волонтера и нажмите «Написать»'}</p>
                   </div>
                 ) : (
                   chats.map((chat) => {
@@ -336,7 +338,7 @@ export default function OrganizerDirectChatRoomPage() {
                                 <span className="font-medium">{chat.lastMessage.sender.firstName}:</span>{' '}{chat.lastMessage.content}
                               </p>
                             ) : (
-                              <p className="text-xs text-gray-400 italic">Нет сообщений</p>
+                              <p className="text-xs text-gray-400 italic">{t.chats?.noMessages || 'Нет сообщений'}</p>
                             )}
                           </div>
                         </div>

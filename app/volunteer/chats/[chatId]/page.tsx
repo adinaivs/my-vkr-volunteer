@@ -7,6 +7,7 @@ import VolunteerSidebar from '../../components/VolunteerSidebar';
 import AiSupportButton from '@/app/components/AiSupportButton';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import MessageStatus from '@/app/components/MessageStatus';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface ChatUser {
   id: string;
@@ -46,6 +47,7 @@ interface Message {
 export default function VolunteerChatRoomPage() {
   const router = useRouter();
   const { chatId } = useParams<{ chatId: string }>();
+  const { t } = useTranslation('volunteer');
 
   const [me, setMe] = useState<ChatUser | null>(null);
   const [groupChats, setGroupChats] = useState<GroupChat[]>([]);
@@ -281,8 +283,8 @@ export default function VolunteerChatRoomPage() {
     ? `${currentDirectChat?.otherUser.firstName} ${currentDirectChat?.otherUser.lastName}`
     : currentGroupChat?.name;
   const chatSubtitle = isDirectChat
-    ? 'Организатор'
-    : `${members.length} участников`;
+    ? (t.chats?.organizerRole || 'Организатор')
+    : `${members.length} ${t.chats?.participants || 'участников'}`;
 
   // Объединяем все чаты для списка справа
   const allChats = [
@@ -292,7 +294,7 @@ export default function VolunteerChatRoomPage() {
       name: `${chat.otherUser.firstName} ${chat.otherUser.lastName}`,
       avatar: chat.otherUser.avatarUrl,
       initials: `${chat.otherUser.firstName[0]}${chat.otherUser.lastName[0]}`,
-      subtitle: 'Организатор',
+      subtitle: t.chats?.organizerRole || 'Организатор',
       lastMessage: chat.lastMessage,
       lastMessageTime: chat.lastMessage?.createdAt || chat.createdAt,
       unreadCount: chat.unreadCount || 0,
@@ -303,7 +305,7 @@ export default function VolunteerChatRoomPage() {
       name: chat.name,
       avatar: null,
       initials: null,
-      subtitle: `${chat.membersCount} участников`,
+      subtitle: `${chat.membersCount} ${t.chats?.participants || 'участников'}`,
       lastMessage: chat.lastMessage,
       lastMessageTime: chat.lastMessage?.createdAt || chat.createdAt,
       unreadCount: chat.unreadCount || 0,
@@ -369,8 +371,8 @@ export default function VolunteerChatRoomPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                         </svg>
                       </div>
-                      <p className="text-sm font-medium text-gray-600">Нет сообщений</p>
-                      <p className="text-xs text-gray-400 mt-1">Будьте первым — напишите что-нибудь!</p>
+                      <p className="text-sm font-medium text-gray-600">{t.chats?.noMessages || 'Нет сообщений'}</p>
+                      <p className="text-xs text-gray-400 mt-1">{t.chats?.beFirst || 'Будьте первым — напишите что-нибудь!'}</p>
                     </div>
                   )}
                   {grouped.map((group) => (
@@ -402,7 +404,7 @@ export default function VolunteerChatRoomPage() {
                               {showAvatar && !isMe && (
                                 <span className="text-xs text-gray-500 ml-1 mb-0.5">
                                   {msg.sender.firstName} {msg.sender.lastName}
-                                  {msg.sender.role === 'organizer' && <span className="ml-1 text-[#00CC00]">• Организатор</span>}
+                                  {msg.sender.role === 'organizer' && <span className="ml-1 text-[#00CC00]">• {t.chats?.organizerRole || 'Организатор'}</span>}
                                 </span>
                               )}
                               <div className={`px-3 py-2 rounded-2xl text-sm ${
@@ -435,7 +437,7 @@ export default function VolunteerChatRoomPage() {
                 {/* Members panel */}
                 {showMembers && !isDirectChat && (
                   <div className="w-64 border-l border-gray-100 bg-gray-50 overflow-y-auto p-3 shrink-0">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Участники ({members.length})</p>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t.chats?.membersPanel || 'Участники'} ({members.length})</p>
                     <div className="space-y-2">
                       {members.map((m) => (
                         <div key={m.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-white transition-colors">
@@ -448,7 +450,7 @@ export default function VolunteerChatRoomPage() {
                           )}
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-medium text-gray-900 truncate">{m.firstName} {m.lastName}</p>
-                            <p className="text-xs text-gray-400">{m.role === 'organizer' ? 'Организатор' : 'Волонтёр'}</p>
+                            <p className="text-xs text-gray-400">{m.role === 'organizer' ? (t.chats?.organizerRole || 'Организатор') : (t.chats?.volunteerRole || 'Волонтёр')}</p>
                           </div>
                           {m.id !== me?.id && (
                             <button
@@ -486,7 +488,7 @@ export default function VolunteerChatRoomPage() {
                       setText(e.target.value);
                     }}
                     onKeyDown={handleKeyDown}
-                    placeholder="Введите сообщение... (Enter — отправить)"
+                    placeholder={`${t.chats?.typeMessage || 'Введите сообщение...'} (${t.chats?.typeHint || 'Enter — отправить'})`}
                     rows={1}
                     className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent resize-none max-h-32"
                     style={{ overflowY: 'auto' }}
@@ -513,8 +515,8 @@ export default function VolunteerChatRoomPage() {
             {/* ПРАВАЯ ПАНЕЛЬ — список чатов */}
             <div className="w-80 shrink-0 bg-white rounded-2xl border border-gray-200 flex flex-col overflow-hidden">
               <div className="px-4 py-4 border-b border-gray-100">
-                <h1 className="text-lg font-bold text-gray-900">Сообщения</h1>
-                <p className="text-xs text-gray-400 mt-0.5">Всего чатов: {allChats.length}</p>
+                <h1 className="text-lg font-bold text-gray-900">{t.chats?.title || 'Сообщения'}</h1>
+                <p className="text-xs text-gray-400 mt-0.5">{t.chats?.totalChats || 'Всего чатов'}: {allChats.length}</p>
               </div>
               <div className="flex-1 overflow-y-auto">
                 {allChats.length === 0 ? (
@@ -524,8 +526,8 @@ export default function VolunteerChatRoomPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                       </svg>
                     </div>
-                    <p className="text-sm text-gray-500">Нет активных чатов</p>
-                    <p className="text-xs text-gray-400 mt-1">Вступите в проект или дождитесь сообщения от организатора</p>
+                    <p className="text-sm text-gray-500">{t.chats?.noChats || 'Нет активных чатов'}</p>
+                    <p className="text-xs text-gray-400 mt-1">{t.chats?.noChatsHintJoin || 'Вступите в проект или дождитесь сообщения от организатора'}</p>
                   </div>
                 ) : (
                   allChats.map((chat) => {
@@ -591,7 +593,7 @@ export default function VolunteerChatRoomPage() {
                                 <span className="font-medium">{chat.lastMessage.sender.firstName}:</span>{' '}{chat.lastMessage.content}
                               </p>
                             ) : (
-                              <p className="text-xs text-gray-400 italic">Нет сообщений</p>
+                              <p className="text-xs text-gray-400 italic">{t.chats?.noMessages || 'Нет сообщений'}</p>
                             )}
                           </div>
                         </div>

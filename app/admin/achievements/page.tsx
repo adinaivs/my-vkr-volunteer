@@ -8,6 +8,7 @@ import AdminSidebar from '../components/AdminSidebar';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { useToast } from '@/app/components/ToastContainer';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface AdminUser { id: string; firstName: string; lastName: string; email: string; role: string; avatarUrl?: string; }
 interface Translation { locale: string; name: string; description?: string; }
@@ -43,6 +44,7 @@ const getName = (translations: Translation[], locale = 'ru') =>
 export default function AdminAchievementsPage() {
   const router = useRouter();
   const toast = useToast();
+  const { t } = useTranslation('admin');
   const [me, setMe] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -171,7 +173,7 @@ export default function AdminAchievementsPage() {
         <DynamicContent>
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Достижения</h1>
+              <h1 className="text-3xl font-bold text-gray-900">{t.achievements?.title || 'Достижения'}</h1>
               <p className="text-gray-500 mt-1 text-sm">Управление достижениями и наградами волонтёров</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -180,14 +182,14 @@ export default function AdminAchievementsPage() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
                 </svg>
-                Выданные
+                {t.achievements?.issued || 'Выданные достижения'}
               </Link>
               <button onClick={() => openModal()}
                 className="flex items-center gap-2 px-4 py-2 bg-[#00CC00] text-white rounded-xl text-sm hover:bg-[#00b300] transition-colors">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                Добавить
+                {t.achievements?.createAchievement || 'Создать достижение'}
               </button>
             </div>
           </div>
@@ -207,7 +209,7 @@ export default function AdminAchievementsPage() {
             <div className="divide-y divide-gray-50">
               {filtered.length === 0 ? (
                 <div className="p-10 text-center text-gray-400 text-sm">
-                  {search ? 'Ничего не найдено' : 'Достижений пока нет'}
+                  {search ? 'Ничего не найдено' : (t.achievements?.noAchievements || 'Нет достижений')}
                 </div>
               ) : filtered.map((ach) => (
                 <div key={ach.id} className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors">
@@ -253,7 +255,7 @@ export default function AdminAchievementsPage() {
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl my-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h3 className="text-lg font-semibold text-gray-900">
-                {modal.item ? 'Редактировать достижение' : 'Новое достижение'}
+                {modal.item ? (t.achievements?.editAchievement || 'Редактировать') : (t.achievements?.createAchievement || 'Создать достижение')}
               </h3>
               <button onClick={() => setModal(null)} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -395,12 +397,12 @@ export default function AdminAchievementsPage() {
 
             <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
               <button onClick={() => setModal(null)} className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 transition-colors">
-                Отмена
+                {t.common?.cancel || 'Отмена'}
               </button>
               <button onClick={handleSave} disabled={saving}
                 className="flex-1 px-4 py-2 bg-[#00CC00] text-white rounded-xl text-sm hover:bg-[#00b300] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                 {saving && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                {saving ? 'Сохранение...' : 'Сохранить'}
+                {saving ? 'Сохранение...' : (t.common?.save || 'Сохранить')}
               </button>
             </div>
           </div>
@@ -410,14 +412,14 @@ export default function AdminAchievementsPage() {
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Удалить «{deleteConfirm.name}»?</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">{t.achievements?.deleteConfirm || 'Удалить это достижение?'} «{deleteConfirm.name}»?</h3>
             <p className="text-gray-500 text-sm mb-6">Это действие нельзя отменить.</p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteConfirm(null)} className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 transition-colors">
-                Отмена
+                {t.common?.cancel || 'Отмена'}
               </button>
               <button onClick={handleDelete} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-xl text-sm hover:bg-red-600 transition-colors">
-                Удалить
+                {t.common?.delete || 'Удалить'}
               </button>
             </div>
           </div>

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import NavLanguageSwitcher from '@/app/i18n/NavLanguageSwitcher';
 
 interface User {
   firstName: string;
@@ -43,6 +44,9 @@ export default function AdminNav({ user }: AdminNavProps) {
 
           {/* Right Side - User Menu & Logout */}
           <div className="flex items-center gap-3">
+            {/* Language Switcher */}
+            <NavLanguageSwitcher />
+
             {/* Settings Button */}
             <Link 
               href="/admin/settings"
