@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { getCategoryInclude, formatCategoryWithTranslation } from '@/lib/category-helpers';
 import { uploadToS3, validateFile } from '@/lib/s3';
+import { checkAchievementsOnProjectCreated } from '@/lib/achievements';
 
 // POST - Создать новый проект
 export async function POST(request: NextRequest) {
@@ -185,6 +186,9 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // Проверяем достижение "Лидер" — организатор создал первый проект
+    checkAchievementsOnProjectCreated(user.id).catch(console.error);
 
     // ВРЕМЕННО: Счетчик бесплатных публикаций не уменьшается
     // Счетчик бесплатных публикаций уменьшается только после одобрения админом

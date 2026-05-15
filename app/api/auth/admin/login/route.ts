@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
-// Временное хранилище кодов 2FA (в продакшене использовать Redis)
-const twoFactorCodes = new Map<string, { code: string; expiresAt: Date; userId: string }>();
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -66,8 +63,13 @@ export async function POST(request: NextRequest) {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 минут
 
-    // Сохраняем код
-    twoFactorCodes.set(email, { code, expiresAt, userId: user.id });
+    // Сохраняем код в БД
+    const settingKey = `2fa_code_${email.toLowerCase()}`;
+    await prisma.setting.upsert({
+      where: { key: settingKey },
+      update: { value: JSON.stringify({ code, expiresAt, userId: user.id }) },
+      create: { key: settingKey, value: JSON.stringify({ code, expiresAt, userId: user.id }) },
+    });
 
     // Отправляем код в Telegram
     try {
@@ -118,5 +120,3 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Экспортируем Map для использования в verify endpoint
-export { twoFactorCodes };

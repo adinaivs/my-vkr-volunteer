@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getSession } from '@/lib/auth';
+import { checkAchievementsOnApplicationApproved } from '@/lib/achievements';
 
 const prisma = new PrismaClient();
 
@@ -135,6 +136,9 @@ export async function PUT(
       });
 
       // НЕ создаем TaskAssignment - это будет делаться отдельно!
+
+      // Проверяем и выдаём достижения волонтёру
+      checkAchievementsOnApplicationApproved(application.volunteerId, application.projectId).catch(console.error);
     }
 
     // Если заявка отклонена, отправляем email волонтеру

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import AdminNav from '../components/AdminNav';
 import AdminSidebar from '../components/AdminSidebar';
 import DynamicContent from '@/app/components/DynamicContent';
@@ -10,10 +11,13 @@ import { useToast } from '@/app/components/ToastContainer';
 
 interface AdminUser { id: string; firstName: string; lastName: string; email: string; role: string; avatarUrl?: string; }
 interface Translation { locale: string; name: string; description?: string; }
+interface Partner { id: string; name: string; logoUrl: string | null; isActive: boolean; }
+interface Reward { id?: string; partnerId: string; rewardText: string; validForDays: number; isActive: boolean; partner?: Partner; }
 interface Achievement {
   id: string; name: string; description: string; icon: string;
   conditionType: string; conditionValue: number; isActive: boolean;
   translations: Translation[];
+  rewards: Reward[];
 }
 
 const CONDITION_LABELS: Record<string, string> = {
@@ -48,6 +52,7 @@ export default function AdminAchievementsPage() {
   const [saving, setSaving] = useState(false);
   const [translating, setTranslating] = useState<Record<string, boolean>>({});
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [partners, setPartners] = useState<Partner[]>([]);
 
   const [nameRu, setNameRu] = useState('');
   const [nameKg, setNameKg] = useState('');
@@ -57,10 +62,15 @@ export default function AdminAchievementsPage() {
   const [condType, setCondType] = useState('projects_count');
   const [condValue, setCondValue] = useState(1);
   const [isActive, setIsActive] = useState(true);
+  const [rewards, setRewards] = useState<{ partnerId: string; rewardText: string; validForDays: number }[]>([]);
 
   const fetchData = useCallback(async () => {
-    const res = await fetch('/api/admin/achievements');
-    if (res.ok) setAchievements((await res.json()).achievements);
+    const [achRes, partRes] = await Promise.all([
+      fetch('/api/admin/achievements'),
+      fetch('/api/admin/partners'),
+    ]);
+    if (achRes.ok) setAchievements((await achRes.json()).achievements);
+    if (partRes.ok) setPartners((await partRes.json()).partners);
   }, []);
 
   useEffect(() => {
@@ -89,7 +99,13 @@ export default function AdminAchievementsPage() {
     setCondType(item?.conditionType || 'projects_count');
     setCondValue(item?.conditionValue || 1);
     setIsActive(item?.isActive !== false);
+    setRewards(item?.rewards?.map(r => ({ partnerId: r.partnerId, rewardText: r.rewardText, validForDays: r.validForDays })) ?? []);
   };
+
+  const addReward = () => setRewards(r => [...r, { partnerId: '', rewardText: '', validForDays: 30 }]);
+  const removeReward = (i: number) => setRewards(r => r.filter((_, idx) => idx !== i));
+  const updateReward = (i: number, field: string, value: string | number) =>
+    setRewards(r => r.map((row, idx) => idx === i ? { ...row, [field]: value } : row));
 
   const handleTranslate = async (text: string, field: string, setter: (v: string) => void) => {
     if (!text.trim()) { toast.error('Введите текст на русском'); return; }
@@ -115,7 +131,7 @@ export default function AdminAchievementsPage() {
       const res = await fetch(url, {
         method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nameRu, nameKg, descRu, descKg, icon, conditionType: condType, conditionValue: condValue, isActive }),
+        body: JSON.stringify({ nameRu, nameKg, descRu, descKg, icon, conditionType: condType, conditionValue: condValue, isActive, rewards }),
       });
       if (res.ok) {
         toast.success(isEdit ? 'Сохранено' : 'Достижение создано');
@@ -158,13 +174,22 @@ export default function AdminAchievementsPage() {
               <h1 className="text-3xl font-bold text-gray-900">Достижения</h1>
               <p className="text-gray-500 mt-1 text-sm">Управление достижениями и наградами волонтёров</p>
             </div>
-            <button onClick={() => openModal()}
-              className="flex items-center gap-2 px-4 py-2 bg-[#00CC00] text-white rounded-xl text-sm hover:bg-[#00b300] transition-colors shrink-0">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Добавить
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <Link href="/admin/achievements/issued"
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm hover:bg-gray-50 transition-colors">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                </svg>
+                Выданные
+              </Link>
+              <button onClick={() => openModal()}
+                className="flex items-center gap-2 px-4 py-2 bg-[#00CC00] text-white rounded-xl text-sm hover:bg-[#00b300] transition-colors">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Добавить
+              </button>
+            </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
@@ -195,7 +220,12 @@ export default function AdminAchievementsPage() {
                       </span>
                     </div>
                     <p className="text-xs text-gray-500 truncate">{ach.description}</p>
-                    <p className="text-xs text-gray-400">{CONDITION_LABELS[ach.conditionType] || ach.conditionType} · {ach.conditionValue}</p>
+                    <p className="text-xs text-gray-400">
+                      {CONDITION_LABELS[ach.conditionType] || ach.conditionType} · {ach.conditionValue}
+                      {ach.rewards?.length > 0 && (
+                        <span className="ml-2 text-amber-600">🎁 {ach.rewards.length} {ach.rewards.length === 1 ? 'награда' : ach.rewards.length < 5 ? 'награды' : 'наград'}</span>
+                      )}
+                    </p>
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <button onClick={() => openModal(ach)}
@@ -302,6 +332,63 @@ export default function AdminAchievementsPage() {
                       placeholder="Описание на кыргызском"
                       className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00CC00] resize-none" />
                   </div>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Награды от партнёров</p>
+                  <button type="button" onClick={addReward}
+                    disabled={partners.length === 0}
+                    className="flex items-center gap-1 px-2.5 py-1 bg-gray-100 text-gray-600 border border-gray-200 rounded-lg text-xs hover:bg-gray-200 transition-colors disabled:opacity-40">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Добавить
+                  </button>
+                </div>
+                {partners.length === 0 && (
+                  <p className="text-xs text-gray-400 italic">Сначала добавьте партнёров в разделе «Партнёры»</p>
+                )}
+                <div className="space-y-4">
+                  {rewards.map((r, i) => (
+                    <div key={i} className="space-y-2">
+                      {i > 0 && <div className="border-t border-gray-100" />}
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={r.partnerId}
+                          onChange={e => updateReward(i, 'partnerId', e.target.value)}
+                          className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00CC00]"
+                        >
+                          <option value="">Выберите партнёра...</option>
+                          {partners.filter(p => p.isActive).map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                        <button onClick={() => removeReward(i)}
+                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                      <input
+                        value={r.rewardText}
+                        onChange={e => updateReward(i, 'rewardText', e.target.value)}
+                        placeholder="Описание награды, напр. «Скидка 15% на заказ»"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00CC00]"
+                      />
+                      <div className="flex items-center gap-3">
+                        <label className="text-xs font-medium text-gray-600 whitespace-nowrap">Действует дней:</label>
+                        <input
+                          type="number" min={1} max={365}
+                          value={r.validForDays}
+                          onChange={e => updateReward(i, 'validForDays', parseInt(e.target.value) || 30)}
+                          className="w-24 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00CC00]"
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

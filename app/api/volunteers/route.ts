@@ -1,70 +1,45 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import jwt from 'jsonwebtoken';
+import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
-
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    // Проверяем авторизацию
-    const token = request.cookies.get('token')?.value;
-    if (!token) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
-    
-    // Проверяем, что пользователь существует
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId }
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'Пользователь не найден' }, { status: 404 });
-    }
-
-    // Получаем всех волонтеров
     const volunteers = await prisma.user.findMany({
-      where: {
-        role: 'volunteer'
-      },
+      where: { role: 'volunteer' },
       include: {
         volunteerProfile: true,
-        skills: {
-          include: {
-            skill: true
-          }
-        }
+        skills: { include: { skill: true } },
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      orderBy: { createdAt: 'desc' },
     });
 
-    // Форматируем данные
-    const formattedVolunteers = volunteers.map(volunteer => ({
-      id: volunteer.id,
-      firstName: volunteer.firstName,
-      lastName: volunteer.lastName,
-      email: volunteer.email,
-      phone: volunteer.phone,
-      avatarUrl: volunteer.avatarUrl,
-      city: volunteer.city,
-      volunteerProfile: volunteer.volunteerProfile ? {
-        bio: volunteer.volunteerProfile.bio,
-        trustScore: volunteer.volunteerProfile.trustScore,
-        completedTasks: volunteer.volunteerProfile.completedTasks,
-        completedProjects: volunteer.volunteerProfile.completedProjects
-      } : null,
-      skills: volunteer.skills.map(us => ({
-        id: us.skill.id,
-        name: us.skill.name
-      }))
+    const formatted = volunteers.map((v) => ({
+      id: v.id,
+      firstName: v.firstName,
+      lastName: v.lastName,
+      email: v.email,
+      phone: v.phone,
+      avatarUrl: v.avatarUrl,
+      city: v.city,
+      volunteerProfile: v.volunteerProfile
+        ? {
+            bio: v.volunteerProfile.bio,
+            trustScore: v.volunteerProfile.trustScore,
+            completedTasks: v.volunteerProfile.completedTasks,
+            completedProjects: v.volunteerProfile.completedProjects,
+          }
+        : null,
+      skills: v.skills.map((us) => ({ id: us.skill.id, name: us.skill.name })),
     }));
 
-    return NextResponse.json({ volunteers: formattedVolunteers });
+    return NextResponse.json({ volunteers: formatted });
   } catch (error) {
     console.error('Error fetching volunteers:', error);
-    return NextResponse.json({ error: 'Внутренняя ошибка сервера' }, { status: 500 });
+    return NextResponse.json({ error: 'Ошибка сервера' }, { status: 500 });
   }
 }

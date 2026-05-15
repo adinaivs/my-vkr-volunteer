@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createSession } from '@/lib/auth';
-import { twoFactorCodes } from '../login/route';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,27 +14,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Проверяем код
-    const storedData = twoFactorCodes.get(email);
+    // Читаем код из БД
+    const settingKey = `2fa_code_${email.toLowerCase()}`;
+    const setting = await prisma.setting.findUnique({ where: { key: settingKey } });
 
-    if (!storedData) {
+    if (!setting) {
       return NextResponse.json(
         { error: 'Код не найден. Запросите новый' },
         { status: 401 }
       );
     }
 
+    const storedData = JSON.parse(setting.value) as { code: string; expiresAt: string; userId: string };
+
     // Проверяем срок действия
-    if (new Date() > storedData.expiresAt) {
-      twoFactorCodes.delete(email);
+    if (new Date() > new Date(storedData.expiresAt)) {
+      await prisma.setting.delete({ where: { key: settingKey } });
       return NextResponse.json(
-        { error: 'Код истек. Запросите новый' },
+        { error: 'Код истёк. Запросите новый' },
         { status: 401 }
       );
     }
 
     // Проверяем совпадение кода
-    if (storedData.code !== code) {
+    if (storedData.code !== String(code)) {
       return NextResponse.json(
         { error: 'Неверный код подтверждения' },
         { status: 401 }
@@ -43,7 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Удаляем использованный код
-    twoFactorCodes.delete(email);
+    await prisma.setting.delete({ where: { key: settingKey } });
 
     // Получаем пользователя
     const user = await prisma.user.findUnique({
