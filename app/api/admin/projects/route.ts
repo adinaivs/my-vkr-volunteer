@@ -26,6 +26,12 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || 'moderation';
+    const search = searchParams.get('search') || '';
+    const categoryId = searchParams.get('categoryId') || '';
+    const sortBy = searchParams.get('sortBy') || 'date-desc';
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '12', 10)));
+    const skip = (page - 1) * limit;
 
     const where: any = {};
 
@@ -35,40 +41,61 @@ export async function GET(request: NextRequest) {
     } else if (singleStatuses.includes(status)) {
       where.status = status;
     }
-    // Если status === 'all', не добавляем фильтр по статусу
 
-    const projects = await prisma.project.findMany({
-      where,
-      include: {
-        ...getCategoryInclude('ru'),
-        organizer: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            phone: true,
-            city: true,
-            organizerProfile: {
-              select: {
-                organizationName: true,
-              },
-            },
-          },
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { organizer: { firstName: { contains: search, mode: 'insensitive' } } },
+        { organizer: { lastName: { contains: search, mode: 'insensitive' } } },
+        { organizer: { organizerProfile: { organizationName: { contains: search, mode: 'insensitive' } } } },
+      ];
+    }
+
+    if (categoryId) {
+      where.categoryId = categoryId;
+    }
+
+    let orderBy: any = { createdAt: 'desc' };
+    switch (sortBy) {
+      case 'date-asc': orderBy = { createdAt: 'asc' }; break;
+      case 'name-asc': orderBy = { title: 'asc' }; break;
+      case 'name-desc': orderBy = { title: 'desc' }; break;
+      default: orderBy = { createdAt: 'desc' };
+    }
+
+    const include = {
+      ...getCategoryInclude('ru'),
+      organizer: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          city: true,
+          organizerProfile: { select: { organizationName: true } },
         },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+    };
 
-    // Форматируем категории с переводами
+    const [total, projects] = await Promise.all([
+      prisma.project.count({ where }),
+      prisma.project.findMany({ where, include, orderBy, skip, take: limit }),
+    ]);
+
     const projectsWithTranslations = projects.map(project => ({
       ...project,
       category: formatCategoryWithTranslation(project.category)
     }));
 
-    return NextResponse.json({ projects: projectsWithTranslations });
+    return NextResponse.json({
+      projects: projectsWithTranslations,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
   } catch (error) {
     console.error('Error fetching projects:', error);
     return NextResponse.json(

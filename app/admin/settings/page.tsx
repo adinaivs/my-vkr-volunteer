@@ -7,6 +7,7 @@ import AdminSidebar from '../components/AdminSidebar';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { useToast } from '@/app/components/ToastContainer';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface AdminUser {
   id: string;
@@ -19,6 +20,7 @@ interface AdminUser {
 export default function AdminSettingsPage() {
   const router = useRouter();
   const toast = useToast();
+  const { t } = useTranslation('admin');
   const [me, setMe] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [freePosts, setFreePosts] = useState(3);
@@ -91,8 +93,8 @@ export default function AdminSettingsPage() {
 
         <DynamicContent>
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Настройки</h1>
-            <p className="text-gray-500 mt-1 text-sm">Системные настройки платформы</p>
+            <h1 className="text-3xl font-bold text-gray-900">{t.settings?.title || 'Настройки'}</h1>
+            <p className="text-gray-500 mt-1 text-sm">{t.settings?.general || 'Системные настройки платформы'}</p>
           </div>
 
           <div className="space-y-6">
@@ -123,7 +125,7 @@ export default function AdminSettingsPage() {
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
-                      Изменить
+                      {t.common?.edit || 'Изменить'}
                     </button>
                   </div>
                 ) : (
@@ -148,14 +150,14 @@ export default function AdminSettingsPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                       )}
-                      Сохранить
+                      {t.common?.save || 'Сохранить'}
                     </button>
                     <button
                       onClick={() => { setTempFreePosts(freePosts); setEditingFreePosts(false); }}
                       disabled={savingFreePosts}
                       className="px-4 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
                     >
-                      Отмена
+                      {t.common?.cancel || 'Отмена'}
                     </button>
                   </div>
                 )}

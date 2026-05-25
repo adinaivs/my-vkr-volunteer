@@ -7,6 +7,7 @@ import AdminSidebar from '../components/AdminSidebar';
 import AdminNav from '../components/AdminNav';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface User {
   id: string;
@@ -95,6 +96,7 @@ function MiniBar({ data, maxVal, color = 'bg-[#00CC00]' }: { data: { label: stri
 
 export default function AdminDashboardPage() {
   const router = useRouter();
+  const { t } = useTranslation('admin');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [statistics, setStatistics] = useState<Statistics>({
@@ -138,11 +140,11 @@ export default function AdminDashboardPage() {
   }
 
   const stats = [
-    { label: 'Всего пользователей', value: statistics.totalUsers, color: 'bg-blue-100 text-blue-600', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
-    { label: 'Волонтёров', value: statistics.totalVolunteers, color: 'bg-green-100 text-green-600', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
-    { label: 'Организаторов', value: statistics.totalOrganizers, color: 'bg-purple-100 text-purple-600', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
-    { label: 'Активных проектов', value: statistics.activeProjects, color: 'bg-[#00CC00]/10 text-[#00CC00]', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-    { label: 'Ожидают проверки', value: statistics.pendingOrganizerApprovals, color: 'bg-orange-100 text-orange-600', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+    { label: t.dashboard?.statistics?.totalUsers || 'Всего пользователей', value: statistics.totalUsers, color: 'bg-blue-100 text-blue-600', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
+    { label: t.dashboard?.statistics?.totalVolunteers || 'Волонтёров', value: statistics.totalVolunteers, color: 'bg-green-100 text-green-600', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
+    { label: t.dashboard?.statistics?.totalOrganizers || 'Организаторов', value: statistics.totalOrganizers, color: 'bg-purple-100 text-purple-600', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
+    { label: t.dashboard?.statistics?.activeProjects || 'Активных проектов', value: statistics.activeProjects, color: 'bg-[#00CC00]/10 text-[#00CC00]', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+    { label: t.dashboard?.statistics?.pendingOrgApprovals || 'Ожидают проверки', value: statistics.pendingOrganizerApprovals, color: 'bg-orange-100 text-orange-600', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
   ];
 
   const quickActions = [
@@ -163,8 +165,8 @@ export default function AdminDashboardPage() {
 
         <DynamicContent>
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Добро пожаловать, {user?.firstName}!</h1>
-            <p className="text-gray-500 mt-1 text-sm">Панель администратора</p>
+            <h1 className="text-3xl font-bold text-gray-900">{t.dashboard?.welcome || 'Добро пожаловать'}, {user?.firstName}!</h1>
+            <p className="text-gray-500 mt-1 text-sm">{t.dashboard?.title || 'Панель администратора'}</p>
           </div>
 
           {/* Статистика */}
@@ -185,7 +187,7 @@ export default function AdminDashboardPage() {
           <div className="grid lg:grid-cols-2 gap-6 mb-6">
             {/* Быстрые действия */}
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Быстрые действия</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">{t.dashboard?.quickActions?.title || 'Быстрые действия'}</h2>
               <div className="grid grid-cols-2 gap-3">
                 {quickActions.map((a) => (
                   <Link key={a.href} href={a.href}
@@ -204,10 +206,10 @@ export default function AdminDashboardPage() {
 
             {/* Лента активности */}
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Последняя активность</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">{t.dashboard?.recentActivity?.title || 'Последняя активность'}</h2>
               <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                 {activity.length === 0 ? (
-                  <div className="p-8 text-center text-gray-400 text-sm">Нет активности</div>
+                  <div className="p-8 text-center text-gray-400 text-sm">{t.dashboard?.recentActivity?.noActivity || 'Нет активности'}</div>
                 ) : (
                   <ul className="divide-y divide-gray-50">
                     {activity.map((item, i) => {
@@ -238,23 +240,23 @@ export default function AdminDashboardPage() {
           {/* Аналитика */}
           {analytics && (
             <>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Аналитика</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">{t.analytics?.title || 'Аналитика'}</h2>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
                 {/* Регистрации по месяцам */}
                 <div className="bg-white rounded-2xl border border-gray-200 p-5">
-                  <p className="text-sm font-semibold text-gray-700 mb-3">Регистрации (6 мес.)</p>
+                  <p className="text-sm font-semibold text-gray-700 mb-3">{t.dashboard?.usersByMonth || 'Регистрации по месяцам'}</p>
                   <MiniBar data={analytics.monthlyRegistrations} maxVal={maxReg} color="bg-[#00CC00]" />
                 </div>
 
                 {/* Проекты по месяцам */}
                 <div className="bg-white rounded-2xl border border-gray-200 p-5">
-                  <p className="text-sm font-semibold text-gray-700 mb-3">Новые проекты (6 мес.)</p>
+                  <p className="text-sm font-semibold text-gray-700 mb-3">{t.dashboard?.projectsByMonth || 'Проекты по месяцам'}</p>
                   <MiniBar data={analytics.monthlyProjects} maxVal={maxProj} color="bg-blue-500" />
                 </div>
 
                 {/* Проекты по статусам */}
                 <div className="bg-white rounded-2xl border border-gray-200 p-5">
-                  <p className="text-sm font-semibold text-gray-700 mb-3">Проекты по статусам</p>
+                  <p className="text-sm font-semibold text-gray-700 mb-3">{t.dashboard?.projectsByStatus || 'Проекты по статусам'}</p>
                   <div className="space-y-1.5">
                     {analytics.projectsByStatus?.map((p: any) => {
                       const st = PROJECT_STATUS_LABELS[p.status] || { label: p.status, color: 'bg-gray-400' };
@@ -277,10 +279,10 @@ export default function AdminDashboardPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                   <div className="px-5 py-3 border-b border-gray-100">
-                    <p className="text-sm font-semibold text-gray-700">Топ волонтёров</p>
+                    <p className="text-sm font-semibold text-gray-700">{t.analytics?.topVolunteers || 'Топ волонтёры'}</p>
                   </div>
                   {analytics.topVolunteers?.length === 0 ? (
-                    <div className="p-6 text-center text-gray-400 text-sm">Нет данных</div>
+                    <div className="p-6 text-center text-gray-400 text-sm">{t.common?.noData || 'Нет данных'}</div>
                   ) : (
                     <ul className="divide-y divide-gray-50">
                       {analytics.topVolunteers?.slice(0, 5).map((v: any, i: number) => (
@@ -304,10 +306,10 @@ export default function AdminDashboardPage() {
                 {/* Топ организаторов */}
                 <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                   <div className="px-5 py-3 border-b border-gray-100">
-                    <p className="text-sm font-semibold text-gray-700">Топ организаторов</p>
+                    <p className="text-sm font-semibold text-gray-700">{t.analytics?.topOrganizers || 'Топ организаторы'}</p>
                   </div>
                   {analytics.topOrganizers?.length === 0 ? (
-                    <div className="p-6 text-center text-gray-400 text-sm">Нет данных</div>
+                    <div className="p-6 text-center text-gray-400 text-sm">{t.common?.noData || 'Нет данных'}</div>
                   ) : (
                     <ul className="divide-y divide-gray-50">
                       {analytics.topOrganizers?.slice(0, 5).map((o: any, i: number) => (

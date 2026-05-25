@@ -107,6 +107,12 @@ export async function proxy(request: NextRequest) {
   }
 
   // Если пользователь НЕ авторизован
+  // Исключение: детальная страница проекта публична — /volunteer/projects/[id] (без подпутей)
+  const isPublicProjectDetail = /^\/volunteer\/projects\/[^/]+$/.test(pathname);
+  if (isPublicProjectDetail) {
+    return NextResponse.next();
+  }
+
   // Проверяем, пытается ли он зайти на защищенные страницы
   const isProtectedPath = protectedPaths.some(path => pathname.startsWith(path));
 

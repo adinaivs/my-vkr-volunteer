@@ -54,13 +54,13 @@ export async function GET() {
     });
 
     if (!user) {
-      // Пользователь был удален из БД, но сессия еще существует
-      // Удаляем сессию и возвращаем 401
       await deleteSession();
-      return NextResponse.json(
-        { error: 'Пользователь не найден. Сессия удалена.' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Пользователь не найден. Сессия удалена.' }, { status: 401 });
+    }
+
+    if (user.status === 'blocked') {
+      await deleteSession();
+      return NextResponse.json({ error: 'Аккаунт заблокирован.' }, { status: 403 });
     }
 
     return NextResponse.json({ user });

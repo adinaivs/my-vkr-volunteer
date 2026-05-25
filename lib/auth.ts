@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { prisma } from '@/lib/prisma';
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'your-secret-key-change-in-production'
@@ -52,4 +53,22 @@ export async function getSession(): Promise<SessionPayload | null> {
 export async function deleteSession() {
   const cookieStore = await cookies();
   cookieStore.delete('session');
+}
+
+/**
+ * Возвращает сессию только если пользователь существует и НЕ заблокирован.
+ * Используется во всех mutation-роутах вместо getSession().
+ */
+export async function getAuthenticatedUser(): Promise<SessionPayload | null> {
+  const session = await getSession();
+  if (!session) return null;
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { status: true },
+  });
+
+  if (!user || user.status !== 'active') return null;
+
+  return session;
 }

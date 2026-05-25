@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+import { getSession, getAuthenticatedUser } from '@/lib/auth';
 
 // POST - Повторная отправка данных организатора на проверку
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
 
     if (!session) {
       return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });

@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, getAuthenticatedUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 // GET /api/chats - Список чатов текущего пользователя
 export async function GET() {
   try {
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
     if (!session) {
       return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
     }

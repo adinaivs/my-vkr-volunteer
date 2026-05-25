@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminSidebar from '../components/AdminSidebar';
 import AdminNav from '../components/AdminNav';
@@ -8,6 +8,8 @@ import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { useToast } from '@/app/components/ToastContainer';
 import CustomSelect from '@/app/components/CustomSelect';
+import { useTranslation } from '@/app/i18n/useTranslation';
+import { Tooltip } from '@/app/components/Tooltip';
 
 interface User {
   id: string;
@@ -40,6 +42,7 @@ interface OrganizerProfile {
 export default function AdminOrganizersPage() {
   const router = useRouter();
   const toast = useToast();
+  const { t } = useTranslation('admin');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [organizers, setOrganizers] = useState<OrganizerProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,94 +50,89 @@ export default function AdminOrganizersPage() {
   const [selectedOrganizer, setSelectedOrganizer] = useState<OrganizerProfile | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
-  
-  // Новые состояния для фильтрации и отображения
+
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'name-asc' | 'name-desc'>('date-desc');
   const [showFilters, setShowFilters] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalOrganizers, setTotalOrganizers] = useState(0);
+  const [dataLoading, setDataLoading] = useState(false);
 
-  // Блокировка скролла при открытии модального окна
   useEffect(() => {
     if (selectedOrganizer) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
     }
-    
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
+    return () => { document.body.style.overflow = 'unset'; };
   }, [selectedOrganizer]);
-
-  console.log('AdminOrganizersPage rendered');
-  console.log('Current user:', currentUser);
-  console.log('Organizers count:', organizers.length);
-  console.log('Filter:', filter);
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        console.log('Checking admin auth...');
         const response = await fetch('/api/auth/me');
-        console.log('Auth response status:', response.status);
-        
-        if (!response.ok) {
-          console.log('Not authenticated, redirecting to login');
-          router.push('/admin/login');
-          return;
-        }
-
+        if (!response.ok) { router.push('/admin/login'); return; }
         const data = await response.json();
-        console.log('User data:', data.user);
-        
-        if (data.user.role !== 'admin') {
-          console.log('User is not admin, redirecting to home');
-          router.push('/');
-          return;
-        }
-
-        console.log('Admin authenticated successfully');
+        if (data.user.role !== 'admin') { router.push('/'); return; }
         setCurrentUser(data.user);
-        // НЕ вызываем fetchOrganizers здесь - он вызовется через другой useEffect
       } catch (error) {
-        console.error('Auth check error:', error);
         router.push('/admin/login');
       }
     };
-
     checkAuth();
   }, [router]);
 
-  useEffect(() => {
-    // Загружаем организаторов только после успешной авторизации
-    if (currentUser) {
-      console.log('User is authenticated, fetching organizers...');
-      fetchOrganizers();
-    }
-  }, [filter, currentUser]);
-
-  const fetchOrganizers = async () => {
+  const fetchOrganizers = useCallback(async (pageNum = 1) => {
+    setDataLoading(true);
     try {
-      setLoading(true);
-      console.log('Fetching organizers with filter:', filter);
-      const response = await fetch(`/api/admin/organizers?status=${filter}`);
-      console.log('Response status:', response.status);
-      
+      const params = new URLSearchParams({ status: filter, page: String(pageNum), limit: '10', sortBy });
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      const response = await fetch(`/api/admin/organizers?${params}`);
       if (response.ok) {
         const data = await response.json();
-        console.log('Received data:', data);
-        console.log('Number of organizers:', data.organizers?.length || 0);
         setOrganizers(data.organizers);
-      } else {
-        const errorData = await response.json();
-        console.error('Error response:', errorData);
+        setTotalOrganizers(data.total);
+        setTotalPages(data.totalPages);
       }
     } catch (error) {
       console.error('Error fetching organizers:', error);
     } finally {
+      setDataLoading(false);
       setLoading(false);
     }
+  }, [filter, debouncedSearch, sortBy]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (currentUser) {
+      setPage(1);
+      fetchOrganizers(1);
+    }
+  }, [fetchOrganizers, currentUser]);
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    fetchOrganizers(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  function getPaginationPages(current: number, total: number): (number | string)[] {
+    const pages: (number | string)[] = [];
+    for (let i = 1; i <= total; i++) {
+      if (i === 1 || i === total || Math.abs(i - current) <= 1) {
+        pages.push(i);
+      } else if (pages[pages.length - 1] !== '...') {
+        pages.push('...');
+      }
+    }
+    return pages;
+  }
 
   const handleApprove = async (userId: string) => {
     toast.confirm(
@@ -142,20 +140,16 @@ export default function AdminOrganizersPage() {
       async () => {
         try {
           setActionLoading(true);
-          const response = await fetch(`/api/admin/organizers/${userId}/approve`, {
-            method: 'POST',
-          });
-
+          const response = await fetch(`/api/admin/organizers/${userId}/approve`, { method: 'POST' });
           if (response.ok) {
             toast.success('Организатор успешно подтвержден!');
-            fetchOrganizers();
+            fetchOrganizers(page);
             setSelectedOrganizer(null);
           } else {
             const data = await response.json();
             toast.error(data.error || 'Ошибка при подтверждении');
           }
         } catch (error) {
-          console.error('Error approving organizer:', error);
           toast.error('Ошибка при подтверждении организатора');
         } finally {
           setActionLoading(false);
@@ -170,7 +164,6 @@ export default function AdminOrganizersPage() {
       toast.error('Пожалуйста, укажите причину отклонения');
       return;
     }
-
     try {
       setActionLoading(true);
       const response = await fetch(`/api/admin/organizers/${userId}/reject`, {
@@ -178,10 +171,9 @@ export default function AdminOrganizersPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: rejectReason }),
       });
-
       if (response.ok) {
         toast.success('Организатор отклонен');
-        fetchOrganizers();
+        fetchOrganizers(page);
         setSelectedOrganizer(null);
         setRejectReason('');
       } else {
@@ -189,55 +181,18 @@ export default function AdminOrganizersPage() {
         toast.error(data.error || 'Ошибка при отклонении');
       }
     } catch (error) {
-      console.error('Error rejecting organizer:', error);
       toast.error('Ошибка при отклонении организатора');
     } finally {
       setActionLoading(false);
     }
   };
 
-  // Функция фильтрации и сортировки организаторов
-  const getFilteredAndSortedOrganizers = () => {
-    let filtered = [...organizers];
-
-    // Фильтр по поисковому запросу
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(organizer => 
-        organizer.organizationName.toLowerCase().includes(query) ||
-        organizer.user.firstName.toLowerCase().includes(query) ||
-        organizer.user.lastName.toLowerCase().includes(query) ||
-        organizer.user.email.toLowerCase().includes(query) ||
-        organizer.user.phone.toLowerCase().includes(query) ||
-        organizer.inn.toLowerCase().includes(query) ||
-        organizer.okpo.toLowerCase().includes(query)
-      );
-    }
-
-    // Сортировка
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'date-desc':
-          return new Date(b.user.createdAt).getTime() - new Date(a.user.createdAt).getTime();
-        case 'date-asc':
-          return new Date(a.user.createdAt).getTime() - new Date(b.user.createdAt).getTime();
-        case 'name-asc':
-          return a.organizationName.localeCompare(b.organizationName);
-        case 'name-desc':
-          return b.organizationName.localeCompare(a.organizationName);
-        default:
-          return 0;
-      }
-    });
-
-    return filtered;
-  };
-
-  // Функция сброса всех фильтров
   const resetFilters = () => {
     setSearchQuery('');
+    setDebouncedSearch('');
     setSortBy('date-desc');
     setFilter('pending');
+    setPage(1);
   };
 
   if (!currentUser) {
@@ -266,10 +221,10 @@ export default function AdminOrganizersPage() {
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Проверка организаторов
+              {t.organizers?.title || 'Организаторы'}
             </h1>
             <p className="text-gray-600">
-              Управление заявками на регистрацию организаторов
+              {t.organizers?.pendingApprovals || 'Ожидают одобрения'}
             </p>
           </div>
 
@@ -281,7 +236,7 @@ export default function AdminOrganizersPage() {
               <div className="flex-1 relative">
                 <input
                   type="text"
-                  placeholder="Поиск по названию, ФИО, email, телефону, ИНН, ОКПО..."
+                  placeholder={t.organizers?.searchPlaceholder || 'Поиск организатора...'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
@@ -296,17 +251,20 @@ export default function AdminOrganizersPage() {
                 </svg>
               </div>
 
-              {/* Кнопка сброса фильтров */}
-              <button
-                onClick={resetFilters}
-                className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl border border-gray-200 hover:bg-gray-200 transition-colors flex items-center gap-2"
-                title="Сбросить фильтры"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                <span className="hidden sm:inline">Сбросить</span>
-              </button>
+              {/* Кнопка сброса — только при активных фильтрах */}
+              {(searchQuery || filter !== 'pending' || sortBy !== 'date-desc') && (
+                <Tooltip text="Сбросить фильтры">
+                  <button
+                    onClick={resetFilters}
+                    className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl border border-gray-200 hover:bg-gray-200 transition-colors flex items-center gap-2 whitespace-nowrap"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span className="hidden sm:inline">Сбросить</span>
+                  </button>
+                </Tooltip>
+              )}
             </div>
 
             {/* Разделитель */}
@@ -375,7 +333,7 @@ export default function AdminOrganizersPage() {
                   <div className="flex items-end">
                     <div className="w-full px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
                       <p className="text-sm text-blue-900">
-                        <span className="font-bold">{getFilteredAndSortedOrganizers().length}</span> из <span className="font-bold">{organizers.length}</span> организаторов
+                        Всего: <span className="font-bold">{totalOrganizers}</span> организаторов
                       </p>
                     </div>
                   </div>
@@ -389,15 +347,21 @@ export default function AdminOrganizersPage() {
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00CC00] mx-auto"></div>
             </div>
-          ) : getFilteredAndSortedOrganizers().length === 0 ? (
+          ) : organizers.length === 0 ? (
             <div className="bg-white rounded-xl shadow-xl border border-gray-300 p-12 text-center">
               <p className="text-gray-500">
-                {searchQuery ? 'Организаторы не найдены. Попробуйте изменить параметры поиска.' : 'Нет организаторов для отображения'}
+                {debouncedSearch ? (t.organizers?.noOrganizers || 'Организаторы не найдены') : (t.organizers?.noPending || 'Нет ожидающих одобрения')}
               </p>
             </div>
           ) : (
+            <div className="relative">
+              {dataLoading && (
+                <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10 rounded-xl" style={{ minHeight: 200 }}>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00CC00]" />
+                </div>
+              )}
             <div className="grid gap-4">
-              {getFilteredAndSortedOrganizers().map((organizer) => (
+              {organizers.map((organizer) => (
                 <div
                   key={organizer.id}
                   className="bg-white rounded-xl shadow-xl border border-gray-300 p-6 hover:shadow-2xl transition-shadow"
@@ -549,14 +513,14 @@ export default function AdminOrganizersPage() {
                           disabled={actionLoading}
                           className="px-4 py-2 bg-[#00CC00] text-white rounded-lg hover:bg-[#00b300] transition-colors disabled:opacity-50"
                         >
-                          Подтвердить
+                          {t.organizers?.approveOrg || 'Одобрить'}
                         </button>
                         <button
                           onClick={() => setSelectedOrganizer(organizer)}
                           disabled={actionLoading}
                           className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
                         >
-                          Отклонить
+                          {t.organizers?.rejectOrg || 'Отклонить'}
                         </button>
                       </div>
                     )}
@@ -568,13 +532,46 @@ export default function AdminOrganizersPage() {
                           disabled={actionLoading}
                           className="px-4 py-2 bg-[#00CC00] text-white rounded-lg hover:bg-[#00b300] transition-colors disabled:opacity-50"
                         >
-                          Подтвердить
+                          {t.organizers?.approveOrg || 'Одобрить'}
                         </button>
                       </div>
                     )}
                   </div>
                 </div>
               ))}
+            </div>
+            {/* Пагинация */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-8 flex-wrap">
+                <button onClick={() => handlePageChange(page - 1)} disabled={page <= 1}
+                  className="flex items-center px-3 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                {getPaginationPages(page, totalPages).map((p, idx) =>
+                  p === '...' ? (
+                    <span key={`e-${idx}`} className="px-1 text-gray-400 text-sm">…</span>
+                  ) : (
+                    <button key={p} onClick={() => handlePageChange(p as number)}
+                      className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
+                        p === page ? 'bg-[#00CC00] text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}>{p}</button>
+                  )
+                )}
+                <button onClick={() => handlePageChange(page + 1)} disabled={page >= totalPages}
+                  className="flex items-center px-3 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            )}
+            {totalOrganizers > 0 && (
+              <p className="text-sm text-gray-500 text-center mt-3">
+                Показано {(page - 1) * 10 + 1}–{Math.min(page * 10, totalOrganizers)} из {totalOrganizers}
+              </p>
+            )}
             </div>
           )}
         </div>
@@ -585,7 +582,7 @@ export default function AdminOrganizersPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6">
             <h3 className="text-xl font-bold text-gray-900 mb-4">
-              Отклонить организатора
+              {t.organizers?.rejectOrg || 'Отклонить организатора'}
             </h3>
             <p className="text-gray-600 mb-4">
               Укажите причину отклонения заявки организатора{' '}
@@ -594,7 +591,7 @@ export default function AdminOrganizersPage() {
             <textarea
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="Причина отклонения..."
+              placeholder={t.organizers?.rejectReason || 'Причина отклонения...'}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00CC00] focus:border-transparent resize-none"
               rows={4}
             />
@@ -604,7 +601,7 @@ export default function AdminOrganizersPage() {
                 disabled={actionLoading || !rejectReason.trim()}
                 className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
               >
-                Отклонить
+                {t.organizers?.rejectOrg || 'Отклонить'}
               </button>
               <button
                 onClick={() => {
@@ -614,7 +611,7 @@ export default function AdminOrganizersPage() {
                 disabled={actionLoading}
                 className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50"
               >
-                Отмена
+                {t.common?.cancel || 'Отмена'}
               </button>
             </div>
           </div>

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+import { getSession, getAuthenticatedUser } from '@/lib/auth';
 import { getCategoryInclude, formatCategoryWithTranslation } from '@/lib/category-helpers';
 
 // GET /api/volunteer/applications - Получить заявки волонтера
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
 
     if (!session) {
       return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
@@ -25,7 +25,8 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status'); // 'pending', 'approved', 'rejected'
+    const status = searchParams.get('status');
+    const locale = (searchParams.get('locale') || 'ru') as 'ru' | 'kg';
 
     const where: any = {
       volunteerId: user.id,
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
       include: {
         project: {
           include: {
-            ...getCategoryInclude('ru'),
+            ...getCategoryInclude(locale),
             organizer: {
               select: {
                 id: true,

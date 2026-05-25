@@ -85,6 +85,12 @@ enum MessageSender {
   ai
 }
 
+enum NotificationType {
+  comment_reply
+  new_project
+  application_status
+}
+
 enum Language {
   ru
   kg
@@ -123,6 +129,9 @@ model User {
   directChatsAsUser1  DirectChat[]         @relation("DirectChatUser1")
   directChatsAsUser2  DirectChat[]         @relation("DirectChatUser2")
   directMessages      DirectMessage[]      @relation("DirectMessageSender")
+  calendarEvents      CalendarEvent[]
+  projectComments     ProjectComment[]
+  notifications       Notification[]
 
   @@map("users")
 }
@@ -215,7 +224,7 @@ model Interest {
 model Category {
   id   String @id @default(uuid()) @db.Uuid
   slug String @db.VarChar(100)
-  icon String @db.VarChar(50)
+  icon String @db.Text
 
   interests    Interest[]
   projects     Project[]
@@ -267,6 +276,7 @@ model Project {
   applications Application[]
   participants ProjectParticipant[]
   chat         ProjectChat?
+  comments     ProjectComment[]
 
   @@map("projects")
 }
@@ -283,10 +293,11 @@ model Task {
   status              TaskStatus @default(pending)
   createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
 
-  project      Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  skill        Skill?           @relation(fields: [requiredSkillId], references: [id])
-  assignments  TaskAssignment[]
-  applications Application[]
+  project        Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  skill          Skill?           @relation(fields: [requiredSkillId], references: [id])
+  assignments    TaskAssignment[]
+  applications   Application[]
+  calendarEvents CalendarEvent[]
 
   @@map("tasks")
 }
@@ -367,7 +378,7 @@ model Achievement {
   id             String        @id @default(uuid()) @db.Uuid
   name           String        @db.VarChar(100)
   description    String
-  icon           String        @db.VarChar(255)
+  icon           String        @db.Text
   conditionType  ConditionType @map("condition_type")
   conditionValue Int           @map("condition_value")
   isActive       Boolean       @default(true) @map("is_active")
@@ -580,4 +591,57 @@ model DirectMessage {
   sender User       @relation("DirectMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@map("direct_messages")
+}
+
+model ProjectComment {
+  id        String   @id @default(uuid()) @db.Uuid
+  projectId String   @map("project_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  text      String
+  parentId  String?  @map("parent_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  project Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  ProjectComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies ProjectComment[] @relation("CommentReplies")
+
+  @@map("project_comments")
+}
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  type      NotificationType
+  title     String           @db.VarChar(255)
+  body      String
+  link      String?          @db.VarChar(500)
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model CalendarEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  title       String   @db.VarChar(255)
+  description String?
+  startDate   DateTime @map("start_date") @db.Date
+  endDate     DateTime @map("end_date") @db.Date
+  startTime   String?  @map("start_time") @db.VarChar(5)
+  endTime     String?  @map("end_time") @db.VarChar(5)
+  color       String   @default("#00CC00") @db.VarChar(20)
+  isAllDay    Boolean  @default(true) @map("is_all_day")
+  location    String?  @db.VarChar(255)
+  taskId      String?  @map("task_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@map("calendar_events")
 }

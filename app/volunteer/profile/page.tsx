@@ -8,6 +8,8 @@ import AiSupportButton from '@/app/components/AiSupportButton';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { useToast } from '@/app/components/ToastContainer';
+import { useTranslation } from '@/app/i18n/useTranslation';
+import CustomSelect from '@/app/components/CustomSelect';
 
 interface Skill {
   id: string;
@@ -36,7 +38,23 @@ interface UserData {
   skills: Skill[];
 }
 
-function StarRating({ score, count }: { score: number; count: number }) {
+function getRatingWord(count: number, locale: string, ratingsCountLabel: string): string {
+  if (locale === 'kg') return ratingsCountLabel || 'баалоо';
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod100 >= 11 && mod100 <= 14) return ratingsCountLabel || 'оценок';
+  if (mod10 === 1) return 'оценка';
+  if (mod10 >= 2 && mod10 <= 4) return 'оценки';
+  return ratingsCountLabel || 'оценок';
+}
+
+function StarRating({ score, count, locale, noRatingsLabel, ratingsCountLabel }: {
+  score: number;
+  count: number;
+  locale: string;
+  noRatingsLabel: string;
+  ratingsCountLabel: string;
+}) {
   return (
     <div className="flex items-center gap-2">
       <div className="flex items-center gap-0.5">
@@ -66,24 +84,16 @@ function StarRating({ score, count }: { score: number; count: number }) {
         {score > 0 ? score.toFixed(1) : '—'}
       </span>
       <span className="text-sm text-gray-500">
-        {count > 0 ? `(${count} ${getRatingWord(count)})` : 'Нет оценок'}
+        {count > 0 ? `(${count} ${getRatingWord(count, locale, ratingsCountLabel)})` : noRatingsLabel}
       </span>
     </div>
   );
 }
 
-function getRatingWord(count: number): string {
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-  if (mod100 >= 11 && mod100 <= 14) return 'оценок';
-  if (mod10 === 1) return 'оценка';
-  if (mod10 >= 2 && mod10 <= 4) return 'оценки';
-  return 'оценок';
-}
-
 export default function VolunteerProfilePage() {
   const router = useRouter();
   const toast = useToast();
+  const { t, locale } = useTranslation('volunteer');
 
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -284,7 +294,7 @@ ${achievements.length > 0 ? `
     const fetchSkills = async () => {
       setSkillsLoading(true);
       try {
-        const res = await fetch('/api/skills?locale=ru');
+        const res = await fetch(`/api/skills?locale=${locale}`);
         if (res.ok) {
           const data = await res.json();
           setAllSkills(data.skills);
@@ -294,7 +304,7 @@ ${achievements.length > 0 ? `
       }
     };
     fetchSkills();
-  }, []);
+  }, [locale]);
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -418,91 +428,112 @@ ${achievements.length > 0 ? `
         <DynamicContent maxWidth="max-w-5xl">
           {/* Profile Header */}
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-6">
-            <div className="h-32 bg-gradient-to-r from-[#00CC00] to-emerald-500"></div>
-            <div className="px-8 pb-8">
-              <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 -mt-16">
-                <label className="relative group cursor-pointer shrink-0">
-                  {user.avatarUrl ? (
-                    <img
-                      src={user.avatarUrl}
-                      alt={user.firstName}
-                      className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
-                    />
-                  ) : (
-                    <div className="w-32 h-32 rounded-full bg-[#00CC00] flex items-center justify-center text-white font-bold text-4xl border-4 border-white shadow-lg">
-                      {user.firstName?.[0]}{user.lastName?.[0]}
+            {/* Green section: buttons top-right, name bottom-left after avatar */}
+            <div className="bg-gradient-to-r from-[#00CC00] to-emerald-500 px-8 pt-4 pb-4 relative flex flex-col justify-end" style={{ minHeight: '7rem' }}>
+              <div className="absolute top-4 right-8 flex gap-3">
+                <button
+                  onClick={handleDownloadBooklet}
+                  disabled={generatingBooklet}
+                  className="flex items-center gap-2 px-5 py-2 bg-white/20 text-white rounded-full font-medium hover:bg-white/30 transition-colors disabled:opacity-60 text-sm"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  {generatingBooklet ? (t.profile?.bookletGenerating || 'Формирование...') : (t.profile?.bookletPdf || 'Книжка PDF')}
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="px-5 py-2 bg-white/20 text-white rounded-full font-medium hover:bg-white/30 transition-colors text-sm"
+                >
+                  {t.profile?.logout || 'Выйти'}
+                </button>
+              </div>
+              <div className="pl-40">
+                <h1 className="text-3xl font-bold text-white leading-tight">
+                  {user.firstName} {user.lastName}
+                </h1>
+              </div>
+            </div>
+
+            {/* White section — avatar + all personal data */}
+            <div className="relative px-8 pb-8">
+              {/* Avatar — left side, centered at green/white boundary */}
+              <div className="absolute -top-16 left-8">
+                <div className="relative w-32 h-32">
+                  <label className="relative group cursor-pointer block w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg">
+                    {user.avatarUrl ? (
+                      <img src={user.avatarUrl} alt={user.firstName} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-[#00CC00] flex items-center justify-center text-white font-bold text-4xl">
+                        {user.firstName?.[0]}{user.lastName?.[0]}
+                      </div>
+                    )}
+                    <div className="absolute inset-0 rounded-full bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      {uploadingAvatar ? (
+                        <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent" />
+                      ) : (
+                        <>
+                          <svg className="w-6 h-6 text-white mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          <span className="text-white text-xs font-medium">Изменить</span>
+                        </>
+                      )}
+                    </div>
+                    <input type="file" accept="image/jpeg,image/png,image/jpg,image/webp" className="hidden" disabled={uploadingAvatar} onChange={handleAvatarChange} />
+                  </label>
+
+                  {/* Pencil button */}
+                  <div className="absolute bottom-1 right-1 z-10 group/pencil">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(true)}
+                      className="w-8 h-8 bg-white rounded-full shadow-md border border-gray-200 flex items-center justify-center transition-all hover:bg-[#00CC00] hover:border-[#00CC00]"
+                    >
+                      <svg className="w-3.5 h-3.5 text-gray-600 group-hover/pencil:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </button>
+                    <div className="absolute bottom-full right-0 mb-2 pointer-events-none opacity-0 group-hover/pencil:opacity-100 transition-opacity">
+                      <span className="block px-2.5 py-1 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap shadow-lg">
+                        {t.profile?.editProfile || 'Редактировать'}
+                      </span>
+                      <span className="block w-0 h-0 ml-auto mr-3 border-4 border-transparent border-t-gray-900" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* All personal data, shifted right of avatar */}
+              <div className="pt-5 pl-40">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-28 gap-y-3 mb-4">
+                  <div>
+                    <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Email</div>
+                    <div className="text-gray-800 font-medium text-sm">{user.email}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">{t.profile?.phone || 'Телефон'}</div>
+                    <div className="text-gray-800 font-medium text-sm">{user.phone || <span className="text-gray-400 italic">Не указан</span>}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">{t.profile?.city || 'Город'}</div>
+                    <div className="text-gray-800 font-medium text-sm">{user.city || <span className="text-gray-400 italic">Не указан</span>}</div>
+                  </div>
+                  {profile?.bio?.trim() && (
+                    <div className="sm:col-span-2">
+                      <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">{t.profile?.bio || 'О себе'}</div>
+                      <div className="text-gray-700 text-sm">{profile.bio}</div>
                     </div>
                   )}
-                  <div className="absolute inset-0 rounded-full bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    {uploadingAvatar ? (
-                      <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent" />
-                    ) : (
-                      <>
-                        <svg className="w-6 h-6 text-white mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        <span className="text-white text-xs font-medium">Изменить</span>
-                      </>
-                    )}
-                  </div>
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/jpg,image/webp"
-                    className="hidden"
-                    disabled={uploadingAvatar}
-                    onChange={handleAvatarChange}
-                  />
-                </label>
-
-                <div className="flex-1 text-center sm:text-left sm:mt-12">
-                  <h1 className="text-3xl font-bold text-gray-900 mb-1">
-                    {user.firstName} {user.lastName}
-                  </h1>
-                  <p className="text-gray-500 text-sm mb-3">{user.email}</p>
-                  <StarRating
-                    score={Number(profile?.trustScore ?? 0)}
-                    count={profile?.ratingCount ?? 0}
-                  />
                 </div>
-
-                <div className="flex flex-wrap gap-3 sm:mt-12">
-                  <button
-                    onClick={() => {
-                      if (editing) {
-                        setEditing(false);
-                        setFormData({
-                          firstName: user.firstName,
-                          lastName: user.lastName,
-                          phone: user.phone,
-                          city: user.city,
-                          bio: profile?.bio ?? '',
-                        });
-                      } else {
-                        setEditing(true);
-                      }
-                    }}
-                    className="px-6 py-2 bg-[#00CC00] text-white rounded-full font-medium hover:bg-[#00b300] transition-colors"
-                  >
-                    {editing ? 'Отменить' : 'Редактировать'}
-                  </button>
-                  <button
-                    onClick={handleDownloadBooklet}
-                    disabled={generatingBooklet}
-                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-full font-medium hover:bg-blue-700 transition-colors disabled:opacity-60"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    {generatingBooklet ? 'Формирование...' : 'Книжка PDF'}
-                  </button>
-                  <button
-                    onClick={handleLogout}
-                    className="px-6 py-2 bg-gray-100 text-gray-700 rounded-full font-medium hover:bg-gray-200 transition-colors"
-                  >
-                    Выйти
-                  </button>
-                </div>
+                <StarRating
+                  score={Number(profile?.trustScore ?? 0)}
+                  count={profile?.ratingCount ?? 0}
+                  locale={locale}
+                  noRatingsLabel={t.profile?.noRatings || 'Нет оценок'}
+                  ratingsCountLabel={t.profile?.ratingsCount || 'оценок'}
+                />
               </div>
             </div>
           </div>
@@ -518,7 +549,7 @@ ${achievements.length > 0 ? `
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">{profile?.completedProjects ?? 0}</div>
-                  <div className="text-sm text-gray-600">Завершено проектов</div>
+                  <div className="text-sm text-gray-600">{t.profile?.completedProjects || 'Проектов завершено'}</div>
                 </div>
               </div>
             </div>
@@ -532,7 +563,7 @@ ${achievements.length > 0 ? `
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">{profile?.completedTasks ?? 0}</div>
-                  <div className="text-sm text-gray-600">Выполнено задач</div>
+                  <div className="text-sm text-gray-600">{t.profile?.completedTasks || 'Задач выполнено'}</div>
                 </div>
               </div>
             </div>
@@ -548,141 +579,25 @@ ${achievements.length > 0 ? `
                   <div className="text-2xl font-bold text-gray-900">
                     {profile?.ratingCount ?? 0 > 0 ? Number(profile?.trustScore ?? 0).toFixed(1) : '—'}
                   </div>
-                  <div className="text-sm text-gray-600">Средний рейтинг</div>
+                  <div className="text-sm text-gray-600">{t.profile?.reliabilityScore || 'Средний рейтинг'}</div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Personal Information */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Личная информация</h2>
-
-            {editing ? (
-              <form onSubmit={handleSave} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Имя</label>
-                    <input
-                      type="text"
-                      value={formData.firstName}
-                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                      required
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Фамилия</label>
-                    <input
-                      type="text"
-                      value={formData.lastName}
-                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                      required
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Телефон</label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Город</label>
-                    <input
-                      type="text"
-                      value={formData.city}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">О себе</label>
-                  <textarea
-                    value={formData.bio}
-                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                    rows={4}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent resize-none"
-                    placeholder="Расскажите о себе, своих интересах..."
-                  />
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="px-6 py-3 bg-[#00CC00] text-white rounded-xl font-medium hover:bg-[#00b300] transition-colors disabled:opacity-60"
-                  >
-                    {saving ? 'Сохранение...' : 'Сохранить изменения'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditing(false)}
-                    className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
-                  >
-                    Отменить
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div className="space-y-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Имя</div>
-                    <div className="text-gray-900 font-medium">{user.firstName} {user.lastName}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Email</div>
-                    <div className="text-gray-900 font-medium">{user.email}</div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Телефон</div>
-                    <div className="text-gray-900 font-medium">{user.phone}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Город</div>
-                    <div className="text-gray-900 font-medium">{user.city}</div>
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">О себе</div>
-                  <div className="text-gray-900">
-                    {profile?.bio?.trim() ? profile.bio : (
-                      <span className="text-gray-400 italic">Не указано</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* Skills */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Навыки</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">{t.profile?.skills || 'Навыки'}</h2>
 
-            {/* Current skills */}
             {user.skills.length > 0 ? (
               <div className="flex flex-wrap gap-2 mb-6">
                 {user.skills.map((skill) => (
-                  <span
-                    key={skill.id}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-800 rounded-full text-sm font-medium border border-green-200"
-                  >
+                  <span key={skill.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-800 rounded-full text-sm font-medium border border-green-200">
                     {skill.name}
                     <button
                       onClick={() => handleRemoveSkill(skill.id)}
                       className="w-4 h-4 flex items-center justify-center rounded-full hover:bg-green-200 transition-colors text-green-600 hover:text-green-900"
-                      title="Удалить навык"
+                      title={t.profile?.removeSkill || 'Удалить навык'}
                     >
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
@@ -692,42 +607,36 @@ ${achievements.length > 0 ? `
                 ))}
               </div>
             ) : (
-              <p className="text-gray-400 italic text-sm mb-6">Навыки не добавлены</p>
+              <p className="text-gray-400 italic text-sm mb-6">{t.profile?.noSkillsAdded || 'Навыки не добавлены'}</p>
             )}
 
-            {/* Add skill */}
             {!skillsLoading && availableSkillsToAdd.length > 0 && (
               <div className="flex items-center gap-3">
-                <select
+                <CustomSelect
+                  className="flex-1"
                   value={selectedSkillId}
-                  onChange={(e) => setSelectedSkillId(e.target.value)}
-                  className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
-                >
-                  <option value="">Выберите навык для добавления...</option>
-                  {availableSkillsToAdd.map((skill) => (
-                    <option key={skill.id} value={skill.id}>
-                      {skill.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setSelectedSkillId}
+                  placeholder={t.profile?.selectSkillPlaceholder || 'Выберите навык для добавления...'}
+                  options={availableSkillsToAdd.map((skill) => ({ value: skill.id, label: skill.name }))}
+                />
                 <button
                   onClick={handleAddSkill}
                   disabled={!selectedSkillId || addingSkill}
                   className="px-5 py-2.5 bg-[#00CC00] text-white rounded-xl text-sm font-medium hover:bg-[#00b300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
-                  {addingSkill ? 'Добавление...' : 'Добавить'}
+                  {addingSkill ? (t.profile?.addingSkill || 'Добавление...') : (t.profile?.addSkill || 'Добавить')}
                 </button>
               </div>
             )}
 
             {skillsLoading && (
-              <div className="text-sm text-gray-400">Загрузка навыков...</div>
+              <div className="text-sm text-gray-400">{t.profile?.loadingSkills || 'Загрузка навыков...'}</div>
             )}
           </div>
 
           {/* Rating detail */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Рейтинг</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">{t.profile?.ratingTitle || 'Рейтинг'}</h2>
 
             {(profile?.ratingCount ?? 0) > 0 ? (
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
@@ -735,16 +644,18 @@ ${achievements.length > 0 ? `
                   <div className="text-6xl font-bold text-gray-900 mb-1">
                     {Number(profile?.trustScore ?? 0).toFixed(1)}
                   </div>
-                  <div className="text-sm text-gray-500">из 5.0</div>
+                  <div className="text-sm text-gray-500">{t.profile?.outOfFive || 'из 5.0'}</div>
                 </div>
                 <div className="flex-1">
                   <StarRating
                     score={Number(profile?.trustScore ?? 0)}
                     count={profile?.ratingCount ?? 0}
+                    locale={locale}
+                    noRatingsLabel={t.profile?.noRatings || 'Нет оценок'}
+                    ratingsCountLabel={t.profile?.ratingsCount || 'оценок'}
                   />
                   <p className="mt-3 text-sm text-gray-600">
-                    Рейтинг формируется на основе оценок от организаторов после подтверждения
-                    выполненных задач. Чем выше рейтинг, тем больше доверия к волонтёру.
+                    {t.profile?.ratingDescription || 'Рейтинг формируется на основе оценок от организаторов после подтверждения выполненных задач. Чем выше рейтинг, тем больше доверия к волонтёру.'}
                   </p>
                 </div>
               </div>
@@ -755,9 +666,9 @@ ${achievements.length > 0 ? `
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Рейтинг пока не сформирован</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{t.profile?.ratingNotFormed || 'Рейтинг пока не сформирован'}</h3>
                 <p className="text-gray-500 text-sm">
-                  Выполняйте задачи и получайте оценки от организаторов, чтобы повысить свой рейтинг.
+                  {t.profile?.ratingNotFormedHint || 'Выполняйте задачи и получайте оценки от организаторов, чтобы повысить свой рейтинг.'}
                 </p>
               </div>
             )}
@@ -766,6 +677,106 @@ ${achievements.length > 0 ? `
 
         <AiSupportButton />
       </div>
+
+      {/* Edit Profile Modal */}
+      {editing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setEditing(false)}>
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-xl font-bold text-gray-900">{t.profile?.editProfile || 'Редактирование профиля'}</h2>
+              <button
+                type="button"
+                onClick={() => setEditing(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal body */}
+            <form onSubmit={handleSave} className="px-6 py-5 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.profile?.firstName || 'Имя'}</label>
+                  <input
+                    type="text"
+                    value={formData.firstName}
+                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                    required
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.profile?.lastName || 'Фамилия'}</label>
+                  <input
+                    type="text"
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    required
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.profile?.phone || 'Телефон'}</label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.profile?.city || 'Город'}</label>
+                  <input
+                    type="text"
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.profile?.bio || 'О себе'}</label>
+                <textarea
+                  value={formData.bio}
+                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                  rows={3}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent resize-none"
+                  placeholder="Расскажите о себе, своих интересах..."
+                />
+              </div>
+
+              {/* Modal footer */}
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 py-2.5 bg-[#00CC00] text-white rounded-xl font-medium hover:bg-[#00b300] transition-colors disabled:opacity-60"
+                >
+                  {saving ? (t.common?.saving || 'Сохранение...') : (t.profile?.saveChanges || 'Сохранить')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditing(false)}
+                  className="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+                >
+                  {t.common?.cancel || 'Отменить'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </SidebarProvider>
   );
 }

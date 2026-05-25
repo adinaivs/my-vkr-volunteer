@@ -8,6 +8,7 @@ import AiSupportButton from '@/app/components/AiSupportButton';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { useToast } from '@/app/components/ToastContainer';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface OrganizerProfileData {
   organizationName: string;
@@ -49,6 +50,7 @@ interface Stats {
 export default function OrganizerProfile() {
   const router = useRouter();
   const toast = useToast();
+  const { t } = useTranslation('organizer');
 
   const [user, setUser] = useState<UserData | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -197,7 +199,7 @@ export default function OrganizerProfile() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00CC00] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Загрузка...</p>
+          <p className="mt-4 text-gray-600">{t.common?.loading || 'Загрузка...'}</p>
         </div>
       </div>
     );
@@ -214,80 +216,93 @@ export default function OrganizerProfile() {
         <DynamicContent maxWidth="max-w-5xl">
           {/* Profile Header */}
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-6">
-            <div className="h-32 bg-gradient-to-r from-[#00CC00] to-emerald-500"></div>
-            <div className="px-8 pb-8">
-              <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 -mt-16">
-                {/* Avatar with upload overlay */}
-                <label className="relative group cursor-pointer shrink-0">
-                  {user.avatarUrl ? (
-                    <img
-                      src={user.avatarUrl}
-                      alt={user.firstName}
-                      className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
-                    />
-                  ) : (
-                    <div className="w-32 h-32 rounded-full bg-[#00CC00] flex items-center justify-center text-white font-bold text-4xl border-4 border-white shadow-lg">
-                      {user.firstName?.[0]}{user.lastName?.[0]}
-                    </div>
-                  )}
-                  <div className="absolute inset-0 rounded-full bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    {uploadingAvatar ? (
-                      <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent" />
+            {/* Зелёная шапка: имя снизу слева, кнопки сверху справа */}
+            <div className="bg-gradient-to-r from-[#00CC00] to-emerald-500 px-8 pt-4 pb-4 relative flex flex-col justify-end" style={{ minHeight: '7rem' }}>
+              <div className="absolute top-4 right-8 flex gap-3">
+                <button
+                  onClick={handleLogout}
+                  className="px-5 py-2 bg-white/20 text-white rounded-full font-medium hover:bg-white/30 transition-colors text-sm"
+                >
+                  {t.profile?.logout || 'Выйти'}
+                </button>
+              </div>
+              <div className="pl-40">
+                <h1 className="text-3xl font-bold text-white leading-tight">
+                  {user.firstName} {user.lastName}
+                </h1>
+              </div>
+            </div>
+
+            {/* Белая часть: аватар + данные */}
+            <div className="relative px-8 pb-8">
+              {/* Аватар на границе зелёного и белого */}
+              <div className="absolute -top-16 left-8">
+                <div className="relative w-32 h-32">
+                  <label className="relative group cursor-pointer block w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg">
+                    {user.avatarUrl ? (
+                      <img src={user.avatarUrl} alt={user.firstName} className="w-full h-full object-cover" />
                     ) : (
-                      <>
-                        <svg className="w-6 h-6 text-white mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        <span className="text-white text-xs font-medium">Изменить</span>
-                      </>
+                      <div className="w-full h-full bg-[#00CC00] flex items-center justify-center text-white font-bold text-4xl">
+                        {user.firstName?.[0]}{user.lastName?.[0]}
+                      </div>
                     )}
+                    <div className="absolute inset-0 rounded-full bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      {uploadingAvatar ? (
+                        <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent" />
+                      ) : (
+                        <>
+                          <svg className="w-6 h-6 text-white mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          <span className="text-white text-xs font-medium">Изменить</span>
+                        </>
+                      )}
+                    </div>
+                    <input type="file" accept="image/jpeg,image/png,image/jpg,image/webp" className="hidden" disabled={uploadingAvatar} onChange={handleAvatarChange} />
+                  </label>
+                  {/* Карандаш */}
+                  <div className="absolute bottom-1 right-1 z-10 group/pencil">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(true)}
+                      className="w-8 h-8 bg-white rounded-full shadow-md border border-gray-200 flex items-center justify-center hover:bg-[#00CC00] hover:border-[#00CC00] transition-all"
+                    >
+                      <svg className="w-3.5 h-3.5 text-gray-600 group-hover/pencil:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </button>
+                    <div className="absolute bottom-full right-0 mb-2 pointer-events-none opacity-0 group-hover/pencil:opacity-100 transition-opacity">
+                      <span className="block px-2.5 py-1 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap shadow-lg">
+                        {t.profile?.editProfile || 'Редактировать'}
+                      </span>
+                      <span className="block w-0 h-0 ml-auto mr-3 border-4 border-transparent border-t-gray-900" />
+                    </div>
                   </div>
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/jpg,image/webp"
-                    className="hidden"
-                    disabled={uploadingAvatar}
-                    onChange={handleAvatarChange}
-                  />
-                </label>
-
-                <div className="flex-1 text-center sm:text-left sm:mt-12">
-                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mb-1">
-                    <h1 className="text-3xl font-bold text-gray-900">
-                      {user.firstName} {user.lastName}
-                    </h1>
-                    {getVerificationBadge()}
-                  </div>
-                  <p className="text-gray-700 font-medium mb-1">{profile?.organizationName}</p>
-                  <p className="text-sm text-gray-500">{user.email}</p>
                 </div>
+              </div>
 
-                <div className="flex gap-3 sm:mt-12">
-                  <button
-                    onClick={() => {
-                      if (editing) {
-                        setEditing(false);
-                        setFormData({
-                          firstName: user.firstName,
-                          lastName: user.lastName,
-                          phone: user.phone,
-                          city: user.city,
-                        });
-                      } else {
-                        setEditing(true);
-                      }
-                    }}
-                    className="px-6 py-2 bg-[#00CC00] text-white rounded-full font-medium hover:bg-[#00b300] transition-colors"
-                  >
-                    {editing ? 'Отменить' : 'Редактировать'}
-                  </button>
-                  <button
-                    onClick={handleLogout}
-                    className="px-6 py-2 bg-gray-100 text-gray-700 rounded-full font-medium hover:bg-gray-200 transition-colors"
-                  >
-                    Выйти
-                  </button>
+              {/* Данные справа от аватара */}
+              <div className="pt-5 pl-40">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  {getVerificationBadge()}
+                  {profile?.organizationName && (
+                    <span className="text-sm font-semibold text-gray-700">{profile.organizationName}</span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-3">
+                  <div>
+                    <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Email</div>
+                    <div className="text-gray-800 font-medium text-sm">{user.email}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">{t.profile?.phone || 'Телефон'}</div>
+                    <div className="text-gray-800 font-medium text-sm">{user.phone || <span className="text-gray-400 italic">Не указан</span>}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">{t.profile?.city || 'Город'}</div>
+                    <div className="text-gray-800 font-medium text-sm">{user.city || <span className="text-gray-400 italic">Не указан</span>}</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -359,7 +374,7 @@ export default function OrganizerProfile() {
                 </svg>
               </div>
               <div className="text-2xl font-bold text-gray-900">{stats?.totalProjects ?? 0}</div>
-              <div className="text-xs text-gray-500 mt-1">Всего проектов</div>
+              <div className="text-xs text-gray-500 mt-1">{t.profile?.totalProjects || 'Всего проектов'}</div>
             </div>
 
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
@@ -369,7 +384,7 @@ export default function OrganizerProfile() {
                 </svg>
               </div>
               <div className="text-2xl font-bold text-gray-900">{stats?.activeProjects ?? 0}</div>
-              <div className="text-xs text-gray-500 mt-1">Активных</div>
+              <div className="text-xs text-gray-500 mt-1">{t.profile?.activeProjects || 'Активных'}</div>
             </div>
 
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
@@ -379,7 +394,7 @@ export default function OrganizerProfile() {
                 </svg>
               </div>
               <div className="text-2xl font-bold text-gray-900">{stats?.volunteersCount ?? 0}</div>
-              <div className="text-xs text-gray-500 mt-1">Волонтёров</div>
+              <div className="text-xs text-gray-500 mt-1">{t.profile?.totalVolunteers || 'Волонтёров'}</div>
             </div>
 
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
@@ -389,101 +404,8 @@ export default function OrganizerProfile() {
                 </svg>
               </div>
               <div className="text-2xl font-bold text-gray-900">{profile?.freePostsRemaining ?? 0}</div>
-              <div className="text-xs text-gray-500 mt-1">Бесплатных публикаций</div>
+              <div className="text-xs text-gray-500 mt-1">{t.projects?.freePostsLeft || 'Бесплатных публикаций'}</div>
             </div>
-          </div>
-
-          {/* Personal Information */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Личная информация</h2>
-
-            {editing ? (
-              <form onSubmit={handleSave} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Имя</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.firstName}
-                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Фамилия</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.lastName}
-                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Телефон</label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Город</label>
-                    <input
-                      type="text"
-                      value={formData.city}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="px-6 py-3 bg-[#00CC00] text-white rounded-xl font-medium hover:bg-[#00b300] transition-colors disabled:opacity-60"
-                  >
-                    {saving ? 'Сохранение...' : 'Сохранить изменения'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditing(false)}
-                    className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
-                  >
-                    Отменить
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div className="space-y-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Имя</div>
-                    <div className="text-gray-900 font-medium">{user.firstName} {user.lastName}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Email</div>
-                    <div className="text-gray-900 font-medium">{user.email}</div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Телефон</div>
-                    <div className="text-gray-900 font-medium">{user.phone}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Город</div>
-                    <div className="text-gray-900 font-medium">{user.city}</div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Organization Information */}
@@ -563,6 +485,95 @@ export default function OrganizerProfile() {
 
         <AiSupportButton />
       </div>
+
+      {/* Edit Profile Modal */}
+      {editing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => { setEditing(false); setFormData({ firstName: user.firstName, lastName: user.lastName, phone: user.phone, city: user.city }); }}>
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-xl font-bold text-gray-900">{t.profile?.editProfile || 'Редактирование профиля'}</h2>
+              <button
+                type="button"
+                onClick={() => { setEditing(false); setFormData({ firstName: user.firstName, lastName: user.lastName, phone: user.phone, city: user.city }); }}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal body */}
+            <form onSubmit={handleSave} className="px-6 py-5 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.profile?.firstName || 'Имя'}</label>
+                  <input
+                    type="text"
+                    value={formData.firstName}
+                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                    required
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.profile?.lastName || 'Фамилия'}</label>
+                  <input
+                    type="text"
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    required
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.profile?.phone || 'Телефон'}</label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.profile?.city || 'Город'}</label>
+                  <input
+                    type="text"
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* Modal footer */}
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 py-2.5 bg-[#00CC00] text-white rounded-xl font-medium hover:bg-[#00b300] transition-colors disabled:opacity-60"
+                >
+                  {saving ? (t.common?.loading || 'Сохранение...') : (t.profile?.saveChanges || 'Сохранить изменения')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setEditing(false); setFormData({ firstName: user.firstName, lastName: user.lastName, phone: user.phone, city: user.city }); }}
+                  className="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+                >
+                  {t.common?.cancel || 'Отменить'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </SidebarProvider>
   );
 }

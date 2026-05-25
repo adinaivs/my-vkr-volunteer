@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+import { getSession, getAuthenticatedUser } from '@/lib/auth';
 import { getCategoryInclude, formatCategoryWithTranslation } from '@/lib/category-helpers';
 import { uploadToS3, validateFile } from '@/lib/s3';
 import { checkAchievementsOnProjectCreated } from '@/lib/achievements';
@@ -8,7 +8,7 @@ import { checkAchievementsOnProjectCreated } from '@/lib/achievements';
 // POST - Создать новый проект
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
 
     if (!session) {
       return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
@@ -249,6 +249,13 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const categoryId = searchParams.get('categoryId');
     const organizerId = searchParams.get('organizerId');
+    const locale = (searchParams.get('locale') || 'ru') as 'ru' | 'kg';
+    const search = searchParams.get('search') || '';
+    const city = searchParams.get('city') || '';
+    const sortBy = searchParams.get('sortBy') || 'date-desc';
+    const endDateAfter = searchParams.get('endDateAfter');
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const limit = Math.max(1, Math.min(50, parseInt(searchParams.get('limit') || '9')));
 
     const where: any = {};
 
@@ -256,7 +263,7 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
 
-    if (categoryId) {
+    if (categoryId && categoryId !== 'all') {
       where.categoryId = categoryId;
     }
 
@@ -264,28 +271,57 @@ export async function GET(request: NextRequest) {
       where.organizerId = organizerId;
     }
 
-    const projects = await prisma.project.findMany({
-      where,
-      include: {
-        ...getCategoryInclude('ru'),
-        organizer: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            organizerProfile: {
-              select: {
-                organizationName: true,
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (city && city !== 'all') {
+      where.location = { contains: city, mode: 'insensitive' };
+    }
+
+    if (endDateAfter) {
+      where.endDate = { gt: new Date(endDateAfter) };
+    }
+
+    let orderBy: any = { createdAt: 'desc' };
+    switch (sortBy) {
+      case 'date-asc': orderBy = { createdAt: 'asc' }; break;
+      case 'name-asc': orderBy = { title: 'asc' }; break;
+      case 'name-desc': orderBy = { title: 'desc' }; break;
+      case 'volunteers-desc': orderBy = { currentVolunteers: 'desc' }; break;
+      case 'volunteers-asc': orderBy = { currentVolunteers: 'asc' }; break;
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [total, projects] = await Promise.all([
+      prisma.project.count({ where }),
+      prisma.project.findMany({
+        where,
+        include: {
+          ...getCategoryInclude(locale),
+          organizer: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              organizerProfile: {
+                select: {
+                  organizationName: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        orderBy,
+        skip,
+        take: limit,
+      }),
+    ]);
 
     // Преобразуем Decimal в number для координат и форматируем категории
     const projectsData = projects.map(project => ({
@@ -295,7 +331,13 @@ export async function GET(request: NextRequest) {
       category: formatCategoryWithTranslation(project.category)
     }));
 
-    return NextResponse.json({ projects: projectsData });
+    return NextResponse.json({
+      projects: projectsData,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
   } catch (error) {
     console.error('Error fetching projects:', error);
     return NextResponse.json(

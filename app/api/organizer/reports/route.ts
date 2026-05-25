@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate');
 
     const statusFilter: string[] = [];
-    if (reportType === 'active') statusFilter.push('active', 'recruiting', 'upcoming');
+    if (reportType === 'active') statusFilter.push('active');
     else if (reportType === 'completed') statusFilter.push('completed');
 
     const projects = await prisma.project.findMany({

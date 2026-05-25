@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, getAuthenticatedUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { uploadToS3, validateFile } from '@/lib/s3';
 
 // POST /api/upload/avatar - Загрузить аватар пользователя
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
     if (!session) {
       return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
     }

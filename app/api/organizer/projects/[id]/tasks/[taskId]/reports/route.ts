@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, getAuthenticatedUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 // GET /api/organizer/projects/[id]/tasks/[taskId]/reports - Получить все отчёты по задаче
@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string; taskId: string }> }
 ) {
   try {
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
     if (!session || session.role !== 'organizer') {
       return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 });
     }

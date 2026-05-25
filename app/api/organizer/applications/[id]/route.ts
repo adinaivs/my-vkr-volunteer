@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { getSession } from '@/lib/auth';
+import { getSession, getAuthenticatedUser } from '@/lib/auth';
 import { checkAchievementsOnApplicationApproved } from '@/lib/achievements';
 
 const prisma = new PrismaClient();
@@ -14,7 +14,7 @@ export async function PUT(
     const { id: applicationId } = await params;
     
     // Проверяем авторизацию
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
     if (!session) {
       return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
     }

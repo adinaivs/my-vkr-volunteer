@@ -27,13 +27,16 @@ export async function GET(request: NextRequest) {
 
     console.log('Admin verified:', user.email);
 
-    // Получаем параметры фильтрации
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status') || 'all'; // all, pending, approved, rejected
+    const status = searchParams.get('status') || 'all';
+    const search = searchParams.get('search') || '';
+    const sortBy = searchParams.get('sortBy') || 'date-desc';
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '10', 10)));
+    const skip = (page - 1) * limit;
 
-    // Формируем условия фильтрации
     const where: any = {};
-    
+
     if (status === 'pending') {
       where.isApprovedByAdmin = false;
       where.isRejected = false;
@@ -43,40 +46,53 @@ export async function GET(request: NextRequest) {
       where.isRejected = true;
     }
 
-    // Получаем организаторов
-    const organizers = await prisma.organizerProfile.findMany({
-      where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            phone: true,
-            city: true,
-            createdAt: true,
-            status: true,
-          },
-        },
-      },
-      orderBy: {
-        user: {
-          createdAt: 'desc',
-        },
-      },
-    });
-
-    console.log('Fetching organizers with status:', status);
-    console.log('Where condition:', where);
-    console.log('Found organizers:', organizers.length);
-    
-    // Логируем первого организатора для проверки
-    if (organizers.length > 0) {
-      console.log('First organizer verificationDocUrl:', organizers[0].verificationDocUrl);
+    if (search) {
+      where.OR = [
+        { organizationName: { contains: search, mode: 'insensitive' } },
+        { inn: { contains: search, mode: 'insensitive' } },
+        { okpo: { contains: search, mode: 'insensitive' } },
+        { user: { firstName: { contains: search, mode: 'insensitive' } } },
+        { user: { lastName: { contains: search, mode: 'insensitive' } } },
+        { user: { email: { contains: search, mode: 'insensitive' } } },
+        { user: { phone: { contains: search, mode: 'insensitive' } } },
+      ];
     }
 
-    return NextResponse.json({ organizers });
+    let orderBy: any = { user: { createdAt: 'desc' } };
+    switch (sortBy) {
+      case 'date-asc': orderBy = { user: { createdAt: 'asc' } }; break;
+      case 'name-asc': orderBy = { organizationName: 'asc' }; break;
+      case 'name-desc': orderBy = { organizationName: 'desc' }; break;
+      default: orderBy = { user: { createdAt: 'desc' } };
+    }
+
+    const include = {
+      user: {
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          phone: true,
+          city: true,
+          createdAt: true,
+          status: true,
+        },
+      },
+    };
+
+    const [total, organizers] = await Promise.all([
+      prisma.organizerProfile.count({ where }),
+      prisma.organizerProfile.findMany({ where, include, orderBy, skip, take: limit }),
+    ]);
+
+    return NextResponse.json({
+      organizers,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
   } catch (error) {
     console.error('Error fetching organizers:', error);
     return NextResponse.json(

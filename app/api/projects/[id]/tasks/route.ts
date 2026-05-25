@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+import { getSession, getAuthenticatedUser } from '@/lib/auth';
+import { formatSkillWithTranslation } from '@/lib/category-helpers';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
     if (!session) {
       return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
     }
 
     const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const locale = (searchParams.get('locale') || 'ru') as 'ru' | 'kg';
 
     // Получаем проект, чтобы проверить владельца
     const project = await prisma.project.findUnique({
@@ -39,9 +42,10 @@ export async function GET(
       where: { projectId: id },
       include: {
         skill: {
-          select: {
-            id: true,
-            name: true,
+          include: {
+            translations: {
+              where: { locale },
+            },
           },
         },
         assignments: {
@@ -69,7 +73,14 @@ export async function GET(
       },
     });
 
-    return NextResponse.json({ tasks });
+    // Форматируем навыки с переводами
+    const formattedTasks = tasks.map(task => ({
+      ...task,
+      skill: task.skill ? formatSkillWithTranslation(task.skill) : null,
+      requiredSkill: task.skill ? formatSkillWithTranslation(task.skill) : null,
+    }));
+
+    return NextResponse.json({ tasks: formattedTasks });
   } catch (error) {
     console.error('Error fetching tasks:', error);
     return NextResponse.json(

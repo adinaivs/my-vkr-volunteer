@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, getAuthenticatedUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 // POST /api/volunteer/skills - Добавить навык
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
     if (!session || session.role !== 'volunteer') {
       return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 });
     }
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 // DELETE /api/volunteer/skills?skillId=... - Удалить навык
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
     if (!session || session.role !== 'volunteer') {
       return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 });
     }

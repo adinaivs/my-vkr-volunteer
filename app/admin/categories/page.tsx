@@ -7,6 +7,10 @@ import AdminSidebar from '../components/AdminSidebar';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { useToast } from '@/app/components/ToastContainer';
+import { useTranslation } from '@/app/i18n/useTranslation';
+import { IconPicker } from '../components/IconPicker';
+import { SvgIcon } from '@/app/components/SvgIcon';
+import { Tooltip } from '@/app/components/Tooltip';
 
 interface AdminUser { id: string; firstName: string; lastName: string; email: string; role: string; avatarUrl?: string; }
 interface Translation { locale: string; name: string; }
@@ -28,6 +32,7 @@ const getName = (translations: Translation[], locale = 'ru') =>
 export default function AdminCategoriesPage() {
   const router = useRouter();
   const toast = useToast();
+  const { t } = useTranslation('admin');
   const [me, setMe] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -134,7 +139,7 @@ export default function AdminCategoriesPage() {
         <DynamicContent>
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Категории</h1>
+              <h1 className="text-3xl font-bold text-gray-900">{t.categories?.title || 'Категории'}</h1>
               <p className="text-gray-500 mt-1 text-sm">Управление категориями проектов</p>
             </div>
             <button onClick={() => openModal()}
@@ -142,7 +147,7 @@ export default function AdminCategoriesPage() {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              Добавить
+              {t.categories?.createCategory || 'Добавить категорию'}
             </button>
           </div>
 
@@ -153,7 +158,7 @@ export default function AdminCategoriesPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Поиск категорий..."
+                  placeholder={t.common?.search || 'Поиск'}
                   className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00CC00]" />
               </div>
             </div>
@@ -161,11 +166,13 @@ export default function AdminCategoriesPage() {
             <div className="divide-y divide-gray-50">
               {filtered.length === 0 ? (
                 <div className="p-10 text-center text-gray-400 text-sm">
-                  {search ? 'Ничего не найдено' : 'Категорий пока нет'}
+                  {search ? 'Ничего не найдено' : (t.categories?.noCategories || 'Нет категорий')}
                 </div>
               ) : filtered.map((cat) => (
                 <div key={cat.id} className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors">
-                  <span className="text-2xl w-10 text-center">{cat.icon}</span>
+                  <div className="w-10 h-10 flex items-center justify-center bg-green-50 rounded-xl flex-shrink-0 text-[#00CC00] overflow-hidden">
+                    <SvgIcon iconKey={cat.icon} className="w-6 h-6" />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900">{getName(cat.translations, 'ru')}</p>
                     <p className="text-xs text-gray-400">
@@ -173,18 +180,22 @@ export default function AdminCategoriesPage() {
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => openModal(cat)}
-                      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="Редактировать">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button onClick={() => setDeleteConfirm({ id: cat.id, name: getName(cat.translations) })}
-                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Удалить">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                    <Tooltip text="Редактировать">
+                      <button onClick={() => openModal(cat)}
+                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    </Tooltip>
+                    <Tooltip text="Удалить">
+                      <button onClick={() => setDeleteConfirm({ id: cat.id, name: getName(cat.translations) })}
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </Tooltip>
                   </div>
                 </div>
               ))}
@@ -198,7 +209,7 @@ export default function AdminCategoriesPage() {
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h3 className="text-lg font-semibold text-gray-900">
-                {modal.item ? 'Редактировать категорию' : 'Новая категория'}
+                {modal.item ? (t.categories?.editCategory || 'Редактировать') : (t.categories?.createCategory || 'Добавить категорию')}
               </h3>
               <button onClick={() => setModal(null)} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -216,10 +227,8 @@ export default function AdminCategoriesPage() {
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00CC00]" />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600 mb-1 block">Иконка (эмодзи) *</label>
-                  <input value={icon} onChange={(e) => setIcon(e.target.value)}
-                    placeholder="🌿"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00CC00]" />
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Иконка *</label>
+                  <IconPicker value={icon} onChange={setIcon} />
                 </div>
               </div>
               <div>
@@ -241,12 +250,12 @@ export default function AdminCategoriesPage() {
 
             <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
               <button onClick={() => setModal(null)} className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 transition-colors">
-                Отмена
+                {t.common?.cancel || 'Отмена'}
               </button>
               <button onClick={handleSave} disabled={saving}
                 className="flex-1 px-4 py-2 bg-[#00CC00] text-white rounded-xl text-sm hover:bg-[#00b300] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                 {saving && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                {saving ? 'Сохранение...' : 'Сохранить'}
+                {saving ? 'Сохранение...' : (t.common?.save || 'Сохранить')}
               </button>
             </div>
           </div>
@@ -256,14 +265,14 @@ export default function AdminCategoriesPage() {
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Удалить «{deleteConfirm.name}»?</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">{t.categories?.deleteConfirm || 'Удалить эту категорию?'} «{deleteConfirm.name}»?</h3>
             <p className="text-gray-500 text-sm mb-6">Нельзя удалить категорию, используемую в проектах.</p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteConfirm(null)} className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 transition-colors">
-                Отмена
+                {t.common?.cancel || 'Отмена'}
               </button>
               <button onClick={handleDelete} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-xl text-sm hover:bg-red-600 transition-colors">
-                Удалить
+                {t.common?.delete || 'Удалить'}
               </button>
             </div>
           </div>

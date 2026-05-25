@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, getAuthenticatedUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 // POST /api/volunteer/tasks/[assignmentId]/report - Отправить отчёт о выполнении задачи
@@ -8,7 +8,7 @@ export async function POST(
   { params }: { params: Promise<{ assignmentId: string }> }
 ) {
   try {
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
     if (!session || session.role !== 'volunteer') {
       return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 });
     }
@@ -82,14 +82,23 @@ export async function POST(
       });
     }
 
-    // Создаём новый отчёт (статус задания остаётся "assigned")
-    const report = await prisma.taskReport.create({
-      data: {
-        assignmentId,
-        description,
-        photos,
-      },
-    });
+    // Создаём отчёт и переводим задание в статус "completed" (ожидает подтверждения)
+    const [report] = await prisma.$transaction([
+      prisma.taskReport.create({
+        data: {
+          assignmentId,
+          description,
+          photos,
+        },
+      }),
+      prisma.taskAssignment.update({
+        where: { id: assignmentId },
+        data: {
+          status: 'completed',
+          completedAt: new Date(),
+        },
+      }),
+    ]);
 
     return NextResponse.json({
       message: 'Отчёт отправлен на проверку',
@@ -110,7 +119,7 @@ export async function GET(
   { params }: { params: Promise<{ assignmentId: string }> }
 ) {
   try {
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
     if (!session || session.role !== 'volunteer') {
       return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 });
     }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
-import { getCategoryInclude, formatCategoryWithTranslation } from '@/lib/category-helpers';
+import { getCategoryInclude, formatCategoryWithTranslation, formatSkillWithTranslation } from '@/lib/category-helpers';
 
 // GET /api/volunteer/my-projects - Получить проекты волонтера
 export async function GET(request: NextRequest) {
@@ -25,7 +25,8 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type'); // 'active', 'completed', 'upcoming'
+    const type = searchParams.get('type');
+    const locale = (searchParams.get('locale') || 'ru') as 'ru' | 'kg';
 
     // Получаем проекты где волонтер является участником
     const participants = await prisma.projectParticipant.findMany({
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
       include: {
         project: {
           include: {
-            ...getCategoryInclude('ru'),
+            ...getCategoryInclude(locale),
             organizer: {
               select: {
                 id: true,
@@ -52,7 +53,13 @@ export async function GET(request: NextRequest) {
             },
             tasks: {
               include: {
-                skill: true,
+                skill: {
+                  include: {
+                    translations: {
+                      where: { locale },
+                    },
+                  },
+                },
                 assignments: {
                   where: {
                     volunteerId: user.id,
@@ -115,9 +122,11 @@ export async function GET(request: NextRequest) {
         completedTasksCount: completedTasks.length,
         myTasks: myTasks.map(task => ({
           ...task,
+          skill: task.skill ? formatSkillWithTranslation(task.skill) : null,
+          requiredSkill: task.skill ? formatSkillWithTranslation(task.skill) : null,
           assignmentStatus: task.assignments[0]?.status,
           assignedAt: task.assignments[0]?.createdAt,
-          projectStatus: project.status, // Добавляем статус проекта
+          projectStatus: project.status,
         })),
       };
     });

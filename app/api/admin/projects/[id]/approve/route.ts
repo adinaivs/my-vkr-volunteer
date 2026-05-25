@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { getCategoryInclude, formatCategoryWithTranslation } from '@/lib/category-helpers';
+import { notifyNewProject } from '@/lib/notifications';
 
 // POST - Одобрить проект
 export async function POST(
@@ -110,7 +111,8 @@ export async function POST(
       });
     }
 
-    // TODO: Отправить уведомление организатору о публикации проекта
+    // Уведомляем волонтёров, заинтересованных в категории проекта
+    notifyNewProject(project.id, project.title, project.categoryId);
     console.log(`Проект "${project.title}" одобрен администратором ${user.email}`);
 
     return NextResponse.json({

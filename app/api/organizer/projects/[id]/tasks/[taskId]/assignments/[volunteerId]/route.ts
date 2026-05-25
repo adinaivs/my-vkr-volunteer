@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, getAuthenticatedUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 // DELETE /api/organizer/projects/[id]/tasks/[taskId]/assignments/[volunteerId] - Отменить назначение задачи
@@ -8,7 +8,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; taskId: string; volunteerId: string }> }
 ) {
   try {
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
 
     if (!session) {
       return NextResponse.json(

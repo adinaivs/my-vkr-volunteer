@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+import { getSession, getAuthenticatedUser } from '@/lib/auth';
 import { getCategoryInclude, formatCategoryWithTranslation } from '@/lib/category-helpers';
 import { uploadToS3, validateFile } from '@/lib/s3';
 
@@ -9,7 +9,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
     if (!session) {
       return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
     }
@@ -107,11 +107,13 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    
+    const { searchParams } = new URL(request.url);
+    const locale = (searchParams.get('locale') || 'ru') as 'ru' | 'kg';
+
     const project = await prisma.project.findUnique({
       where: { id },
       include: {
-        ...getCategoryInclude('ru'),
+        ...getCategoryInclude(locale),
         organizer: {
           select: {
             id: true,
@@ -157,7 +159,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
     if (!session) {
       return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
     }

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, getAuthenticatedUser } from '@/lib/auth';
 import { uploadToS3, validateFile } from '@/lib/s3';
 
 // POST /api/upload/report-photos - Загрузить фотографии для отчета
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
     
     if (!session || session.role !== 'volunteer') {
       return NextResponse.json(

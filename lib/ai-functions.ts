@@ -156,6 +156,38 @@ export const AI_FUNCTIONS = [
       },
     },
   },
+  {
+    name: 'get_current_date',
+    description: 'Получить текущую дату и время сервера. ВСЕГДА вызывай эту функцию первой, когда пользователь спрашивает про задачи, расписание, план на день, предстоящие или прошедшие события.',
+    parameters: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'get_today_tasks',
+    description: 'Получить задачи и события волонтёра. Используй после get_current_date. Режимы: "today" — задачи на сегодня, "upcoming" — предстоящие задачи (дедлайн в будущем), "past" — прошедшие/выполненные задачи, "date" — задачи на конкретную дату.',
+    parameters: {
+      type: 'object',
+      properties: {
+        userId: {
+          type: 'string',
+          description: 'ID пользователя (передается автоматически)',
+        },
+        mode: {
+          type: 'string',
+          enum: ['today', 'upcoming', 'past', 'date'],
+          description: 'Режим выборки: today=сегодня, upcoming=предстоящие, past=прошедшие, date=конкретная дата',
+          default: 'today',
+        },
+        date: {
+          type: 'string',
+          description: 'Дата в формате YYYY-MM-DD. Обязательна только для mode="date".',
+        },
+      },
+      required: ['userId'],
+    },
+  },
 ];
 
 // Реализация функций
@@ -191,6 +223,12 @@ export async function executeFunction(
       
       case 'get_upcoming_projects':
         return await getUpcomingProjects(args);
+
+      case 'get_current_date':
+        return await getCurrentDate();
+
+      case 'get_today_tasks':
+        return await getTodayTasks(args);
       
       default:
         return JSON.stringify({ error: 'Неизвестная функция' });
@@ -964,4 +1002,156 @@ async function getUpcomingProjects(args: { limit?: number }): Promise<string> {
   return JSON.stringify({
     предстоящие_проекты: formatted,
   }, null, 2);
+}
+
+// Получить текущую дату и время сервера
+async function getCurrentDate(): Promise<string> {
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  return JSON.stringify({
+    today: todayStr,
+    formatted: now.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }),
+    time: now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+    dayOfWeek: now.toLocaleDateString('ru-RU', { weekday: 'long', timeZone: 'UTC' }),
+  });
+}
+
+// Получить задачи волонтёра (сегодня / предстоящие / прошедшие / конкретная дата)
+async function getTodayTasks(args: {
+  userId: string;
+  mode?: 'today' | 'upcoming' | 'past' | 'date';
+  date?: string;
+}): Promise<string> {
+  if (!args.userId) {
+    return JSON.stringify({ error: 'Требуется авторизация' });
+  }
+
+  const mode = args.mode ?? 'today';
+
+  // Сегодняшняя дата в UTC (PostgreSQL @db.Date хранит как T00:00:00.000Z)
+  const nowUtc = new Date();
+  const todayStr = nowUtc.toISOString().split('T')[0]; // YYYY-MM-DD
+
+  const todayUtcStart = new Date(todayStr + 'T00:00:00.000Z');
+  const todayUtcEnd   = new Date(todayStr + 'T23:59:59.999Z');
+
+  let deadlineFilter: any;
+  let eventsFilter: any;
+  let modeLabel: string;
+
+  if (mode === 'today') {
+    deadlineFilter = { gte: todayUtcStart, lte: todayUtcEnd };
+    eventsFilter = {
+      OR: [
+        { startDate: { gte: todayUtcStart, lte: todayUtcEnd } },
+        { startDate: { lte: todayUtcStart }, endDate: { gte: todayUtcStart } },
+      ],
+    };
+    modeLabel = `сегодня (${todayUtcStart.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })})`;
+
+  } else if (mode === 'upcoming') {
+    deadlineFilter = { gt: todayUtcEnd };
+    eventsFilter = { startDate: { gt: todayUtcEnd } };
+    modeLabel = 'предстоящие (начиная с завтра)';
+
+  } else if (mode === 'past') {
+    deadlineFilter = { lt: todayUtcStart };
+    eventsFilter = { endDate: { lt: todayUtcStart } };
+    modeLabel = 'прошедшие (до сегодня)';
+
+  } else if (mode === 'date' && args.date) {
+    const dayUtcStart = new Date(args.date + 'T00:00:00.000Z');
+    const dayUtcEnd   = new Date(args.date + 'T23:59:59.999Z');
+    deadlineFilter = { gte: dayUtcStart, lte: dayUtcEnd };
+    eventsFilter = {
+      OR: [
+        { startDate: { gte: dayUtcStart, lte: dayUtcEnd } },
+        { startDate: { lte: dayUtcStart }, endDate: { gte: dayUtcStart } },
+      ],
+    };
+    modeLabel = dayUtcStart.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+  } else {
+    deadlineFilter = { gte: todayUtcStart, lte: todayUtcEnd };
+    eventsFilter = {
+      OR: [
+        { startDate: { gte: todayUtcStart, lte: todayUtcEnd } },
+        { startDate: { lte: todayUtcStart }, endDate: { gte: todayUtcStart } },
+      ],
+    };
+    modeLabel = 'сегодня';
+  }
+
+  const assignmentStatusFilter = mode === 'past'
+    ? { in: ['assigned', 'completed', 'confirmed'] }
+    : { notIn: ['cancelled', 'rejected'] };
+
+  const [assignments, personalEvents] = await Promise.all([
+    prisma.taskAssignment.findMany({
+      where: {
+        volunteerId: args.userId,
+        status: assignmentStatusFilter,
+        task: { deadline: deadlineFilter },
+      },
+      include: {
+        task: {
+          include: {
+            project: { select: { id: true, title: true, status: true, location: true } },
+            skill: { include: { translations: { where: { locale: 'ru' } } } },
+          },
+        },
+      },
+      orderBy: { task: { deadline: mode === 'past' ? 'desc' : 'asc' } },
+      take: 20,
+    }),
+    prisma.calendarEvent.findMany({
+      where: { userId: args.userId, ...eventsFilter },
+      orderBy: { startDate: mode === 'past' ? 'desc' : 'asc' },
+      take: 10,
+    }),
+  ]);
+
+  const assignmentStatusMap: Record<string, string> = {
+    assigned: 'Назначена',
+    completed: 'Выполнена (ожидает подтверждения)',
+    confirmed: 'Подтверждена ✓',
+  };
+
+  const formattedTasks = assignments.map((a) => ({
+    задача: a.task.title,
+    описание: a.task.description,
+    проект: a.task.project.title,
+    место: a.task.project.location,
+    навык: (a.task.skill as any)?.translations?.[0]?.name || (a.task.skill as any)?.name || 'Не требуется',
+    дедлайн: new Date(a.task.deadline).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }),
+    статус: assignmentStatusMap[a.status] || a.status,
+  }));
+
+  const formattedEvents = personalEvents.map((e) => ({
+    название: e.title,
+    описание: e.description || null,
+    дата: new Date(e.startDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', timeZone: 'UTC' }),
+    время: e.isAllDay ? 'Весь день' : `${e.startTime || '?'} — ${e.endTime || '?'}`,
+    место: e.location || null,
+  }));
+
+  const result: any = {
+    период: modeLabel,
+    текущая_дата: todayStr,
+    задачи: formattedTasks,
+    личные_события: formattedEvents,
+    итого: { задач: formattedTasks.length, личных_событий: formattedEvents.length },
+  };
+
+  if (formattedTasks.length === 0 && formattedEvents.length === 0) {
+    const emptyMessages: Record<string, string> = {
+      today: 'На сегодня задач и событий нет. Отличный день чтобы найти новый проект!',
+      upcoming: 'Предстоящих задач нет. Можешь найти новый проект в каталоге!',
+      past: 'Прошедших задач не найдено.',
+      date: `На ${modeLabel} задач и событий нет.`,
+    };
+    result.сообщение = emptyMessages[mode] || 'Задач не найдено.';
+  }
+
+  return JSON.stringify(result, null, 2);
 }

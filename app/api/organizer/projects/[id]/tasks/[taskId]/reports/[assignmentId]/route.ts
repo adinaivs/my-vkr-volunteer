@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, getAuthenticatedUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { checkAchievementsOnTaskConfirmed } from '@/lib/achievements';
 
@@ -9,7 +9,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string; taskId: string; assignmentId: string }> }
 ) {
   try {
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
     if (!session || session.role !== 'organizer') {
       return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 });
     }

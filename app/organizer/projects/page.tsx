@@ -11,6 +11,9 @@ import LocationPicker from '@/app/components/LocationPicker';
 import { useToast } from '@/app/components/ToastContainer';
 import CustomSelect from '@/app/components/CustomSelect';
 import CustomDatePicker from '@/app/components/CustomDatePicker';
+import DateRangePicker from '@/app/components/DateRangePicker';
+import { useTranslation } from '@/app/i18n/useTranslation';
+import { Tooltip } from '@/app/components/Tooltip';
 
 interface User {
   id: string;
@@ -31,6 +34,7 @@ interface Task {
 export default function OrganizerProjects() {
   const router = useRouter();
   const toast = useToast();
+  const { t } = useTranslation('organizer');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -707,12 +711,27 @@ export default function OrganizerProjects() {
     }
   };
 
+  const getStatusBadge = (status: string): { label: string; bg: string; text: string } => {
+    const map: Record<string, { label: string; bg: string; text: string }> = {
+      draft:      { label: 'Черновик',         bg: 'bg-gray-500',   text: 'text-white' },
+      moderation: { label: 'На проверке',      bg: 'bg-orange-500', text: 'text-white' },
+      rejected:   { label: 'Отклонен',         bg: 'bg-red-500',    text: 'text-white' },
+      recruiting: { label: 'Набор волонтеров', bg: 'bg-green-500',  text: 'text-white' },
+      upcoming:   { label: 'Скоро начнется',   bg: 'bg-blue-500',   text: 'text-white' },
+      active:     { label: 'Активный',         bg: 'bg-purple-500', text: 'text-white' },
+      completed:  { label: 'Завершён',         bg: 'bg-blue-400',   text: 'text-white' },
+      cancelled:  { label: 'Отменен',          bg: 'bg-red-400',    text: 'text-white' },
+      blocked:    { label: 'Заблокирован',     bg: 'bg-red-600',    text: 'text-white' },
+    };
+    return map[status] || { label: status, bg: 'bg-gray-500', text: 'text-white' };
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00CC00] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Загрузка...</p>
+          <p className="mt-4 text-gray-600">{t.common?.loading || 'Загрузка...'}</p>
         </div>
       </div>
     );
@@ -733,7 +752,7 @@ export default function OrganizerProjects() {
         {/* Page Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Мои проекты</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{t.projects?.title || 'Мои проекты'}</h1>
             <p className="text-gray-600">Управляйте своими волонтёрскими проектами</p>
           </div>
           <button
@@ -750,7 +769,7 @@ export default function OrganizerProjects() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Создать проект
+            {t.projects?.createNew || 'Создать проект'}
           </button>
         </div>
 
@@ -762,7 +781,7 @@ export default function OrganizerProjects() {
             <div className="flex-1 relative">
               <input
                 type="text"
-                placeholder="Поиск по названию и описанию..."
+                placeholder={t.projects?.searchPlaceholder || 'Поиск по названию и описанию...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
@@ -777,46 +796,40 @@ export default function OrganizerProjects() {
               </svg>
             </div>
 
-            {/* Кнопки переключения вида */}
+            {/* Кнопки переключения вида + сброс */}
             <div className="flex gap-2">
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-3 rounded-xl border transition-colors ${
-                  viewMode === 'list'
-                    ? 'bg-[#00CC00] text-white border-[#00CC00]'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-[#00CC00]'
-                }`}
-                title="Список"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-3 rounded-xl border transition-colors ${
-                  viewMode === 'grid'
-                    ? 'bg-[#00CC00] text-white border-[#00CC00]'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-[#00CC00]'
-                }`}
-                title="Блоки"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-              </button>
-              
-              {/* Кнопка сброса фильтров */}
-              <button
-                onClick={resetFilters}
-                className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl border border-gray-200 hover:bg-gray-200 transition-colors flex items-center gap-2"
-                title="Сбросить фильтры"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                <span className="hidden sm:inline">Сбросить</span>
-              </button>
+              {/* Одна кнопка-тогл список/сетка */}
+              <Tooltip text={viewMode === 'grid' ? 'Переключить на список' : 'Переключить на блоки'}>
+                <button
+                  onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                  className="p-3 rounded-xl border bg-[#00CC00] text-white border-[#00CC00] transition-colors hover:bg-[#00b300]"
+                >
+                  {viewMode === 'list' ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    </svg>
+                  )}
+                </button>
+              </Tooltip>
+
+              {/* Кнопка сброса — только если активен хотя бы один фильтр */}
+              {(searchQuery || filterStatus !== 'all' || filterCategory !== 'all' || sortBy !== 'date-desc') && (
+                <Tooltip text="Сбросить фильтры">
+                  <button
+                    onClick={resetFilters}
+                    className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl border border-gray-200 hover:bg-gray-200 transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span className="hidden sm:inline">Сбросить</span>
+                  </button>
+                </Tooltip>
+              )}
             </div>
           </div>
 
@@ -851,20 +864,20 @@ export default function OrganizerProjects() {
                 {/* Фильтр по статусу */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Статус
+                    {t.projects?.filterStatus || 'Статус'}
                   </label>
                   <CustomSelect
                     options={[
-                      { value: 'all', label: 'Все' },
-                      { value: 'draft', label: 'Черновики' },
-                      { value: 'moderation', label: 'На модерации' },
-                      { value: 'rejected', label: 'Отклоненные' },
-                      { value: 'recruiting', label: 'Набор волонтеров' },
-                      { value: 'upcoming', label: 'Скоро начнется' },
-                      { value: 'active', label: 'Активные' },
-                      { value: 'completed', label: 'Завершенные' },
-                      { value: 'cancelled', label: 'Отмененные' },
-                      { value: 'blocked', label: 'Заблокированные' },
+                      { value: 'all', label: t.projects?.allStatuses || 'Все' },
+                      { value: 'draft', label: t.status?.draft || 'Черновики' },
+                      { value: 'moderation', label: t.status?.moderation || 'На модерации' },
+                      { value: 'rejected', label: t.status?.rejected || 'Отклоненные' },
+                      { value: 'recruiting', label: t.status?.recruiting || 'Набор волонтеров' },
+                      { value: 'upcoming', label: t.status?.upcoming || 'Скоро начнется' },
+                      { value: 'active', label: t.status?.active || 'Активные' },
+                      { value: 'completed', label: t.status?.completed || 'Завершенные' },
+                      { value: 'cancelled', label: t.status?.cancelled || 'Отмененные' },
+                      { value: 'blocked', label: t.status?.blocked || 'Заблокированные' },
                     ]}
                     value={filterStatus}
                     onChange={setFilterStatus}
@@ -902,7 +915,7 @@ export default function OrganizerProjects() {
                       { value: 'all', label: 'Все категории' },
                       ...categories.map((cat) => ({
                         value: cat.id,
-                        label: `${cat.icon} ${cat.name}`
+                        label: cat.name
                       }))
                     ]}
                     value={filterCategory}
@@ -931,14 +944,14 @@ export default function OrganizerProjects() {
               </svg>
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-3">
-              {searchQuery || filterStatus !== 'all' || filterCategory !== 'all' 
-                ? 'Проекты не найдены' 
-                : 'У вас пока нет проектов'}
+              {searchQuery || filterStatus !== 'all' || filterCategory !== 'all'
+                ? 'Проекты не найдены'
+                : (t.projects?.noProjects || 'У вас пока нет проектов')}
             </h3>
             <p className="text-gray-600 max-w-md mx-auto mb-8">
               {searchQuery || filterStatus !== 'all' || filterCategory !== 'all'
                 ? 'Попробуйте изменить параметры поиска или фильтры'
-                : 'Создайте свой первый волонтёрский проект и начните привлекать волонтёров для реализации ваших идей'}
+                : (t.projects?.noProjectsHint || 'Создайте свой первый волонтёрский проект и начните привлекать волонтёров для реализации ваших идей')}
             </p>
             {!searchQuery && filterStatus === 'all' && filterCategory === 'all' && (
               <button
@@ -951,7 +964,7 @@ export default function OrganizerProjects() {
                 }}
                 className="inline-block px-8 py-3 bg-[#00CC00] text-white rounded-full font-medium hover:bg-[#00b300] transition-colors"
               >
-                Создать первый проект
+                {t.projects?.createNew || 'Создать первый проект'}
               </button>
             )}
           </div>
@@ -968,64 +981,39 @@ export default function OrganizerProjects() {
                     onClick={() => router.push(`/organizer/projects/${project.id}`)}
                   >
                     <div className="flex items-center gap-4">
-                      {/* Изображение проекта */}
-                      {project.imageUrl && (
-                        <img 
-                          src={project.imageUrl} 
-                          alt={project.title}
-                          className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
-                        />
+                      {/* Изображение проекта с бейджем статуса */}
+                      {project.imageUrl ? (
+                        <div className="relative flex-shrink-0">
+                          <img
+                            src={project.imageUrl}
+                            alt={project.title}
+                            className="w-20 h-20 object-cover rounded-lg"
+                          />
+                          {(() => { const b = getStatusBadge(project.status); return (
+                            <span className={`absolute top-1 right-1 px-1.5 py-0.5 ${b.bg} ${b.text} text-xs font-medium rounded-full whitespace-nowrap`}>
+                              {b.label}
+                            </span>
+                          ); })()}
+                        </div>
+                      ) : (
+                        <div className="relative flex-shrink-0">
+                          <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center">
+                            <svg className="w-10 h-10 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                          {(() => { const b = getStatusBadge(project.status); return (
+                            <span className={`absolute top-1 right-1 px-1.5 py-0.5 ${b.bg} ${b.text} text-xs font-medium rounded-full whitespace-nowrap`}>
+                              {b.label}
+                            </span>
+                          ); })()}
+                        </div>
                       )}
-                      
+
                       {/* Информация о проекте */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="text-lg font-semibold text-gray-900 truncate">{project.title}</h3>
-                          {project.status === 'moderation' && (
-                            <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded-full flex-shrink-0">
-                              На проверке
-                            </span>
-                          )}
-                          {project.status === 'recruiting' && (
-                            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full flex-shrink-0">
-                              Набор волонтеров
-                            </span>
-                          )}
-                          {project.status === 'upcoming' && (
-                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full flex-shrink-0">
-                              Скоро начнется
-                            </span>
-                          )}
-                          {project.status === 'active' && (
-                            <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-medium rounded-full flex-shrink-0">
-                              Активный
-                            </span>
-                          )}
-                          {project.status === 'cancelled' && (
-                            <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full flex-shrink-0">
-                              Отменен
-                            </span>
-                          )}
-                          {project.status === 'blocked' && (
-                            <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full flex-shrink-0">
-                              Заблокирован
-                            </span>
-                          )}
-                          {project.status === 'draft' && (
-                            <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs font-medium rounded-full flex-shrink-0">
-                              Черновик
-                            </span>
-                          )}
-                          {project.status === 'completed' && (
-                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full flex-shrink-0">
-                              Завершён
-                            </span>
-                          )}
-                          {project.status === 'rejected' && (
-                            <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full flex-shrink-0">
-                              Отклонен
-                            </span>
-                          )}
                         </div>
                         <p className="text-sm text-gray-600 mb-2 line-clamp-1">{project.description}</p>
                         <div className="flex flex-wrap gap-3 text-xs text-gray-600">
@@ -1071,71 +1059,33 @@ export default function OrganizerProjects() {
                     className="bg-white border border-gray-300 rounded-xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer"
                     onClick={() => router.push(`/organizer/projects/${project.id}`)}
                   >
-                    {/* Изображение */}
-                    {project.imageUrl ? (
-                      <img 
-                        src={project.imageUrl} 
-                        alt={project.title}
-                        className="w-full h-40 object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-40 bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
-                        <svg className="w-16 h-16 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                    )}
+                    {/* Изображение с бейджем статуса */}
+                    <div className="relative">
+                      {project.imageUrl ? (
+                        <img
+                          src={project.imageUrl}
+                          alt={project.title}
+                          className="w-full h-40 object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-40 bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
+                          <svg className="w-16 h-16 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      )}
+                      {(() => { const b = getStatusBadge(project.status); return (
+                        <span className={`absolute top-2 right-2 px-2.5 py-1 ${b.bg} ${b.text} text-xs font-semibold rounded-full whitespace-nowrap shadow`}>
+                          {b.label}
+                        </span>
+                      ); })()}
+                    </div>
 
                     {/* Контент */}
                     <div className="p-5">
-                      {/* Заголовок и статус */}
-                      <div className="flex items-start justify-between gap-3 mb-4">
-                        <h3 className="text-lg font-bold text-gray-900 flex-1">{project.title}</h3>
-                        {project.status === 'moderation' && (
-                          <span className="px-2.5 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded-full whitespace-nowrap">
-                            На проверке
-                          </span>
-                        )}
-                        {project.status === 'recruiting' && (
-                          <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full whitespace-nowrap">
-                            Набор волонтеров
-                          </span>
-                        )}
-                        {project.status === 'upcoming' && (
-                          <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full whitespace-nowrap">
-                            Скоро начнется
-                          </span>
-                        )}
-                        {project.status === 'active' && (
-                          <span className="px-2.5 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-full whitespace-nowrap">
-                            Активный
-                          </span>
-                        )}
-                        {project.status === 'cancelled' && (
-                          <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full whitespace-nowrap">
-                            Отменен
-                          </span>
-                        )}
-                        {project.status === 'blocked' && (
-                          <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full whitespace-nowrap">
-                            Заблокирован
-                          </span>
-                        )}
-                        {project.status === 'draft' && (
-                          <span className="px-2.5 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full whitespace-nowrap">
-                            Черновик
-                          </span>
-                        )}
-                        {project.status === 'completed' && (
-                          <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full whitespace-nowrap">
-                            Завершён
-                          </span>
-                        )}
-                        {project.status === 'rejected' && (
-                          <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full whitespace-nowrap">
-                            Отклонен
-                          </span>
-                        )}
+                      {/* Заголовок */}
+                      <div className="mb-4">
+                        <h3 className="text-lg font-bold text-gray-900">{project.title}</h3>
                       </div>
 
                       {/* Локация и дата */}
@@ -1258,7 +1208,7 @@ export default function OrganizerProjects() {
                         { value: '', label: 'Выберите категорию' },
                         ...categories.map((cat) => ({
                           value: cat.id,
-                          label: `${cat.icon} ${cat.name}`
+                          label: cat.name
                         }))
                       ]}
                       value={projectData.category}
@@ -1308,29 +1258,16 @@ export default function OrganizerProjects() {
                   </div>
 
                   {/* Dates */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Дата начала *
-                      </label>
-                      <CustomDatePicker
-                        value={projectData.startDate}
-                        onChange={(value) => setProjectData({ ...projectData, startDate: value })}
-                        placeholder="Выберите дату начала"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Дата окончания *
-                      </label>
-                      <CustomDatePicker
-                        value={projectData.endDate}
-                        onChange={(value) => setProjectData({ ...projectData, endDate: value })}
-                        placeholder="Выберите дату окончания"
-                        minDate={projectData.startDate}
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Период проекта *
+                    </label>
+                    <DateRangePicker
+                      startDate={projectData.startDate}
+                      endDate={projectData.endDate}
+                      onStartChange={(value) => setProjectData({ ...projectData, startDate: value })}
+                      onEndChange={(value) => setProjectData({ ...projectData, endDate: value })}
+                    />
                   </div>
 
                   {/* Location */}
@@ -1657,149 +1594,106 @@ export default function OrganizerProjects() {
               </div>
             )}
 
-            {/* Step 3: Payment/Success */}
+            {/* Step 3: Payment */}
             {createStep === 3 && (
               <div className="max-h-[70vh] overflow-y-auto px-8 py-2">
-                {/* ВРЕМЕННО: Всегда показываем экран готовности к публикации (оплата отключена) */}
-                {true ? (
-                  // Has free posts
-                  <div className="text-center py-8">
-                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                      <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="py-6 max-w-md mx-auto">
+
+                  {/* Заголовок */}
+                  <div className="text-center mb-6">
+                    <div className="w-16 h-16 bg-[#00CC00]/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900">Оплата публикации</h3>
+                    <p className="text-sm text-gray-500 mt-1">Проект «{projectData.title}»</p>
+                  </div>
+
+                  {/* Карточка с ценой */}
+                  <div className="bg-white border-2 border-[#00CC00] rounded-2xl p-6 mb-5">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-sm text-gray-500">Публикация проекта</span>
+                      <span className="text-2xl font-bold text-gray-900">500 сом</span>
+                    </div>
+                    <div className="h-px bg-gray-100 mb-4" />
+                    <div className="space-y-2">
+                      {[
+                        'Размещение проекта на платформе',
+                        'Доступ к базе волонтёров',
+                        'Приоритетная модерация',
+                        'Проект активен 30 дней',
+                      ].map((item) => (
+                        <div key={item} className="flex items-center gap-2 text-sm text-gray-600">
+                          <svg className="w-4 h-4 text-[#00CC00] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                          </svg>
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Бесплатные публикации */}
+                  {freePostsRemaining > 0 && (
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-5 flex items-center gap-3">
+                      <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                    </div>
-                    
-                    <h3 className="text-2xl font-bold text-gray-900 mb-3">Готово к публикации!</h3>
-                    <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                      Проект "{projectData.title}" готов к отправке на модерацию
-                    </p>
-
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-6 max-w-md mx-auto">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        </div>
-                        <div className="text-left">
-                          <div className="font-bold text-gray-900">Бесплатные публикации</div>
-                          <div className="text-sm text-gray-600">Осталось: {freePostsRemaining} из 3</div>
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-700">
-                        Вы используете бесплатную публикацию. После использования всех бесплатных публикаций, 
-                        следующие проекты будут платными.
+                      <p className="text-sm text-green-800">
+                        У вас есть <span className="font-bold">{freePostsRemaining} бесплатных</span> публикации — можно отправить на модерацию без оплаты.
                       </p>
                     </div>
+                  )}
 
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-8 max-w-md mx-auto text-left">
-                      <h4 className="font-bold text-gray-900 mb-3">⏳ Что дальше?</h4>
-                      <ul className="space-y-2 text-sm text-gray-700">
-                        <li className="flex items-start gap-2">
-                          <span className="text-yellow-600">•</span>
-                          <span>Администратор проверит проект в течение 1-3 дней</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-yellow-600">•</span>
-                          <span>При одобрении проект станет доступен волонтёрам</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-yellow-600">•</span>
-                          <span>При отклонении вы получите уведомление с причиной</span>
-                        </li>
-                      </ul>
-                    </div>
-
-                    <div className="flex gap-3 justify-center">
-                      <button
-                        type="button"
-                        onClick={() => setCreateStep(2)}
-                        className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
-                      >
-                        ← Назад
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleSubmitProject}
-                        disabled={isSubmitting}
-                        className="px-8 py-3 bg-[#00CC00] text-white rounded-xl font-bold hover:bg-[#00b300] transition-colors shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                            <span>Отправка...</span>
-                          </>
-                        ) : (
-                          'Отправить на модерацию'
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  // No free posts - Payment required
-                  <div className="text-center py-8">
-                    <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                      <svg className="w-10 h-10 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    
-                    <h3 className="text-2xl font-bold text-gray-900 mb-3">Требуется оплата</h3>
-                    <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                      Вы использовали все бесплатные публикации. Для публикации этого проекта необходимо оплатить размещение.
+                  {/* Заглушка оплаты */}
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+                    <svg className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-sm text-amber-800">
+                      Онлайн-оплата находится в разработке. Скоро вы сможете оплачивать публикации прямо на сайте.
                     </p>
-
-                    <div className="bg-white border-2 border-[#00CC00] rounded-2xl p-8 mb-8 max-w-md mx-auto">
-                      <div className="text-4xl font-bold text-gray-900 mb-2">500 сом</div>
-                      <div className="text-sm text-gray-600 mb-6">за публикацию проекта</div>
-                      
-                      <div className="space-y-3 text-left mb-6">
-                        <div className="flex items-center gap-2 text-sm text-gray-700">
-                          <svg className="w-5 h-5 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          Проект будет активен 30 дней
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-700">
-                          <svg className="w-5 h-5 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          Доступ к базе волонтёров
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-700">
-                          <svg className="w-5 h-5 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          Приоритетная модерация
-                        </div>
-                      </div>
-
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
-                        <p className="text-sm text-yellow-800">
-                          💡 Функция оплаты находится в разработке. Скоро вы сможете оплачивать публикации онлайн.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-3 justify-center">
-                      <button
-                        type="button"
-                        onClick={() => setCreateStep(2)}
-                        className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
-                      >
-                        ← Назад
-                      </button>
-                      <button
-                        type="button"
-                        disabled
-                        className="px-8 py-3 bg-gray-300 text-gray-500 rounded-xl font-bold cursor-not-allowed"
-                      >
-                        Оплатить (скоро)
-                      </button>
-                    </div>
                   </div>
-                )}
+
+                  {/* Кнопки */}
+                  <div className="flex flex-col gap-3">
+                    <button
+                      type="button"
+                      onClick={() => toast.info('Функция оплаты находится в разработке. Скоро будет доступна.')}
+                      className="w-full py-3 bg-[#00CC00] text-white rounded-xl font-bold hover:bg-[#00b300] transition-colors shadow-md flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                      </svg>
+                      Оплатить
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleSubmitProject}
+                      disabled={isSubmitting}
+                      className="w-full py-3 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500" />
+                          <span>Отправка...</span>
+                        </>
+                      ) : (
+                        'Отправить на модерацию'
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setCreateStep(2)}
+                      className="w-full py-2.5 text-gray-500 text-sm hover:text-gray-700 transition-colors"
+                    >
+                      ← Назад
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -1901,7 +1795,7 @@ export default function OrganizerProjects() {
                       { value: '', label: 'Выберите категорию' },
                       ...categories.map((cat) => ({
                         value: cat.id,
-                        label: `${cat.icon} ${cat.name}`
+                        label: cat.name
                       }))
                     ]}
                     value={projectData.category}
@@ -1961,29 +1855,16 @@ export default function OrganizerProjects() {
                 </div>
 
                 {/* Dates */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Дата начала *
-                    </label>
-                    <CustomDatePicker
-                      value={projectData.startDate}
-                      onChange={(value) => setProjectData({ ...projectData, startDate: value })}
-                      placeholder="Выберите дату начала"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Дата окончания *
-                    </label>
-                    <CustomDatePicker
-                      value={projectData.endDate}
-                      onChange={(value) => setProjectData({ ...projectData, endDate: value })}
-                      placeholder="Выберите дату окончания"
-                      minDate={projectData.startDate}
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Период проекта *
+                  </label>
+                  <DateRangePicker
+                    startDate={projectData.startDate}
+                    endDate={projectData.endDate}
+                    onStartChange={(value) => setProjectData({ ...projectData, startDate: value })}
+                    onEndChange={(value) => setProjectData({ ...projectData, endDate: value })}
+                  />
                 </div>
 
                 {/* Location */}
@@ -2156,24 +2037,26 @@ export default function OrganizerProjects() {
                             </div>
                           </div>
                           <div className="flex gap-2 ml-4">
-                            <button
-                              onClick={() => handleEditTask(task.id)}
-                              className="text-blue-500 hover:text-blue-700"
-                              title="Редактировать"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => handleRemoveTask(task.id)}
-                              className="text-red-500 hover:text-red-700"
-                              title="Удалить"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
+                            <Tooltip text="Редактировать">
+                              <button
+                                onClick={() => handleEditTask(task.id)}
+                                className="text-blue-500 hover:text-blue-700"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
+                            </Tooltip>
+                            <Tooltip text="Удалить">
+                              <button
+                                onClick={() => handleRemoveTask(task.id)}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </Tooltip>
                           </div>
                         </div>
                       </div>

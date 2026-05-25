@@ -252,19 +252,19 @@ export default function AiSupportButton() {
                 <div className="mt-4 space-y-2">
                   <button
                     onClick={() => setInput('Какие проекты доступны?')}
-                    className="block w-full text-left text-xs text-gray-600 hover:text-[#00CC00] bg-white p-2 rounded-lg border border-gray-200 hover:border-[#00CC00] transition-colors"
+                    className="block w-full text-center text-xs text-gray-600 hover:text-[#00CC00] bg-white p-2 rounded-lg border border-gray-200 hover:border-[#00CC00] transition-colors"
                   >
                     Какие проекты доступны?
                   </button>
                   <button
                     onClick={() => setInput('Покажи проекты по экологии')}
-                    className="block w-full text-left text-xs text-gray-600 hover:text-[#00CC00] bg-white p-2 rounded-lg border border-gray-200 hover:border-[#00CC00] transition-colors"
+                    className="block w-full text-center text-xs text-gray-600 hover:text-[#00CC00] bg-white p-2 rounded-lg border border-gray-200 hover:border-[#00CC00] transition-colors"
                   >
                     Покажи проекты по экологии
                   </button>
                   <button
                     onClick={() => setInput('Какие категории есть?')}
-                    className="block w-full text-left text-xs text-gray-600 hover:text-[#00CC00] bg-white p-2 rounded-lg border border-gray-200 hover:border-[#00CC00] transition-colors"
+                    className="block w-full text-center text-xs text-gray-600 hover:text-[#00CC00] bg-white p-2 rounded-lg border border-gray-200 hover:border-[#00CC00] transition-colors"
                   >
                     Какие категории есть?
                   </button>

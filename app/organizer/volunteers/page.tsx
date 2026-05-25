@@ -7,6 +7,10 @@ import OrganizerSidebar from '../components/OrganizerSidebar';
 import AiSupportButton from '@/app/components/AiSupportButton';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
+import { useTranslation } from '@/app/i18n/useTranslation';
+import { Tooltip } from '@/app/components/Tooltip';
+import CustomSelect from '@/app/components/CustomSelect';
+import { SvgIcon } from '@/app/components/SvgIcon';
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
 
@@ -80,6 +84,7 @@ const fmtDate = (d?: string | Date) =>
 
 export default function OrganizerVolunteers() {
   const router = useRouter();
+  const { t } = useTranslation('organizer');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [volunteers, setVolunteers] = useState<VolunteerShort[]>([]);
@@ -212,7 +217,7 @@ export default function OrganizerVolunteers() {
           {/* Header */}
           <div className="mb-6 flex items-end justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Волонтёры</h1>
+              <h1 className="text-3xl font-bold text-gray-900">{t.volunteers?.title || 'Волонтёры'}</h1>
               <p className="text-gray-500 mt-1 text-sm">Всего: {volunteers.length}</p>
             </div>
           </div>
@@ -227,7 +232,7 @@ export default function OrganizerVolunteers() {
                 </svg>
                 <input
                   type="text"
-                  placeholder="Поиск по имени, городу или навыкам..."
+                  placeholder={t.volunteers?.searchPlaceholder || 'Поиск по имени, городу или навыкам...'}
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className="w-full pl-10 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
@@ -251,33 +256,29 @@ export default function OrganizerVolunteers() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
                 </svg>
-                Фильтры
+                {t.common?.filter || 'Фильтры'}
                 {hasFilters && <span className="w-2 h-2 bg-white rounded-full opacity-80" />}
               </button>
 
-              {/* View mode */}
-              <div className="flex border border-gray-200 rounded-xl overflow-hidden">
+              {/* View mode — одна кнопка-тогл */}
+              <Tooltip text={viewMode === 'grid' ? 'Переключить на список' : 'Переключить на блоки'}>
                 <button
-                  onClick={() => setViewMode('grid')}
-                  className={`px-3 py-2.5 transition-colors ${viewMode === 'grid' ? 'bg-[#00CC00] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
-                  title="Сетка"
+                  onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                  className="p-2.5 rounded-xl border bg-[#00CC00] text-white border-[#00CC00] transition-colors hover:bg-[#00b300]"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                  </svg>
+                  {viewMode === 'list' ? (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                    </svg>
+                  )}
                 </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`px-3 py-2.5 transition-colors ${viewMode === 'list' ? 'bg-[#00CC00] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
-                  title="Список"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                  </svg>
-                </button>
-              </div>
+              </Tooltip>
 
-              {/* Reset */}
+              {/* Reset — только при активных фильтрах */}
               {hasFilters && (
                 <button
                   onClick={resetFilters}
@@ -286,7 +287,7 @@ export default function OrganizerVolunteers() {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  Сбросить
+                  <span className="hidden sm:inline">Сбросить</span>
                 </button>
               )}
             </div>
@@ -296,31 +297,33 @@ export default function OrganizerVolunteers() {
               <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {/* City */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Город</label>
-                  <select
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">{t.volunteers?.city || 'Город'}</label>
+                  <CustomSelect
                     value={filterCity}
-                    onChange={e => setFilterCity(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00CC00] appearance-none cursor-pointer"
-                  >
-                    <option value="all">Все города</option>
-                    {cities.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                    onChange={setFilterCity}
+                    placeholder="Все города"
+                    options={[
+                      { value: 'all', label: 'Все города' },
+                      ...cities.map(c => ({ value: c, label: c })),
+                    ]}
+                  />
                 </div>
 
                 {/* Sort */}
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1.5">Сортировка</label>
-                  <select
+                  <CustomSelect
                     value={sortBy}
-                    onChange={e => setSortBy(e.target.value as typeof sortBy)}
-                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00CC00] appearance-none cursor-pointer"
-                  >
-                    <option value="name-asc">Имя: А → Я</option>
-                    <option value="name-desc">Имя: Я → А</option>
-                    <option value="rating-desc">Рейтинг: высокий</option>
-                    <option value="projects-desc">Проектов: больше</option>
-                    <option value="tasks-desc">Задач: больше</option>
-                  </select>
+                    onChange={v => setSortBy(v as typeof sortBy)}
+                    placeholder="Сортировка"
+                    options={[
+                      { value: 'name-asc', label: 'Имя: А → Я' },
+                      { value: 'name-desc', label: 'Имя: Я → А' },
+                      { value: 'rating-desc', label: 'Рейтинг: высокий' },
+                      { value: 'projects-desc', label: 'Проектов: больше' },
+                      { value: 'tasks-desc', label: 'Задач: больше' },
+                    ]}
+                  />
                 </div>
 
                 {/* Stats hint */}
@@ -342,10 +345,10 @@ export default function OrganizerVolunteers() {
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                {hasFilters ? 'Ничего не найдено' : 'Нет волонтёров'}
+                {hasFilters ? 'Ничего не найдено' : (t.volunteers?.noParticipants || 'Нет волонтёров')}
               </h3>
               <p className="text-gray-500 text-sm mb-4">
-                {hasFilters ? 'Попробуйте изменить параметры поиска' : 'Волонтёры появятся после регистрации на платформе'}
+                {hasFilters ? 'Попробуйте изменить параметры поиска' : (t.volunteers?.noParticipantsHint || 'Волонтёры появятся после регистрации на платформе')}
               </p>
               {hasFilters && (
                 <button onClick={resetFilters} className="px-4 py-2 bg-[#00CC00] text-white rounded-xl text-sm font-medium hover:bg-[#00b300] transition-colors">
@@ -461,7 +464,7 @@ export default function OrganizerVolunteers() {
             <div className="fixed top-0 right-0 h-full w-full max-w-lg bg-white z-50 shadow-2xl flex flex-col">
               {/* Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
-                <h2 className="text-lg font-bold text-gray-900">Профиль волонтёра</h2>
+                <h2 className="text-lg font-bold text-gray-900">{t.volunteers?.title || 'Профиль волонтёра'}</h2>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => detail && handleStartChat(detail.id)}
@@ -471,7 +474,7 @@ export default function OrganizerVolunteers() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                     </svg>
-                    {creatingChat ? 'Загрузка...' : 'Написать'}
+                    {creatingChat ? (t.common?.loading || 'Загрузка...') : 'Написать'}
                   </button>
                   <button onClick={closeProfile} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors text-gray-500">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -601,7 +604,9 @@ export default function OrganizerVolunteers() {
                             const expired = new Date(ua.expiresAt) <= new Date();
                             return (
                               <div key={ua.id} className={`flex items-center gap-3 p-3 rounded-xl border ${expired ? 'opacity-50 bg-gray-50 border-gray-100' : 'bg-amber-50 border-amber-100'}`}>
-                                <span className="text-2xl shrink-0">{ua.achievement.icon}</span>
+                                <div className={`w-9 h-9 flex items-center justify-center rounded-xl shrink-0 overflow-hidden ${expired ? 'bg-gray-100 text-gray-400' : 'bg-amber-100 text-amber-600'}`}>
+                                  <SvgIcon iconKey={ua.achievement.icon} className="w-5 h-5" />
+                                </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-semibold text-gray-900">{ua.achievement.name}</p>
                                   <p className="text-xs text-gray-500 truncate">{ua.achievement.description}</p>

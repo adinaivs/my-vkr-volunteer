@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, getAuthenticatedUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 // GET /api/chats/[chatId]/messages - Получить сообщения чата
@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ chatId: string }> }
 ) {
   try {
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
     if (!session) {
       return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
     }
@@ -96,7 +96,7 @@ export async function POST(
   try {
     console.log('[GroupChat POST] Начало обработки запроса');
     
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
     console.log('[GroupChat POST] Сессия:', session ? `userId: ${session.userId}` : 'нет сессии');
     
     if (!session) {

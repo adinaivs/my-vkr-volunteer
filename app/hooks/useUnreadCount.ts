@@ -1,40 +1,61 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export function useUnreadCount() {
   const [unreadCount, setUnreadCount] = useState(0);
+  // Флаг — прекратить опрос если пользователь не авторизован
+  const unauthorizedRef = useRef(false);
 
   useEffect(() => {
+    unauthorizedRef.current = false;
+
     const fetchUnreadCount = async () => {
+      // Не делаем запрос если уже получили 401
+      if (unauthorizedRef.current) return;
+
       try {
-        // Получаем групповые чаты
-        const groupChatsRes = await fetch('/api/chats');
+        const [groupChatsRes, directChatsRes] = await Promise.all([
+          fetch('/api/chats'),
+          fetch('/api/direct-chats'),
+        ]);
+
+        // Если не авторизован — останавливаем опрос
+        if (groupChatsRes.status === 401 || directChatsRes.status === 401) {
+          unauthorizedRef.current = true;
+          setUnreadCount(0);
+          return;
+        }
+
         let groupUnread = 0;
         if (groupChatsRes.ok) {
           const data = await groupChatsRes.json();
-          groupUnread = data.chats.reduce((sum: number, chat: any) => sum + (chat.unreadCount || 0), 0);
+          groupUnread = data.chats?.reduce(
+            (sum: number, chat: any) => sum + (chat.unreadCount || 0),
+            0
+          ) ?? 0;
         }
 
-        // Получаем личные чаты
-        const directChatsRes = await fetch('/api/direct-chats');
         let directUnread = 0;
         if (directChatsRes.ok) {
           const data = await directChatsRes.json();
-          directUnread = data.chats.reduce((sum: number, chat: any) => sum + (chat.unreadCount || 0), 0);
+          directUnread = data.chats?.reduce(
+            (sum: number, chat: any) => sum + (chat.unreadCount || 0),
+            0
+          ) ?? 0;
         }
 
         setUnreadCount(groupUnread + directUnread);
-      } catch (error) {
-        console.error('Ошибка при получении количества непрочитанных:', error);
+      } catch {
+        // Сеть недоступна или компонент размонтирован — молча игнорируем
       }
     };
 
     fetchUnreadCount();
-    
-    // Обновляем каждые 3 секунды для быстрого отображения новых сообщений
-    const interval = setInterval(fetchUnreadCount, 3000);
-    
+
+    // 30 секунд достаточно для счётчика непрочитанных
+    const interval = setInterval(fetchUnreadCount, 30_000);
+
     return () => clearInterval(interval);
   }, []);
 

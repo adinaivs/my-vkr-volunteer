@@ -8,6 +8,7 @@ import AdminSidebar from '../components/AdminSidebar';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { useToast } from '@/app/components/ToastContainer';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface User {
   id: string;
@@ -38,6 +39,7 @@ const STATUS_LABELS: Record<string, string> = { active: 'Активен', blocke
 export default function AdminUsersPage() {
   const router = useRouter();
   const toast = useToast();
+  const { t } = useTranslation('admin');
   const [me, setMe] = useState<AdminUser | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [total, setTotal] = useState(0);
@@ -47,6 +49,7 @@ export default function AdminUsersPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Фильтры
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -99,9 +102,24 @@ export default function AdminUsersPage() {
     init();
   }, [router]);
 
+  // Автоматический запрос при изменении поиска (debounced) или фильтров
+  useEffect(() => {
+    if (me) fetchUsers(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, roleFilter, statusFilter, cityFilter, dateFrom, dateTo, orgStatus, sort]);
+
+  // Debounce: поиск срабатывает через 400мс после последнего нажатия
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
   const applyFilters = () => { setPage(1); fetchUsers(1); };
   const resetFilters = () => {
-    setSearch(''); setRoleFilter('all'); setStatusFilter('all');
+    setSearchInput(''); setSearch(''); setRoleFilter('all'); setStatusFilter('all');
     setCityFilter(''); setDateFrom(''); setDateTo('');
     setOrgStatus('all'); setSort('newest'); setPage(1);
     setTimeout(() => fetchUsers(1), 0);
@@ -148,7 +166,7 @@ export default function AdminUsersPage() {
         <DynamicContent>
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Пользователи</h1>
+              <h1 className="text-3xl font-bold text-gray-900">{t.users?.title || 'Пользователи'}</h1>
               <p className="text-gray-500 mt-1 text-sm">Управление волонтёрами и организаторами · {total} чел.</p>
             </div>
           </div>
@@ -162,19 +180,23 @@ export default function AdminUsersPage() {
                 </svg>
                 <input
                   type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-                  placeholder="Поиск по имени, email, телефону..."
-                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00CC00]"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder={t.users?.searchPlaceholder || 'Поиск по имени, email, телефону...'}
+                  className="w-full pl-9 pr-10 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00CC00]"
                 />
+                {searchInput && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchInput('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full bg-gray-300 hover:bg-gray-400 transition-colors"
+                  >
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
-              <button
-                onClick={applyFilters}
-                className="px-4 py-2 bg-[#00CC00] text-white rounded-xl text-sm hover:bg-[#00b300] transition-colors"
-              >
-                Найти
-              </button>
               <button
                 onClick={() => setFiltersOpen(!filtersOpen)}
                 className={`flex items-center gap-2 px-4 py-2 border rounded-xl text-sm transition-colors ${filtersOpen ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 hover:bg-gray-50'}`}
@@ -200,20 +222,20 @@ export default function AdminUsersPage() {
             {filtersOpen && (
               <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">Роль</label>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">{t.users?.filterRole || 'Роль'}</label>
                   <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00CC00]">
-                    <option value="all">Все роли</option>
-                    <option value="volunteer">Волонтёры</option>
-                    <option value="organizer">Организаторы</option>
+                    <option value="all">{t.users?.allRoles || 'Все роли'}</option>
+                    <option value="volunteer">{t.users?.volunteer || 'Волонтёры'}</option>
+                    <option value="organizer">{t.users?.organizer || 'Организаторы'}</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">Статус</label>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">{t.users?.filterStatus || 'Статус'}</label>
                   <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00CC00]">
-                    <option value="all">Все статусы</option>
+                    <option value="all">{t.users?.allStatuses || 'Все статусы'}</option>
                     <option value="active">Активные</option>
                     <option value="blocked">Заблокированные</option>
                     <option value="inactive">Неактивные</option>
@@ -278,19 +300,19 @@ export default function AdminUsersPage() {
           {/* Таблица */}
           <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
             {users.length === 0 ? (
-              <div className="p-12 text-center text-gray-500">Пользователи не найдены</div>
+              <div className="p-12 text-center text-gray-500">{t.users?.noUsers || 'Пользователи не найдены'}</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Пользователь</th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Роль</th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Город</th>
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t.users?.role || 'Роль'}</th>
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">{t.users?.city || 'Город'}</th>
                       <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Доп. информация</th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Регистрация</th>
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Статус</th>
-                      <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Действия</th>
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">{t.users?.registeredAt || 'Регистрация'}</th>
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t.users?.status || 'Статус'}</th>
+                      <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t.common?.actions || 'Действия'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -371,13 +393,13 @@ export default function AdminUsersPage() {
                             <button onClick={() => setConfirmModal({ user, newStatus: 'active' })}
                               disabled={blockingId === user.id}
                               className="px-3 py-1.5 text-xs font-medium bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50">
-                              Разблокировать
+                              {t.users?.unblockUser || 'Разблокировать'}
                             </button>
                           ) : (
                             <button onClick={() => setConfirmModal({ user, newStatus: 'blocked' })}
                               disabled={blockingId === user.id}
                               className="px-3 py-1.5 text-xs font-medium bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50">
-                              Заблокировать
+                              {t.users?.blockUser || 'Заблокировать'}
                             </button>
                           )}
                         </td>
@@ -417,7 +439,7 @@ export default function AdminUsersPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              {confirmModal.newStatus === 'blocked' ? 'Заблокировать пользователя?' : 'Разблокировать пользователя?'}
+              {confirmModal.newStatus === 'blocked' ? (t.users?.blockConfirm || 'Заблокировать пользователя?') : (t.users?.unblockConfirm || 'Разблокировать пользователя?')}
             </h3>
             <p className="text-gray-600 text-sm mb-6">
               {confirmModal.newStatus === 'blocked'
@@ -427,13 +449,13 @@ export default function AdminUsersPage() {
             <div className="flex gap-3">
               <button onClick={() => setConfirmModal(null)}
                 className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 transition-colors">
-                Отмена
+                {t.common?.cancel || 'Отмена'}
               </button>
               <button onClick={handleStatusChange}
                 className={`flex-1 px-4 py-2 rounded-xl text-sm text-white transition-colors ${
                   confirmModal.newStatus === 'blocked' ? 'bg-red-500 hover:bg-red-600' : 'bg-[#00CC00] hover:bg-[#00b300]'
                 }`}>
-                {confirmModal.newStatus === 'blocked' ? 'Заблокировать' : 'Разблокировать'}
+                {confirmModal.newStatus === 'blocked' ? (t.users?.blockUser || 'Заблокировать') : (t.users?.unblockUser || 'Разблокировать')}
               </button>
             </div>
           </div>

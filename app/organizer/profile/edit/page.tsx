@@ -7,6 +7,7 @@ import OrganizerSidebar from '../../components/OrganizerSidebar';
 import AiSupportButton from '@/app/components/AiSupportButton';
 import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface User {
   id: string;
@@ -31,6 +32,7 @@ interface User {
 
 export default function EditOrganizerProfile() {
   const router = useRouter();
+  const { t } = useTranslation('organizer');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -102,7 +104,7 @@ export default function EditOrganizerProfile() {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
-        setError('Размер файла не должен превышать 10 МБ');
+        setError(t.profileEdit?.fileSizeError || 'Размер файла не должен превышать 10 МБ');
         return;
       }
       setDocumentFile(file);
@@ -131,7 +133,7 @@ export default function EditOrganizerProfile() {
         });
 
         if (!uploadResponse.ok) {
-          throw new Error('Ошибка при загрузке документа');
+          throw new Error(t.profileEdit?.uploadError || 'Ошибка при загрузке документа');
         }
 
         const uploadData = await uploadResponse.json();
@@ -155,7 +157,7 @@ export default function EditOrganizerProfile() {
         throw new Error(data.error || 'Ошибка при отправке данных');
       }
 
-      setSuccess('Данные успешно обновлены и отправлены на повторную проверку!');
+      setSuccess(t.profileEdit?.successMessage || 'Данные успешно обновлены и отправлены на повторную проверку!');
       
       // Перенаправляем на профиль через 2 секунды
       setTimeout(() => {
@@ -194,10 +196,10 @@ export default function EditOrganizerProfile() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Редактирование данных организатора
+            {t.profileEdit?.title || 'Редактирование данных организатора'}
           </h1>
           <p className="text-gray-600">
-            Исправьте данные и отправьте заявку повторно на проверку администратором
+            {t.profileEdit?.subtitle || 'Исправьте данные и отправьте заявку повторно на проверку администратором'}
           </p>
         </div>
 
@@ -211,7 +213,7 @@ export default function EditOrganizerProfile() {
                 </svg>
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-red-900 mb-1">Причина отклонения:</h3>
+                <h3 className="font-bold text-red-900 mb-1">{t.profileEdit?.rejectionReasonLabel || 'Причина отклонения:'}</h3>
                 <p className="text-sm text-red-800">{user.organizerProfile.rejectionReason}</p>
               </div>
             </div>
@@ -236,12 +238,12 @@ export default function EditOrganizerProfile() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Personal Information */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Личная информация</h2>
-            
+            <h2 className="text-xl font-bold text-gray-900 mb-6">{t.profileEdit?.personalInfo || 'Личная информация'}</h2>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Имя <span className="text-red-500">*</span>
+                  {t.profileEdit?.firstName || 'Имя'} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -254,7 +256,7 @@ export default function EditOrganizerProfile() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Фамилия <span className="text-red-500">*</span>
+                  {t.profileEdit?.lastName || 'Фамилия'} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -267,7 +269,7 @@ export default function EditOrganizerProfile() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Телефон <span className="text-red-500">*</span>
+                  {t.profileEdit?.phone || 'Телефон'} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="tel"
@@ -280,7 +282,7 @@ export default function EditOrganizerProfile() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Город <span className="text-red-500">*</span>
+                  {t.profileEdit?.city || 'Город'} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -295,12 +297,12 @@ export default function EditOrganizerProfile() {
 
           {/* Organization Information */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Информация об организации</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-6">{t.profileEdit?.orgInfo || 'Информация об организации'}</h2>
             
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Название организации <span className="text-red-500">*</span>
+                  {t.profileEdit?.organizationName || 'Название организации'} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -314,7 +316,7 @@ export default function EditOrganizerProfile() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    ИНН <span className="text-red-500">*</span>
+                    {t.profileEdit?.inn || 'ИНН'} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -328,7 +330,7 @@ export default function EditOrganizerProfile() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    ОКПО <span className="text-red-500">*</span>
+                    {t.profileEdit?.okpo || 'ОКПО'} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -343,7 +345,7 @@ export default function EditOrganizerProfile() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Юридический адрес <span className="text-red-500">*</span>
+                  {t.profileEdit?.legalAddress || 'Юридический адрес'} <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   required
@@ -356,7 +358,7 @@ export default function EditOrganizerProfile() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Фактический адрес <span className="text-red-500">*</span>
+                  {t.profileEdit?.actualAddress || 'Фактический адрес'} <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   required
@@ -369,10 +371,10 @@ export default function EditOrganizerProfile() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Документ для верификации
+                  {t.profileEdit?.verificationDoc || 'Документ для верификации'}
                 </label>
                 <p className="text-sm text-gray-600 mb-3">
-                  Загрузите документ, подтверждающий регистрацию организации (PDF, JPG, PNG, до 10 МБ)
+                  {t.profileEdit?.verificationDocHint || 'Загрузите документ, подтверждающий регистрацию организации (PDF, JPG, PNG, до 10 МБ)'}
                 </p>
                 
                 {documentPreview && (
@@ -382,14 +384,14 @@ export default function EditOrganizerProfile() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">Текущий документ</p>
-                        <a 
-                          href={documentPreview} 
-                          target="_blank" 
+                        <p className="text-sm font-medium text-gray-900">{t.profileEdit?.currentDoc || 'Текущий документ'}</p>
+                        <a
+                          href={documentPreview}
+                          target="_blank"
                           rel="noopener noreferrer"
                           className="text-sm text-[#00CC00] hover:underline"
                         >
-                          Просмотреть
+                          {t.profileEdit?.viewDoc || 'Просмотреть'}
                         </a>
                       </div>
                     </div>
@@ -413,14 +415,14 @@ export default function EditOrganizerProfile() {
               disabled={submitting}
               className="flex-1 px-6 py-4 bg-[#00CC00] text-white rounded-xl font-medium hover:bg-[#00b300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {submitting ? 'Отправка...' : 'Отправить на проверку'}
+              {submitting ? (t.profileEdit?.submitting || 'Отправка...') : (t.profileEdit?.submit || 'Отправить на проверку')}
             </button>
             <button
               type="button"
               onClick={() => router.push('/organizer/dashboard')}
               className="px-6 py-4 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
             >
-              Отмена
+              {t.profileEdit?.cancel || 'Отмена'}
             </button>
           </div>
         </form>

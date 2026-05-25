@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, getAuthenticatedUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 // GET /api/organizer/profile - Получить полный профиль организатора со статистикой
 export async function GET() {
   try {
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
     if (!session || session.role !== 'organizer') {
       return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 });
     }
@@ -97,7 +97,7 @@ export async function GET() {
 // PUT /api/organizer/profile - Обновить личные данные организатора
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
     if (!session || session.role !== 'organizer') {
       return NextResponse.json({ error: 'Доступ запрещён' }, { status: 403 });
     }

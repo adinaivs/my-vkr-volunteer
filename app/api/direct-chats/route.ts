@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, getAuthenticatedUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 // GET /api/direct-chats - Получить список личных чатов текущего пользователя
 export async function GET() {
   try {
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
     if (!session) {
       return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
     }
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
   try {
     console.log('[DirectChats POST] Начало обработки запроса');
     
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
     console.log('[DirectChats POST] Сессия:', session ? `userId: ${session.userId}` : 'нет сессии');
     
     if (!session) {

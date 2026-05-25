@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import VolunteerNav from '../../../components/VolunteerNav';
 import AiSupportButton from '@/app/components/AiSupportButton';
 import { useToast } from '@/app/components/ToastContainer';
+import { useTranslation } from '@/app/i18n/useTranslation';
 
 interface User {
   id: string;
@@ -54,6 +55,7 @@ export default function ApplyToProject() {
   const params = useParams();
   const projectId = params.id as string;
   const toast = useToast();
+  const { t } = useTranslation('volunteer');
   
   const [user, setUser] = useState<User | null>(null);
   const [project, setProject] = useState<Project | null>(null);
@@ -144,17 +146,17 @@ export default function ApplyToProject() {
     e.preventDefault();
     
     if (!motivation.trim()) {
-      toast.error('Пожалуйста, укажите причину участия');
+      toast.error(t.apply?.errorMotivation || 'Пожалуйста, укажите причину участия');
       return;
     }
 
     if (motivation.trim().length < 50) {
-      toast.error('Причина участия должна содержать минимум 50 символов');
+      toast.error(t.apply?.errorMinChars || 'Причина участия должна содержать минимум 50 символов');
       return;
     }
 
     if (!phone.trim() || !email.trim()) {
-      toast.error('Пожалуйста, заполните контактные данные');
+      toast.error(t.apply?.errorContacts || 'Пожалуйста, заполните контактные данные');
       return;
     }
 
@@ -177,7 +179,7 @@ export default function ApplyToProject() {
       });
 
       if (response.ok) {
-        toast.success('Заявка успешно отправлена! Организатор свяжется с вами в ближайшее время.');
+        toast.success(t.apply?.successMessage || 'Заявка успешно отправлена! Организатор свяжется с вами в ближайшее время.');
         router.replace(`/volunteer/projects/${projectId}`);
       } else {
         const data = await response.json();
@@ -222,8 +224,8 @@ export default function ApplyToProject() {
             </svg>
           </button>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-gray-900">Подать заявку</h1>
-            <p className="text-sm text-gray-600">Заполните форму для участия в проекте</p>
+            <h1 className="text-2xl font-bold text-gray-900">{t.apply?.title || 'Подать заявку'}</h1>
+            <p className="text-sm text-gray-600">{t.apply?.subtitle || 'Заполните форму для участия в проекте'}</p>
           </div>
         </div>
 
@@ -267,7 +269,7 @@ export default function ApplyToProject() {
                 </div>
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                Организатор: {project.organizer.organizerProfile?.organizationName || 
+                {t.apply?.organizer || 'Организатор'}: {project.organizer.organizerProfile?.organizationName ||
                   `${project.organizer.firstName} ${project.organizer.lastName}`}
               </p>
             </div>
@@ -278,18 +280,18 @@ export default function ApplyToProject() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Motivation */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Почему вы хотите участвовать?</h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-4">{t.apply?.whyParticipate || 'Почему вы хотите участвовать?'}</h2>
             <textarea
               value={motivation}
               onChange={(e) => setMotivation(e.target.value)}
-              placeholder="Расскажите, почему вас заинтересовал этот проект и что вы можете привнести..."
+              placeholder={t.apply?.motivationPlaceholder || 'Расскажите, почему вас заинтересовал этот проект и что вы можете привнести...'}
               rows={5}
               required
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent resize-none"
             />
             <div className="flex items-center justify-between mt-2">
               <p className="text-xs text-gray-500">
-                Минимум 50 символов. Организатор увидит ваш ответ.
+                {t.apply?.minChars || 'Минимум 50 символов. Организатор увидит ваш ответ.'}
               </p>
               <div className="flex items-center gap-1">
                 <span className={`text-xs font-medium ${
@@ -307,11 +309,11 @@ export default function ApplyToProject() {
 
           {/* Contact Information */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Контактная информация</h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-4">{t.apply?.contactInfo || 'Контактная информация'}</h2>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Номер телефона <span className="text-red-500">*</span>
+                  {t.apply?.phone || 'Номер телефона'} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="tel"
@@ -336,16 +338,16 @@ export default function ApplyToProject() {
                 />
               </div>
               <p className="text-xs text-gray-500">
-                Организатор свяжется с вами по указанным контактам
+                {t.apply?.contactHint || 'Организатор свяжется с вами по указанным контактам'}
               </p>
             </div>
           </div>
 
           {/* Skills */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Ваши навыки</h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-4">{t.apply?.skills || 'Ваши навыки'}</h2>
             <p className="text-sm text-gray-600 mb-4">
-              Выберите навыки, которыми вы обладаете и которые могут быть полезны в проекте
+              {t.apply?.skillsHint || 'Выберите навыки, которыми вы обладаете и которые могут быть полезны в проекте'}
             </p>
             <div className="flex flex-wrap gap-2">
               {allSkills.map((skill) => (
@@ -367,11 +369,11 @@ export default function ApplyToProject() {
 
           {/* Experience */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Опыт волонтерства (необязательно)</h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-4">{t.apply?.experience || 'Опыт волонтерства (необязательно)'}</h2>
             <textarea
               value={experience}
               onChange={(e) => setExperience(e.target.value)}
-              placeholder="Расскажите о вашем предыдущем опыте волонтерства или участия в подобных проектах..."
+              placeholder={t.apply?.experiencePlaceholder || 'Расскажите о вашем предыдущем опыте волонтерства или участия в подобных проектах...'}
               rows={4}
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent resize-none"
             />
@@ -379,11 +381,11 @@ export default function ApplyToProject() {
 
           {/* Availability */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Доступность (необязательно)</h2>
+            <h2 className="text-lg font-bold text-gray-900 mb-4">{t.apply?.availability || 'Доступность (необязательно)'}</h2>
             <textarea
               value={availability}
               onChange={(e) => setAvailability(e.target.value)}
-              placeholder="Укажите, когда вы можете участвовать в проекте (дни недели, время)..."
+              placeholder={t.apply?.availabilityPlaceholder || 'Укажите, когда вы можете участвовать в проекте (дни недели, время)...'}
               rows={3}
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent resize-none"
             />
@@ -396,14 +398,14 @@ export default function ApplyToProject() {
               onClick={() => router.back()}
               className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
             >
-              Отмена
+              {t.apply?.cancel || 'Отмена'}
             </button>
             <button
               type="submit"
               disabled={submitting}
               className="flex-1 px-6 py-3 bg-[#00CC00] text-white rounded-xl font-semibold hover:bg-[#00b300] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
-              {submitting ? 'Отправка...' : 'Отправить заявку'}
+              {submitting ? (t.apply?.submitting || 'Отправка...') : (t.apply?.submit || 'Отправить заявку')}
             </button>
           </div>
         </form>

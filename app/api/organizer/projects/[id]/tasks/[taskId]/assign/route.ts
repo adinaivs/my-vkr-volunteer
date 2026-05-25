@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, getAuthenticatedUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 // POST /api/organizer/projects/[id]/tasks/[taskId]/assign - Назначить задачу участнику
@@ -8,7 +8,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string; taskId: string }> }
 ) {
   try {
-    const session = await getSession();
+    const session = await getAuthenticatedUser();
 
     if (!session) {
       return NextResponse.json(
