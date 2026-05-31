@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import NavLanguageSwitcher from '@/app/i18n/NavLanguageSwitcher';
 import { Tooltip } from '@/app/components/Tooltip';
+import { useSidebar } from '@/app/contexts/SidebarContext';
 
 interface User {
   firstName: string;
@@ -17,6 +18,7 @@ interface AdminNavProps {
 
 export default function AdminNav({ user }: AdminNavProps) {
   const router = useRouter();
+  const { mobileOpen, setMobileOpen } = useSidebar();
 
   const handleLogout = async () => {
     try {
@@ -31,6 +33,22 @@ export default function AdminNav({ user }: AdminNavProps) {
     <header className="bg-white fixed top-0 left-0 right-0 z-50 lg:mx-2 lg:mt-2 lg:rounded-2xl shadow-xl border border-gray-300">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
+          {/* Burger button - mobile only */}
+          <button
+            className="lg:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors mr-1"
+            onClick={() => setMobileOpen(!mobileOpen)}
+          >
+            {mobileOpen ? (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
+
           {/* Logo */}
           <Link href="/admin/dashboard" className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gradient-to-br from-[#00CC00] to-[#00b300] rounded-lg flex items-center justify-center">

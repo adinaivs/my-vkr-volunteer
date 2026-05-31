@@ -1083,8 +1083,8 @@ async function getTodayTasks(args: {
   }
 
   const assignmentStatusFilter = mode === 'past'
-    ? { in: ['assigned', 'completed', 'confirmed'] }
-    : { notIn: ['cancelled', 'rejected'] };
+    ? { in: ['assigned', 'completed', 'confirmed'] as any[] }
+    : { notIn: ['cancelled', 'rejected'] as any[] };
 
   const [assignments, personalEvents] = await Promise.all([
     prisma.taskAssignment.findMany({

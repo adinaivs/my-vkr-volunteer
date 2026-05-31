@@ -215,15 +215,15 @@ export default function OrganizerVolunteers() {
 
         <DynamicContent>
           {/* Header */}
-          <div className="mb-6 flex items-end justify-between">
+          <div className="mb-4 sm:mb-6 flex items-end justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">{t.volunteers?.title || 'Волонтёры'}</h1>
-              <p className="text-gray-500 mt-1 text-sm">Всего: {volunteers.length}</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t.volunteers?.title || 'Волонтёры'}</h1>
+              <p className="text-gray-500 mt-1 text-xs sm:text-sm">Всего: {volunteers.length}</p>
             </div>
           </div>
 
           {/* Search + controls */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 mb-4">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-3 sm:p-4 mb-3 sm:mb-4">
             <div className="flex gap-3 items-center">
               {/* Search */}
               <div className="relative flex-1">
@@ -357,7 +357,7 @@ export default function OrganizerVolunteers() {
               )}
             </div>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
               {filtered.map(v => (
                 <button
                   key={v.id}

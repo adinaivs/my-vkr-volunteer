@@ -287,77 +287,74 @@ export default function MyProjects() {
 
         <DynamicContent>
           {/* Page Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{t.myProjects?.title || 'Мои проекты'}</h1>
-            <p className="text-gray-600">{t.myProjects?.subtitle || 'Управляйте своими проектами и заявками'}</p>
+          <div className="mb-5 sm:mb-8">
+            <h1 className="text-xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">{t.myProjects?.title || 'Мои проекты'}</h1>
+            <p className="text-sm sm:text-base text-gray-600">{t.myProjects?.subtitle || 'Управляйте своими проектами и заявками'}</p>
           </div>
 
           {/* Единый контейнер для поиска и фильтров */}
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-300 mb-6 p-6">
+          <div className="bg-white rounded-xl shadow-xl border border-gray-300 mb-3 sm:mb-4 md:mb-6 p-2.5 sm:p-3 md:p-4">
             {/* Верхняя панель: Поиск + Кнопки */}
-            <div className="flex flex-col md:flex-row gap-4 mb-4">
+            <div className="flex gap-1.5 sm:gap-2 mb-2.5 sm:mb-3">
               <div className="flex-1 relative">
                 <input
                   type="text"
-                  placeholder={t.myProjects?.searchPlaceholder || 'Поиск по названию, локации, организатору...'}
+                  placeholder={t.myProjects?.searchPlaceholder || 'Поиск проектов...'}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                  className="w-full pl-8 sm:pl-9 pr-2 sm:pr-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-transparent"
                 />
-                <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
-              <div className="flex gap-2">
-                {activeTab !== 'applications' && (
-                  <Tooltip text={viewMode === 'grid' ? 'Переключить на список' : 'Переключить на блоки'}>
-                    <button
-                      onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                      className="p-3 rounded-xl border bg-[#00CC00] text-white border-[#00CC00] transition-colors hover:bg-[#00b300]"
-                    >
-                      {viewMode === 'list' ? (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                      ) : (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                        </svg>
-                      )}
-                    </button>
-                  </Tooltip>
-                )}
-                {(searchQuery || sortBy !== 'date-desc') && (
-                  <Tooltip text="Сбросить фильтры">
-                    <button
-                      onClick={() => { setSearchQuery(''); setSortBy('date-desc'); }}
-                      className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl border border-gray-200 hover:bg-gray-200 transition-colors flex items-center gap-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              {activeTab !== 'applications' && (
+                <Tooltip text={viewMode === 'grid' ? 'Список' : 'Блоки'}>
+                  <button
+                    onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                    className="p-1.5 sm:p-2 rounded-lg border bg-[#00CC00] text-white border-[#00CC00] transition-colors hover:bg-[#00b300] flex-shrink-0"
+                  >
+                    {viewMode === 'list' ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                       </svg>
-                      <span className="hidden sm:inline">{t.projects?.reset || 'Сбросить'}</span>
-                    </button>
-                  </Tooltip>
-                )}
-              </div>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                      </svg>
+                    )}
+                  </button>
+                </Tooltip>
+              )}
+              {(searchQuery || sortBy !== 'date-desc') && (
+                <Tooltip text="Сбросить">
+                  <button
+                    onClick={() => { setSearchQuery(''); setSortBy('date-desc'); }}
+                    className="p-1.5 sm:p-2 bg-gray-100 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-200 transition-colors flex-shrink-0"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </button>
+                </Tooltip>
+              )}
             </div>
 
             {/* Разделитель */}
-            <div className="border-t border-gray-100 my-4"></div>
+            <div className="border-t border-gray-100 my-2 sm:my-2.5"></div>
 
             {/* Кнопка показать/скрыть фильтры */}
             <button
               onClick={() => setShowFilters(!showFilters)}
               className="w-full px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-between text-sm font-medium rounded-lg"
             >
-              <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                 </svg>
-                <span>{showFilters ? (t.projects?.hideFilters || 'Скрыть фильтры') : (t.projects?.showFilters || 'Показать фильтры')}</span>
+                <span className="text-xs sm:text-sm">{showFilters ? (t.projects?.hideFilters || 'Скрыть фильтры') : (t.projects?.showFilters || 'Показать фильтры')}</span>
               </div>
-              <svg className={`w-5 h-5 transition-transform ${showFilters ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
@@ -386,56 +383,56 @@ export default function MyProjects() {
           </div>
 
           {/* Tabs */}
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 mb-6">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 mb-4 sm:mb-6">
             <div className="flex border-b border-gray-200">
               <button
                 onClick={() => setActiveTab('active')}
-                className={`flex-1 px-6 py-4 text-sm font-semibold transition-colors ${
+                className={`flex-1 px-1.5 sm:px-4 md:px-6 py-2 sm:py-3 text-xs sm:text-sm font-semibold transition-colors ${
                   activeTab === 'active'
                     ? 'text-[#00CC00] border-b-2 border-[#00CC00] bg-green-50'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >
-                <div className="flex items-center justify-center gap-2">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
-                  {t.myProjects?.tabActive || 'Активные'}
+                  <span className="text-[10px] sm:text-xs md:text-sm">{t.myProjects?.tabActive || 'Активные'}</span>
                 </div>
               </button>
               <button
                 onClick={() => setActiveTab('completed')}
-                className={`flex-1 px-6 py-4 text-sm font-semibold transition-colors ${
+                className={`flex-1 px-1.5 sm:px-4 md:px-6 py-2 sm:py-3 text-xs sm:text-sm font-semibold transition-colors ${
                   activeTab === 'completed'
                     ? 'text-[#00CC00] border-b-2 border-[#00CC00] bg-green-50'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >
-                <div className="flex items-center justify-center gap-2">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  {t.myProjects?.tabCompleted || 'Завершённые'}
+                  <span className="leading-tight text-center text-[10px] sm:text-xs md:text-sm">{t.myProjects?.tabCompleted || 'Завершённые'}</span>
                 </div>
               </button>
               <button
                 onClick={() => setActiveTab('applications')}
-                className={`flex-1 px-6 py-4 text-sm font-semibold transition-colors ${
+                className={`flex-1 px-1.5 sm:px-4 md:px-6 py-2 sm:py-3 text-xs sm:text-sm font-semibold transition-colors ${
                   activeTab === 'applications'
                     ? 'text-[#00CC00] border-b-2 border-[#00CC00] bg-green-50'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >
-                <div className="flex items-center justify-center gap-2">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  {t.myProjects?.tabApplications || 'Заявки'}
+                  <span className="text-[10px] sm:text-xs md:text-sm">{t.myProjects?.tabApplications || 'Заявки'}</span>
                 </div>
               </button>
             </div>
 
-            <div className="p-6">
+            <div className="p-3 sm:p-4 md:p-6">
               {/* Active/Completed Projects */}
               {(activeTab === 'active' || activeTab === 'completed') && (
                 <>
@@ -522,7 +519,7 @@ export default function MyProjects() {
                       })}
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
                       {filteredProjects.map((project) => {
                         const statusBadge = getStatusBadge(project.status);
                         const progress = project.myTasksCount > 0 
@@ -555,10 +552,10 @@ export default function MyProjects() {
                               </span>
                             </div>
 
-                            <div className="p-5">
+                            <div className="p-4 sm:p-5">
                               {/* Title */}
-                              <div className="mb-3">
-                                <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-[#00CC00] transition-colors">
+                              <div className="mb-2 sm:mb-3">
+                                <h3 className="text-base sm:text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-[#00CC00] transition-colors">
                                   {project.title}
                                 </h3>
                               </div>
@@ -658,31 +655,31 @@ export default function MyProjects() {
                         return (
                           <div
                             key={application.id}
-                            className="border border-gray-200 rounded-xl p-5 hover:border-[#00CC00] hover:shadow-lg transition-all"
+                            className="border border-gray-200 rounded-xl p-3 sm:p-5 hover:border-[#00CC00] hover:shadow-lg transition-all"
                           >
-                            <div className="flex items-start gap-4">
+                            <div className="flex items-start gap-3 sm:gap-4">
                               {/* Project Image */}
                               {application.project.imageUrl ? (
-                                <img 
-                                  src={application.project.imageUrl} 
+                                <img
+                                  src={application.project.imageUrl}
                                   alt={application.project.title}
-                                  className="w-24 h-24 rounded-lg object-cover flex-shrink-0"
+                                  className="w-16 h-16 sm:w-24 sm:h-24 rounded-lg object-cover flex-shrink-0"
                                 />
                               ) : (
-                                <div className="w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
-                                  <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className="w-16 h-16 sm:w-24 sm:h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <svg className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                   </svg>
                                 </div>
                               )}
 
                               {/* Application Info */}
-                              <div className="flex-1">
-                                <div className="flex items-start justify-between mb-2">
-                                  <div className="flex-1">
-                                    <Link 
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2 mb-2">
+                                  <div className="flex-1 min-w-0">
+                                    <Link
                                       href={`/volunteer/projects/${application.project.id}`}
-                                      className="text-lg font-bold text-gray-900 hover:text-[#00CC00] transition-colors"
+                                      className="text-base sm:text-lg font-bold text-gray-900 hover:text-[#00CC00] transition-colors line-clamp-2"
                                     >
                                       {application.project.title}
                                     </Link>
@@ -701,7 +698,7 @@ export default function MyProjects() {
                                   </div>
                                 </div>
 
-                                <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
+                                <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-gray-600 mb-3">
                                   <div className="flex items-center gap-1">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />

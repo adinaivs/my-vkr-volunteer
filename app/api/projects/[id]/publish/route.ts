@@ -70,11 +70,42 @@ export async function POST(
       );
     }
 
+    // Читаем опциональные данные оплаты из тела запроса
+    let finikPaymentId: string | null = null;
+    let isPaidByFinik = false;
+    try {
+      const body = await request.json().catch(() => ({}));
+      finikPaymentId = body.finikPaymentId || null;
+      isPaidByFinik = !!finikPaymentId;
+    } catch { /* тело может быть пустым */ }
+
+    // Если оплата через Finik — создаём запись Payment
+    let paymentRecordId: string | undefined;
+    if (isPaidByFinik && finikPaymentId) {
+      const paymentRecord = await prisma.payment.create({
+        data: {
+          userId: user.id,
+          projectId: id,
+          finikPaymentId,
+          amount: 5,
+          status: 'succeeded',
+          paymentMethod: 'FINIK_QR',
+          paidAt: new Date(),
+        },
+      });
+      paymentRecordId = paymentRecord.id;
+    }
+
     // Обновляем статус проекта на "moderation"
     const updatedProject = await prisma.project.update({
       where: { id },
       data: {
         status: 'moderation',
+        ...(isPaidByFinik && paymentRecordId ? {
+          isPaid: true,
+          publishedAt: new Date(),
+          paymentId: paymentRecordId,
+        } : {}),
       },
       include: {
         ...getCategoryInclude('ru'),

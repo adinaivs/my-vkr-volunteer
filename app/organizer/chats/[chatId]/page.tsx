@@ -9,6 +9,8 @@ import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import MessageStatus from '@/app/components/MessageStatus';
 import { useTranslation } from '@/app/i18n/useTranslation';
 import { Tooltip } from '@/app/components/Tooltip';
+import VoiceRecorder from '@/app/components/VoiceRecorder';
+import AudioMessage from '@/app/components/AudioMessage';
 
 interface ChatUser {
   id: string;
@@ -26,6 +28,7 @@ interface GroupChat {
   membersCount: number;
   members: ChatUser[];
   lastMessage: { content: string; createdAt: string; sender: { id: string; firstName: string; lastName: string } } | null;
+  unreadCount?: number;
 }
 
 interface DirectChat {
@@ -33,11 +36,13 @@ interface DirectChat {
   otherUser: ChatUser;
   lastMessage: { content: string; createdAt: string; sender: { id: string; firstName: string; lastName: string } } | null;
   createdAt: string;
+  unreadCount?: number;
 }
 
 interface Message {
   id: string;
   content: string;
+  audioUrl?: string;
   createdAt: string;
   senderId: string;
   deliveredTo?: string[];
@@ -193,6 +198,25 @@ export default function OrganizerChatRoomPage() {
     }
   };
 
+  const handleSendVoice = async (audioUrl: string) => {
+    setSending(true);
+    try {
+      const endpoint = isDirectChat
+        ? `/api/direct-chats/${actualChatId}/messages`
+        : `/api/chats/${actualChatId}/messages`;
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: '', audioUrl }),
+      });
+      if (res.ok) { await fetchMessages(); }
+    } catch (error) {
+      console.error('Ошибка отправки голосового сообщения:', error);
+    } finally {
+      setSending(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -301,7 +325,7 @@ export default function OrganizerChatRoomPage() {
         <OrganizerSidebar user={me} />
         <OrganizerNav user={me} />
 
-        <div className="lg:ml-[272px] pt-20 pb-0 px-3 h-screen flex flex-col">
+        <div className="lg:ml-[272px] pt-20 pb-14 lg:pb-0 px-3 h-screen flex flex-col">
           <div className="flex gap-3 flex-1 overflow-hidden pb-3">
 
             {/* ЛЕВАЯ ПАНЕЛЬ — сам чат */}
@@ -396,7 +420,11 @@ export default function OrganizerChatRoomPage() {
                                   ? 'bg-[#00CC00] text-white rounded-br-sm'
                                   : 'bg-gray-100 text-gray-900 rounded-bl-sm'
                               }`}>
-                                {msg.content}
+                                {msg.audioUrl ? (
+                                  <AudioMessage src={msg.audioUrl} isMine={isMe} />
+                                ) : (
+                                  msg.content
+                                )}
                               </div>
                               <div className="flex items-center gap-1 mt-0.5 px-1">
                                 <span className="text-xs text-gray-400">{formatTime(msg.createdAt)}</span>
@@ -474,22 +502,25 @@ export default function OrganizerChatRoomPage() {
                     className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent resize-none max-h-32"
                     style={{ overflowY: 'auto' }}
                   />
-                  <button
-                    type="button"
-                    onClick={handleSend}
-                    disabled={!text.trim() || sending}
-                    className="w-10 h-10 bg-[#00CC00] text-white rounded-xl flex items-center justify-center hover:bg-[#00b300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                    </svg>
-                  </button>
+                  <VoiceRecorder onSend={handleSendVoice} disabled={sending} />
+                  {text.trim() && (
+                    <button
+                      type="button"
+                      onClick={handleSend}
+                      disabled={sending}
+                      className="w-10 h-10 bg-[#00CC00] text-white rounded-xl flex items-center justify-center hover:bg-[#00b300] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                    </button>
+                  )}
                 </form>
               </div>
             </div>
 
             {/* ПРАВАЯ ПАНЕЛЬ — список чатов */}
-            <div className="w-80 shrink-0 bg-white rounded-2xl border border-gray-200 flex flex-col overflow-hidden">
+            <div className="hidden lg:flex w-80 shrink-0 bg-white rounded-2xl border border-gray-200 flex-col overflow-hidden">
               <div className="px-4 py-4 border-b border-gray-100">
                 <h1 className="text-lg font-bold text-gray-900">{t.chats?.title || 'Сообщения'}</h1>
                 <p className="text-xs text-gray-400 mt-0.5">{t.chats?.totalChats || 'Всего чатов'}: {allChats.length}</p>

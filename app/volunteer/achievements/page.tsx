@@ -127,32 +127,32 @@ export default function VolunteerAchievementsPage() {
 
         <DynamicContent maxWidth="max-w-4xl">
           {/* Заголовок */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">{t.achievements?.title || 'Достижения'}</h1>
+          <div className="mb-5 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t.achievements?.title || 'Достижения'}</h1>
             <p className="text-gray-500 mt-1 text-sm">{t.achievements?.noAchievementsHint || 'Ваши награды и достижения на платформе'}</p>
           </div>
 
           {/* Статистика */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
-              <div className="text-3xl font-bold text-[#00CC00]">{achievements.length}</div>
-              <div className="text-sm text-gray-500 mt-1">{t.achievements?.earned || 'Получено'}</div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 mb-5 sm:mb-8">
+            <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100 text-center">
+              <div className="text-2xl sm:text-3xl font-bold text-[#00CC00]">{achievements.length}</div>
+              <div className="text-xs sm:text-sm text-gray-500 mt-1">{t.achievements?.earned || 'Получено'}</div>
             </div>
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
-              <div className="text-3xl font-bold text-blue-600">{active.length}</div>
-              <div className="text-sm text-gray-500 mt-1">{t.achievements?.progress || 'Активных'}</div>
+            <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100 text-center">
+              <div className="text-2xl sm:text-3xl font-bold text-blue-600">{active.length}</div>
+              <div className="text-xs sm:text-sm text-gray-500 mt-1">{t.achievements?.progress || 'Активных'}</div>
             </div>
-            <div className="col-span-2 md:col-span-1 bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
-              <div className="text-3xl font-bold text-gray-400">{expired.length}</div>
-              <div className="text-sm text-gray-500 mt-1">{t.achievements?.locked || 'Не получено'}</div>
+            <div className="col-span-2 md:col-span-1 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100 text-center">
+              <div className="text-2xl sm:text-3xl font-bold text-gray-400">{expired.length}</div>
+              <div className="text-xs sm:text-sm text-gray-500 mt-1">{t.achievements?.locked || 'Не получено'}</div>
             </div>
           </div>
 
           {/* Вкладки */}
-          <div className="flex gap-2 mb-6">
+          <div className="flex gap-2 mb-4 sm:mb-6">
             <button
               onClick={() => setTab('active')}
-              className={`px-5 py-2 rounded-xl text-sm font-medium transition-colors ${
+              className={`px-3 sm:px-5 py-2 rounded-xl text-sm font-medium transition-colors ${
                 tab === 'active' ? 'bg-[#00CC00] text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
               }`}
             >
@@ -160,7 +160,7 @@ export default function VolunteerAchievementsPage() {
             </button>
             <button
               onClick={() => setTab('expired')}
-              className={`px-5 py-2 rounded-xl text-sm font-medium transition-colors ${
+              className={`px-3 sm:px-5 py-2 rounded-xl text-sm font-medium transition-colors ${
                 tab === 'expired' ? 'bg-gray-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
               }`}
             >

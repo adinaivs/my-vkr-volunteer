@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import type { ReactElement } from 'react';
 import VolunteerNav from '../components/VolunteerNav';
 import { Tooltip } from '@/app/components/Tooltip';
 
@@ -45,7 +46,7 @@ function groupByDate(notifications: Notification[]) {
   return groups;
 }
 
-const typeIcon: Record<string, JSX.Element> = {
+const typeIcon: Record<string, ReactElement> = {
   comment_reply: (
     <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />

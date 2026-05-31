@@ -1530,21 +1530,21 @@ function CalendarContent({ user }: { user: User }) {
               </button>
             </div>
 
-            <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               {/* View switcher */}
-              <div className="flex bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+              <div className="flex bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex-1 sm:flex-none">
                 {(["year", "month", "week", "day"] as ViewMode[]).map((v) => (
                   <button
                     key={v}
                     onClick={() => setView(v)}
-                    className={`px-3 py-2 text-sm font-medium transition-colors ${view === v ? "bg-[#00CC00] text-white" : "text-gray-600 hover:bg-gray-50"}`}
+                    className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-colors ${view === v ? "bg-[#00CC00] text-white" : "text-gray-600 hover:bg-gray-50"}`}
                   >
                     {v === "year"
                       ? t.calendar?.viewYear || "Год"
                       : v === "month"
                         ? t.calendar?.viewMonth || "Месяц"
                         : v === "week"
-                          ? t.calendar?.viewWeek || "Неделя"
+                          ? t.calendar?.viewWeek || "Нед"
                           : t.calendar?.viewDay || "День"}
                   </button>
                 ))}
@@ -1552,7 +1552,7 @@ function CalendarContent({ user }: { user: User }) {
 
               <button
                 onClick={() => openNewEvent()}
-                className="flex items-center gap-2 px-4 py-2 bg-[#00CC00] text-white rounded-xl text-sm font-semibold hover:bg-[#00b300] transition-colors shadow-sm whitespace-nowrap"
+                className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 bg-[#00CC00] text-white rounded-xl text-xs sm:text-sm font-semibold hover:bg-[#00b300] transition-colors shadow-sm whitespace-nowrap flex-shrink-0"
               >
                 <svg
                   className="w-4 h-4"
@@ -1567,7 +1567,7 @@ function CalendarContent({ user }: { user: User }) {
                     d="M12 4v16m8-8H4"
                   />
                 </svg>
-                {t.calendar?.addEvent || "Новое событие"}
+                <span className="hidden sm:inline">{t.calendar?.addEvent || "Новое событие"}</span>
               </button>
             </div>
           </div>
@@ -1689,16 +1689,16 @@ function TaskSidebar({
 
   const upcoming = tasks
     .filter(
-      (t) => t.date >= today && !["completed", "confirmed"].includes(t.status),
+      (task) => task.date >= today && !["completed", "confirmed"].includes(task.status),
     )
     .slice(0, 8);
   const [adding, setAdding] = useState<string | null>(null);
 
   if (upcoming.length === 0) return null;
 
-  async function add(t: TaskEvent) {
-    setAdding(t.taskId);
-    await onAddTask(t.taskId, t.date, t.title);
+  async function add(task: TaskEvent) {
+    setAdding(task.taskId);
+    await onAddTask(task.taskId, task.date, task.title);
     setAdding(null);
   }
 
@@ -1721,28 +1721,28 @@ function TaskSidebar({
         {t.calendar?.upcomingTasks || "Предстоящие задачи"}
       </h2>
       <div className="space-y-2">
-        {upcoming.map((t) => {
-          const d = parseDate(t.date);
+        {upcoming.map((task) => {
+          const d = parseDate(task.date);
           const daysLeft = Math.ceil(
             (d.getTime() - new Date().setHours(0, 0, 0, 0)) / 86400000,
           );
-          const isAdded = addedTaskIds.has(t.taskId);
+          const isAdded = addedTaskIds.has(task.taskId);
           return (
             <div
-              key={t.id}
+              key={task.id}
               className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors"
             >
               <div
                 className="w-2 h-2 rounded-full flex-shrink-0"
-                style={{ backgroundColor: t.color }}
+                style={{ backgroundColor: task.color }}
               />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-gray-900 truncate">
-                  {t.title}
+                  {task.title}
                 </div>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-xs text-gray-500">
-                    {t.project.title}
+                    {task.project.title}
                   </span>
                   <span className="text-xs text-gray-300">·</span>
                   <span
@@ -1757,8 +1757,8 @@ function TaskSidebar({
                 </div>
               </div>
               <button
-                onClick={() => !isAdded && add(t)}
-                disabled={isAdded || adding === t.taskId}
+                onClick={() => !isAdded && add(task)}
+                disabled={isAdded || adding === task.taskId}
                 title={
                   isAdded
                     ? t.calendar?.alreadyAdded || "Уже в календаре"
@@ -1767,7 +1767,7 @@ function TaskSidebar({
                 className={`flex-shrink-0 p-2 rounded-xl transition-colors ${
                   isAdded
                     ? "text-[#00CC00] bg-green-50 cursor-default"
-                    : adding === t.taskId
+                    : adding === task.taskId
                       ? "text-gray-300 cursor-wait"
                       : "text-gray-400 hover:text-[#00CC00] hover:bg-green-50"
                 }`}

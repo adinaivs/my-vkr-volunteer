@@ -62,19 +62,7 @@ export default function LocationPicker({ value, onChange, placeholder }: Locatio
 
     setLoading(true);
     try {
-      // Используем Nominatim API для поиска адресов
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?` +
-        `format=json&q=${encodeURIComponent(query)}&` +
-        `countrycodes=kg&` + // Ограничиваем поиск Кыргызстаном
-        `addressdetails=1&` +
-        `limit=5`,
-        {
-          headers: {
-            'Accept-Language': 'ru',
-          },
-        }
-      );
+      const response = await fetch(`/api/geocode/search?q=${encodeURIComponent(query)}`);
 
       if (response.ok) {
         const data = await response.json();

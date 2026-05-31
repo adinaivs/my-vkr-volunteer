@@ -957,19 +957,19 @@ export default function OrganizerReports() {
         <OrganizerNav user={user} />
 
         <DynamicContent maxWidth="max-w-5xl">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{t.reports?.title || 'Отчёты'}</h1>
-            <p className="text-gray-600">{t.reports?.subtitle || 'Создавайте и скачивайте отчёты по вашим проектам'}</p>
+          <div className="mb-4 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{t.reports?.title || 'Отчёты'}</h1>
+            <p className="hidden sm:block text-gray-600">{t.reports?.subtitle || 'Создавайте и скачивайте отчёты по вашим проектам'}</p>
           </div>
 
           {/* Генератор отчёта */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">{t.reports?.generateReport || 'Создать отчёт'}</h2>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-8 mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">{t.reports?.generateReport || 'Создать отчёт'}</h2>
 
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">{t.reports?.reportType || 'Тип отчёта'}</label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <label className="block text-sm font-medium text-gray-700 mb-2 sm:mb-3">{t.reports?.reportType || 'Тип отчёта'}</label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                   {[
                     { value: 'all', label: 'Все проекты' },
                     { value: 'active', label: 'Активные проекты' },
@@ -991,10 +991,10 @@ export default function OrganizerReports() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+                <label className="block text-sm font-medium text-gray-700 mb-2 sm:mb-3">
                   {t.reports?.period || 'Период'} <span className="text-gray-400 font-normal">({t.reports?.optional || 'необязательно'})</span>
                 </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <label className="block text-xs text-gray-600 mb-2">{t.reports?.periodStart || 'Дата начала'}</label>
                     <CustomDatePicker value={startDate} onChange={setStartDate} placeholder="Выберите дату начала" />
@@ -1007,14 +1007,14 @@ export default function OrganizerReports() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">{t.reports?.generateReport || 'Формат отчёта'}</label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2 sm:mb-3">{t.reports?.generateReport || 'Формат отчёта'}</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <button
                     onClick={() => handleGeneratePDF()}
                     disabled={generating}
-                    className="flex items-center justify-center gap-3 px-6 py-4 bg-red-50 border-2 border-red-200 rounded-xl hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
+                    className="flex items-center justify-center gap-3 px-4 sm:px-6 py-3 sm:py-4 bg-red-50 border-2 border-red-200 rounded-xl hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
                   >
-                    <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-100 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
                       <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                       </svg>
@@ -1028,9 +1028,9 @@ export default function OrganizerReports() {
                   <button
                     onClick={() => handleGenerateExcel()}
                     disabled={generating}
-                    className="flex items-center justify-center gap-3 px-6 py-4 bg-green-50 border-2 border-green-200 rounded-xl hover:bg-green-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
+                    className="flex items-center justify-center gap-3 px-4 sm:px-6 py-3 sm:py-4 bg-green-50 border-2 border-green-200 rounded-xl hover:bg-green-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
                   >
-                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
                       <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
                       </svg>
@@ -1053,9 +1053,9 @@ export default function OrganizerReports() {
           </div>
 
           {/* История отчётов */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">{t.reports?.history || 'История отчётов'}</h2>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-8">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">{t.reports?.history || 'История отчётов'}</h2>
               {history.length > 0 && (
                 <button
                   onClick={() => {

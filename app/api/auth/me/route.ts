@@ -50,6 +50,16 @@ export async function GET() {
             completedProjects: true,
           },
         },
+        skills: {
+          select: {
+            skill: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
       },
     });
 

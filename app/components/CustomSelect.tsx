@@ -57,7 +57,7 @@ export default function CustomSelect({
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className={`w-full px-4 py-2 text-left bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all ${
+        className={`w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-left bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-transparent transition-all ${
           disabled ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'cursor-pointer hover:border-[#00CC00]'
         }`}
       >
@@ -66,7 +66,7 @@ export default function CustomSelect({
             {selectedOption ? selectedOption.label : placeholder}
           </span>
           <svg
-            className={`w-5 h-5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+            className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 transition-transform flex-shrink-0 ml-1.5 ${isOpen ? 'rotate-180' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -77,13 +77,13 @@ export default function CustomSelect({
       </button>
 
       {isOpen && !disabled && (
-        <div className="absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-1 sm:mt-1.5 bg-white border border-gray-200 rounded-lg shadow-xl max-h-48 sm:max-h-60 overflow-y-auto">
           {options.map((option) => (
             <button
               key={option.value}
               type="button"
               onClick={() => handleSelect(option.value)}
-              className={`w-full px-4 py-2.5 text-left hover:bg-green-50 transition-colors ${
+              className={`w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-left hover:bg-green-50 transition-colors ${
                 option.value === value
                   ? 'bg-green-50 text-[#00CC00] font-semibold'
                   : 'text-gray-700'
@@ -92,7 +92,7 @@ export default function CustomSelect({
               <div className="flex items-center justify-between">
                 <span>{option.label}</span>
                 {option.value === value && (
-                  <svg className="w-5 h-5 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#00CC00] flex-shrink-0 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 )}

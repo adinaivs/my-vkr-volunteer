@@ -1,0 +1,46 @@
+# Зависимости — ставятся внутри Docker
+node_modules
+.npm
+
+# Собранные артефакты — пересобираются внутри Docker
+.next
+/build
+/out
+
+# Env-файлы — НЕ попадают в образ, переменные передаются через Timeweb
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+
+# Git и CI
+.git
+.gitignore
+.github
+
+# Инструменты разработки
+.claude
+.vercel
+.vscode
+.idea
+
+# Логи
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Тесты и покрытие
+/coverage
+*.test.*
+*.spec.*
+
+# TypeScript артефакты
+*.tsbuildinfo
+next-env.d.ts
+
+# Загружаемые пользователем файлы (хранятся в S3, не нужны в образе)
+/public/uploads
+
+# Worktrees Claude
+.claude/worktrees

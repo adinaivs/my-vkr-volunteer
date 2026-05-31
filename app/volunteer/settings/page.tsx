@@ -144,10 +144,39 @@ export default function VolunteerSettingsPage() {
             <p className="text-gray-500 text-sm mt-1">Управление аккаунтом и безопасностью</p>
           </div>
 
-          <div className="flex gap-6 items-start">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start">
+
+            {/* ── Right mini sidebar (shown at top on mobile) ── */}
+            <aside className="w-full sm:w-48 shrink-0 sm:sticky sm:top-24 sm:order-2">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 mb-2 hidden sm:block">Разделы</p>
+                <nav className="flex sm:flex-col gap-1 overflow-x-auto">
+                  {([
+                    { id: 'password' as const, label: 'Смена пароля', danger: false, icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg> },
+                    { id: 'account' as const, label: 'Аккаунт', danger: false, icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> },
+                    { id: 'danger' as const, label: 'Опасная зона', danger: true, icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg> },
+                  ]).map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveSection(item.id)}
+                      className={`flex-shrink-0 sm:w-full flex items-center gap-2 sm:gap-2.5 px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors text-left whitespace-nowrap ${
+                        activeSection === item.id
+                          ? item.danger ? 'bg-red-50 text-red-600' : 'bg-green-50 text-[#00CC00]'
+                          : item.danger ? 'text-red-400 hover:bg-red-50 hover:text-red-600' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      }`}
+                    >
+                      <span className={activeSection === item.id ? (item.danger ? 'text-red-500' : 'text-[#00CC00]') : 'text-gray-400'}>
+                        {item.icon}
+                      </span>
+                      {item.label}
+                    </button>
+                  ))}
+                </nav>
+              </div>
+            </aside>
 
             {/* ── Main content — only active section ── */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 sm:order-1">
 
               {/* Password section */}
               {activeSection === 'password' && (
@@ -264,35 +293,6 @@ export default function VolunteerSettingsPage() {
                 </div>
               )}
             </div>
-
-            {/* ── Right mini sidebar ── */}
-            <aside className="w-48 shrink-0 sticky top-24">
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 mb-2">Разделы</p>
-                <nav className="space-y-1">
-                  {([
-                    { id: 'password' as const, label: 'Смена пароля', danger: false, icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg> },
-                    { id: 'account' as const, label: 'Аккаунт', danger: false, icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> },
-                    { id: 'danger' as const, label: 'Опасная зона', danger: true, icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg> },
-                  ]).map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => setActiveSection(item.id)}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left ${
-                        activeSection === item.id
-                          ? item.danger ? 'bg-red-50 text-red-600' : 'bg-green-50 text-[#00CC00]'
-                          : item.danger ? 'text-red-400 hover:bg-red-50 hover:text-red-600' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                      }`}
-                    >
-                      <span className={activeSection === item.id ? (item.danger ? 'text-red-500' : 'text-[#00CC00]') : 'text-gray-400'}>
-                        {item.icon}
-                      </span>
-                      {item.label}
-                    </button>
-                  ))}
-                </nav>
-              </div>
-            </aside>
 
           </div>
         </DynamicContent>

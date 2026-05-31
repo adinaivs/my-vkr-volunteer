@@ -429,38 +429,39 @@ ${achievements.length > 0 ? `
           {/* Profile Header */}
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-6">
             {/* Green section: buttons top-right, name bottom-left after avatar */}
-            <div className="bg-gradient-to-r from-[#00CC00] to-emerald-500 px-8 pt-4 pb-4 relative flex flex-col justify-end" style={{ minHeight: '7rem' }}>
-              <div className="absolute top-4 right-8 flex gap-3">
+            <div className="bg-gradient-to-r from-[#00CC00] to-emerald-500 px-4 sm:px-8 pt-4 pb-4 relative flex flex-col justify-end" style={{ minHeight: '7rem' }}>
+              <div className="absolute top-3 right-3 sm:top-4 sm:right-8 flex gap-2">
                 <button
                   onClick={handleDownloadBooklet}
                   disabled={generatingBooklet}
-                  className="flex items-center gap-2 px-5 py-2 bg-white/20 text-white rounded-full font-medium hover:bg-white/30 transition-colors disabled:opacity-60 text-sm"
+                  className="flex items-center gap-1.5 px-3 sm:px-5 py-1.5 sm:py-2 bg-white/20 text-white rounded-full font-medium hover:bg-white/30 transition-colors disabled:opacity-60 text-xs sm:text-sm"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
-                  {generatingBooklet ? (t.profile?.bookletGenerating || 'Формирование...') : (t.profile?.bookletPdf || 'Книжка PDF')}
+                  <span className="hidden sm:inline">{generatingBooklet ? (t.profile?.bookletGenerating || 'Формирование...') : (t.profile?.bookletPdf || 'Книжка PDF')}</span>
+                  <span className="sm:hidden">PDF</span>
                 </button>
                 <button
                   onClick={handleLogout}
-                  className="px-5 py-2 bg-white/20 text-white rounded-full font-medium hover:bg-white/30 transition-colors text-sm"
+                  className="px-3 sm:px-5 py-1.5 sm:py-2 bg-white/20 text-white rounded-full font-medium hover:bg-white/30 transition-colors text-xs sm:text-sm"
                 >
                   {t.profile?.logout || 'Выйти'}
                 </button>
               </div>
-              <div className="pl-40">
-                <h1 className="text-3xl font-bold text-white leading-tight">
+              <div className="pl-36 sm:pl-40">
+                <h1 className="text-xl sm:text-3xl font-bold text-white leading-tight">
                   {user.firstName} {user.lastName}
                 </h1>
               </div>
             </div>
 
             {/* White section — avatar + all personal data */}
-            <div className="relative px-8 pb-8">
+            <div className="relative px-4 sm:px-8 pb-6 sm:pb-8">
               {/* Avatar — left side, centered at green/white boundary */}
-              <div className="absolute -top-16 left-8">
-                <div className="relative w-32 h-32">
-                  <label className="relative group cursor-pointer block w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg">
+              <div className="absolute -top-14 sm:-top-16 left-4 sm:left-8">
+                <div className="relative w-28 h-28 sm:w-32 sm:h-32">
+                  <label className="relative group cursor-pointer block w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-white shadow-lg">
                     {user.avatarUrl ? (
                       <img src={user.avatarUrl} alt={user.firstName} className="w-full h-full object-cover" />
                     ) : (
@@ -506,11 +507,11 @@ ${achievements.length > 0 ? `
               </div>
 
               {/* All personal data, shifted right of avatar */}
-              <div className="pt-5 pl-40">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-28 gap-y-3 mb-4">
+              <div className="pt-4 sm:pt-5 pl-32 sm:pl-40">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 sm:gap-x-28 gap-y-2 sm:gap-y-3 mb-3 sm:mb-4">
                   <div>
                     <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Email</div>
-                    <div className="text-gray-800 font-medium text-sm">{user.email}</div>
+                    <div className="text-gray-800 font-medium text-sm break-all">{user.email}</div>
                   </div>
                   <div>
                     <div className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">{t.profile?.phone || 'Телефон'}</div>
@@ -539,9 +540,9 @@ ${achievements.length > 0 ? `
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <div className="flex items-center gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-4 sm:mb-6">
+            <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-3 sm:gap-4">
                 <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                   <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -554,9 +555,9 @@ ${achievements.length > 0 ? `
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+            <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-xl flex items-center justify-center">
                   <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -568,9 +569,9 @@ ${achievements.length > 0 ? `
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
+            <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
                   <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                   </svg>
@@ -586,8 +587,8 @@ ${achievements.length > 0 ? `
           </div>
 
           {/* Skills */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">{t.profile?.skills || 'Навыки'}</h2>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sm:p-8 mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">{t.profile?.skills || 'Навыки'}</h2>
 
             {user.skills.length > 0 ? (
               <div className="flex flex-wrap gap-2 mb-6">
@@ -611,7 +612,7 @@ ${achievements.length > 0 ? `
             )}
 
             {!skillsLoading && availableSkillsToAdd.length > 0 && (
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <CustomSelect
                   className="flex-1"
                   value={selectedSkillId}
@@ -635,13 +636,13 @@ ${achievements.length > 0 ? `
           </div>
 
           {/* Rating detail */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">{t.profile?.ratingTitle || 'Рейтинг'}</h2>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sm:p-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">{t.profile?.ratingTitle || 'Рейтинг'}</h2>
 
             {(profile?.ratingCount ?? 0) > 0 ? (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-8">
                 <div className="text-center">
-                  <div className="text-6xl font-bold text-gray-900 mb-1">
+                  <div className="text-5xl sm:text-6xl font-bold text-gray-900 mb-1">
                     {Number(profile?.trustScore ?? 0).toFixed(1)}
                   </div>
                   <div className="text-sm text-gray-500">{t.profile?.outOfFive || 'из 5.0'}</div>

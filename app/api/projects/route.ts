@@ -67,8 +67,10 @@ export async function POST(request: NextRequest) {
         isPaid: formData.get('isPaid') === 'true',
       };
 
-      // Получаем файл изображения
+      // Получаем файл изображения (либо уже загруженный URL)
       imageFile = formData.get('image') as File | null;
+      const preUploadedImageUrl = formData.get('imageUrl') as string | null;
+      if (preUploadedImageUrl) body.preUploadedImageUrl = preUploadedImageUrl;
       
       // Получаем задачи, если они есть
       const tasksData = formData.get('tasks');
@@ -115,25 +117,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ВРЕМЕННО: Проверка оплаты отключена
-    // Все проекты считаются оплаченными до реализации платежной системы
-    // const needsPayment =
-    //   user.organizerProfile.freePostsRemaining <= 0 && !isPaid;
 
-    // if (needsPayment) {
-    //   return NextResponse.json(
-    //     {
-    //       error: 'Необходима оплата',
-    //       message:
-    //         'У вас закончились бесплатные публикации. Для публикации этого проекта необходимо оплатить.',
-    //       code: 'PAYMENT_REQUIRED',
-    //     },
-    //     { status: 402 }
-    //   );
-    // }
-
-    // Загружаем изображение в S3, если оно есть
-    let imageUrl: string | null = null;
+    // Загружаем изображение в S3, если оно есть (или используем уже загруженный URL)
+    let imageUrl: string | null = body.preUploadedImageUrl || null;
     if (imageFile && imageFile.size > 0) {
       console.log('Загрузка изображения проекта в S3:', imageFile.name);
       
@@ -172,8 +158,8 @@ export async function POST(request: NextRequest) {
         latitude: latitude ? parseFloat(latitude) : null,
         longitude: longitude ? parseFloat(longitude) : null,
         maxVolunteers: parseInt(maxVolunteers),
-        status: 'draft', // Проект создается в черновике
-        isPaid: true, // ВРЕМЕННО: Все проекты считаются оплаченными
+        status: 'draft',
+        isPaid: isPaid === true,
       },
       include: {
         ...getCategoryInclude('ru'),
@@ -190,8 +176,6 @@ export async function POST(request: NextRequest) {
     // Проверяем достижение "Лидер" — организатор создал первый проект
     checkAchievementsOnProjectCreated(user.id).catch(console.error);
 
-    // ВРЕМЕННО: Счетчик бесплатных публикаций не уменьшается
-    // Счетчик бесплатных публикаций уменьшается только после одобрения админом
 
     // Создаем задачи проекта, если они есть
     if (tasks && tasks.length > 0) {

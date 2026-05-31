@@ -9,6 +9,7 @@ import DynamicContent from '@/app/components/DynamicContent';
 import { SidebarProvider } from '@/app/contexts/SidebarContext';
 import { useToast } from '@/app/components/ToastContainer';
 import { useTranslation } from '@/app/i18n/useTranslation';
+import { SvgIcon } from '@/app/components/SvgIcon';
 
 interface AdminUser { id: string; firstName: string; lastName: string; email: string; role: string; avatarUrl?: string; }
 
@@ -71,6 +72,8 @@ export default function AdminProjectDetailPage() {
   const [expandedTask, setExpandedTask] = useState<string | null>(null);
   const [rejectModal, setRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const [blockModal, setBlockModal] = useState(false);
+  const [blockReason, setBlockReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
@@ -111,6 +114,37 @@ export default function AdminProjectDetailPage() {
         toast.success(t.projects?.rejected || 'Проект отклонён');
         setProject((p: any) => ({ ...p, status: 'rejected', rejectionReason: rejectReason }));
         setRejectModal(false);
+      } else toast.error((await res.json()).error || 'Ошибка');
+    } finally { setActionLoading(false); }
+  };
+
+  const handleBlock = async () => {
+    if (!blockReason.trim()) { toast.error('Укажите причину блокировки'); return; }
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/admin/projects/${id}/block`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: blockReason }),
+      });
+      if (res.ok) {
+        toast.success('Проект заблокирован');
+        setProject((p: any) => ({ ...p, status: 'blocked', blockReason, blockedFrom: p.status }));
+        setBlockModal(false);
+        setBlockReason('');
+      } else toast.error((await res.json()).error || 'Ошибка');
+    } finally { setActionLoading(false); }
+  };
+
+  const handleUnblock = async () => {
+    if (!confirm('Разблокировать проект? Он вернётся в предыдущий статус.')) return;
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/admin/projects/${id}/unblock`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        toast.success(`Проект разблокирован. Статус восстановлен: ${STATUS_LABELS[data.restoredStatus]?.label ?? data.restoredStatus}`);
+        setProject((p: any) => ({ ...p, status: data.restoredStatus, blockReason: null, blockedFrom: null }));
       } else toast.error((await res.json()).error || 'Ошибка');
     } finally { setActionLoading(false); }
   };
@@ -159,16 +193,25 @@ export default function AdminProjectDetailPage() {
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
                   <div className="flex items-center gap-3 mb-2 flex-wrap">
-                    <span className="text-xl">{project.category?.icon}</span>
+                    {project.category?.icon && <SvgIcon iconKey={project.category.icon} className="w-6 h-6" />}
                     <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{catName}</span>
                     <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${st.color}`}>{st.label}</span>
                     {project.isPaid && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full">{t.projects?.paidLabel || 'Платный'}</span>}
                   </div>
                   <h1 className="text-2xl font-bold text-gray-900 mb-1">{project.title}</h1>
                   <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
-                    <span>📍 {project.location}</span>
-                    <span>📅 {fmt(project.startDate)} — {fmt(project.endDate)}</span>
-                    <span>👥 {project.currentVolunteers} / {project.maxVolunteers}</span>
+                    <span className="flex items-center gap-1">
+                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                      {project.location}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      {fmt(project.startDate)} — {fmt(project.endDate)}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                      {project.currentVolunteers} / {project.maxVolunteers}
+                    </span>
                   </div>
                 </div>
                 <div className="flex gap-2 flex-wrap shrink-0">
@@ -184,6 +227,26 @@ export default function AdminProjectDetailPage() {
                       </button>
                     </>
                   )}
+                  {/* Блокировка — для любого не-терминального статуса кроме blocked */}
+                  {!['completed', 'cancelled', 'blocked'].includes(project.status) && (
+                    <button onClick={() => setBlockModal(true)} disabled={actionLoading}
+                      className="px-4 py-2 bg-gray-800 text-white rounded-xl text-sm hover:bg-gray-900 transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                      </svg>
+                      Заблокировать
+                    </button>
+                  )}
+                  {/* Разблокировка */}
+                  {project.status === 'blocked' && (
+                    <button onClick={handleUnblock} disabled={actionLoading}
+                      className="px-4 py-2 bg-[#00CC00] text-white rounded-xl text-sm hover:bg-[#00b300] transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                      </svg>
+                      Разблокировать
+                    </button>
+                  )}
                   <button onClick={handleDelete} disabled={actionLoading}
                     className="px-4 py-2 border border-red-200 text-red-500 rounded-xl text-sm hover:bg-red-50 transition-colors disabled:opacity-50">
                     {t.projects?.deleteBtn || 'Удалить'}
@@ -193,6 +256,22 @@ export default function AdminProjectDetailPage() {
               {project.rejectionReason && (
                 <div className="mt-4 p-3 bg-red-50 rounded-xl text-sm text-red-700">
                   <span className="font-medium">{t.projects?.rejectionReasonLabel || 'Причина отклонения:'}</span> {project.rejectionReason}
+                </div>
+              )}
+              {project.status === 'blocked' && project.blockReason && (
+                <div className="mt-4 p-3 bg-gray-800 rounded-xl text-sm text-white flex items-start gap-2">
+                  <svg className="w-4 h-4 mt-0.5 shrink-0 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                  <div>
+                    <span className="font-medium text-gray-200">Причина блокировки: </span>
+                    <span className="text-gray-300">{project.blockReason}</span>
+                    {project.blockedFrom && (
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Предыдущий статус: {STATUS_LABELS[project.blockedFrom]?.label ?? project.blockedFrom}
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -401,6 +480,42 @@ export default function AdminProjectDetailPage() {
               <button onClick={handleReject} disabled={actionLoading}
                 className="flex-1 px-4 py-2 bg-red-500 text-white rounded-xl text-sm hover:bg-red-600 disabled:opacity-50">
                 {t.projects?.rejectBtn || 'Отклонить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {blockModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-gray-800 rounded-xl flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Заблокировать проект</h3>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              Проект будет заблокирован. Организатор не сможет менять статус. При разблокировке статус автоматически восстановится.
+            </p>
+            <label className="text-xs font-medium text-gray-600 mb-1 block">Причина блокировки *</label>
+            <textarea
+              value={blockReason}
+              onChange={(e) => setBlockReason(e.target.value)}
+              rows={3}
+              placeholder="Опишите причину блокировки..."
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-800 resize-none mb-4"
+            />
+            <div className="flex gap-3">
+              <button onClick={() => { setBlockModal(false); setBlockReason(''); }}
+                className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50">
+                Отмена
+              </button>
+              <button onClick={handleBlock} disabled={actionLoading}
+                className="flex-1 px-4 py-2 bg-gray-800 text-white rounded-xl text-sm hover:bg-gray-900 disabled:opacity-50">
+                Заблокировать
               </button>
             </div>
           </div>

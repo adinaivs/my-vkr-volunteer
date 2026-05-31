@@ -35,6 +35,7 @@ export async function GET(
       select: {
         id: true,
         content: true,
+        audioUrl: true,
         createdAt: true,
         senderId: true,
         deliveredTo: true,
@@ -117,23 +118,25 @@ export async function POST(
 
     const body = await request.json();
     console.log('[GroupChat POST] Тело запроса:', body);
-    const { content } = body;
+    const { content, audioUrl } = body;
 
-    if (!content?.trim()) {
-      console.log('[GroupChat POST] Ошибка: пустое сообщение');
+    if (!content?.trim() && !audioUrl) {
+      console.log('[GroupChat POST] Ошибка: пустое сообщение без аудио');
       return NextResponse.json({ error: 'Сообщение не может быть пустым' }, { status: 400 });
     }
 
-    console.log('[GroupChat POST] Создание сообщения, content:', content.trim());
+    console.log('[GroupChat POST] Создание сообщения, content:', content?.trim(), 'audioUrl:', audioUrl);
     const message = await prisma.projectChatMessage.create({
       data: {
         chatId,
         senderId: session.userId,
-        content: content.trim(),
+        content: content?.trim() || '',
+        ...(audioUrl ? { audioUrl } : {}),
       },
       select: {
         id: true,
         content: true,
+        audioUrl: true,
         createdAt: true,
         senderId: true,
         deliveredTo: true,

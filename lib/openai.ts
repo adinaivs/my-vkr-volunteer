@@ -1,11 +1,24 @@
 import OpenAI from 'openai';
 
-if (!process.env.OPEN_AI) {
-  throw new Error('OPEN_AI environment variable is not set');
+// Ленивая инициализация — клиент создаётся только при первом обращении,
+// а не при загрузке модуля во время next build (когда env ещё недоступны)
+let _openai: OpenAI | null = null;
+
+export function getOpenAI(): OpenAI {
+  if (!_openai) {
+    if (!process.env.OPEN_AI) {
+      throw new Error('OPEN_AI environment variable is not set');
+    }
+    _openai = new OpenAI({ apiKey: process.env.OPEN_AI });
+  }
+  return _openai;
 }
 
-export const openai = new OpenAI({
-  apiKey: process.env.OPEN_AI,
+// Для обратной совместимости — прокси-объект который инициализируется при первом вызове метода
+export const openai = new Proxy({} as OpenAI, {
+  get(_target, prop) {
+    return (getOpenAI() as any)[prop];
+  },
 });
 
 // Конфигурация для минимальных затрат

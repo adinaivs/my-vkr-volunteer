@@ -136,8 +136,8 @@ export default function VolunteerChatsPage() {
         <div className="lg:ml-[272px] pt-20 pb-0 px-3 h-screen flex flex-col">
           <div className="flex gap-3 flex-1 overflow-hidden pb-3">
 
-            {/* ЛЕВАЯ ПАНЕЛЬ — пустое состояние (выберите чат) */}
-            <div className="flex-1 bg-white rounded-2xl border border-gray-200 flex flex-col items-center justify-center text-center p-8">
+            {/* ЛЕВАЯ ПАНЕЛЬ — пустое состояние (выберите чат), скрываем на мобиле */}
+            <div className="hidden lg:flex flex-1 bg-white rounded-2xl border border-gray-200 flex-col items-center justify-center text-center p-8">
               <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                 <svg className="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -148,7 +148,7 @@ export default function VolunteerChatsPage() {
             </div>
 
             {/* ПРАВАЯ ПАНЕЛЬ — список чатов */}
-            <div className="w-80 shrink-0 bg-white rounded-2xl border border-gray-200 flex flex-col overflow-hidden">
+            <div className="w-full lg:w-80 shrink-0 bg-white rounded-2xl border border-gray-200 flex flex-col overflow-hidden">
               <div className="px-4 py-4 border-b border-gray-100">
                 <h1 className="text-lg font-bold text-gray-900">{t.chats?.title || 'Сообщения'}</h1>
                 <p className="text-xs text-gray-400 mt-0.5">Всего чатов: {totalChats}</p>

@@ -89,6 +89,7 @@ enum NotificationType {
   comment_reply
   new_project
   application_status
+  project_overdue
 }
 
 enum Language {
@@ -132,6 +133,7 @@ model User {
   calendarEvents      CalendarEvent[]
   projectComments     ProjectComment[]
   notifications       Notification[]
+  savedProjects       SavedProject[]
 
   @@map("users")
 }
@@ -258,8 +260,10 @@ model Project {
   longitude         Decimal?      @db.Decimal(11, 8)
   maxVolunteers     Int           @map("max_volunteers")
   currentVolunteers Int           @default(0) @map("current_volunteers")
-  status            ProjectStatus @default(draft)
-  rejectionReason   String?       @map("rejection_reason")
+  status            ProjectStatus  @default(draft)
+  rejectionReason   String?        @map("rejection_reason")
+  blockedFrom       ProjectStatus? @map("blocked_from")
+  blockReason       String?        @map("block_reason")
   isPaid            Boolean       @default(false) @map("is_paid")
   paymentId         String?       @unique @map("payment_id") @db.Uuid
   publishedAt       DateTime?     @map("published_at") @db.Timestamp(6)
@@ -277,6 +281,7 @@ model Project {
   participants ProjectParticipant[]
   chat         ProjectChat?
   comments     ProjectComment[]
+  savedBy      SavedProject[]
 
   @@map("projects")
 }
@@ -553,6 +558,7 @@ model ProjectChatMessage {
   chatId      String   @map("chat_id") @db.Uuid
   senderId    String   @map("sender_id") @db.Uuid
   content     String
+  audioUrl    String?  @map("audio_url")
   deliveredTo String[] @default([]) @map("delivered_to") @db.Uuid
   readBy      String[] @default([]) @map("read_by") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
@@ -583,6 +589,7 @@ model DirectMessage {
   chatId      String   @map("chat_id") @db.Uuid
   senderId    String   @map("sender_id") @db.Uuid
   content     String
+  audioUrl    String?  @map("audio_url")
   deliveredTo String[] @default([]) @map("delivered_to") @db.Uuid
   readBy      String[] @default([]) @map("read_by") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
@@ -623,6 +630,18 @@ model Notification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
+}
+
+model SavedProject {
+  userId    String   @map("user_id") @db.Uuid
+  projectId String   @map("project_id") @db.Uuid
+  savedAt   DateTime @default(now()) @map("saved_at") @db.Timestamp(6)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([userId, projectId])
+  @@map("saved_projects")
 }
 
 model CalendarEvent {

@@ -107,6 +107,8 @@ export default function ProjectDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [loadingApplications, setLoadingApplications] = useState(false);
+  const [overdueInfo, setOverdueInfo] = useState<{ count: number; taskTitles: string[] } | null>(null);
+  const [activationBlock, setActivationBlock] = useState<{ unassignedCount: number; unassignedTasks: string[] } | null>(null);
   
   const [taskSearch, setTaskSearch] = useState('');
   const [taskFilter, setTaskFilter] = useState('all');
@@ -227,7 +229,68 @@ export default function ProjectDetailsPage() {
       if (['recruiting', 'upcoming', 'active', 'completed', 'cancelled'].includes(data.project.status)) {
         await fetchParticipants();
       }
-      
+
+      // Автоактивация: если проект upcoming и дата начала наступила
+      if (data.project.status === 'upcoming') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const startDate = new Date(data.project.startDate);
+        startDate.setHours(0, 0, 0, 0);
+
+        if (startDate <= today) {
+          try {
+            const activateRes = await fetch(`/api/organizer/projects/${projectId}/auto-activate`, {
+              method: 'POST',
+              credentials: 'include',
+            });
+            if (activateRes.ok) {
+              const activateData = await activateRes.json();
+              if (activateData.activated) {
+                // Проект активирован — перезагружаем
+                toast.success('Проект автоматически переведён в статус "Активный"');
+                await fetchProject();
+                return;
+              } else if (activateData.reason === 'unassigned_tasks') {
+                setActivationBlock({
+                  unassignedCount: activateData.unassignedCount,
+                  unassignedTasks: activateData.unassignedTasks,
+                });
+              }
+            }
+          } catch {
+            // Не критично
+          }
+        }
+      }
+
+      // Автопроверка просрочки: если проект активен и срок истёк
+      if (data.project.status === 'active') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const endDate = new Date(data.project.endDate);
+        endDate.setHours(0, 0, 0, 0);
+        if (endDate < today) {
+          try {
+            const overdueRes = await fetch(`/api/organizer/projects/${projectId}/overdue`, {
+              method: 'POST',
+              credentials: 'include',
+            });
+            if (overdueRes.ok) {
+              const overdueData = await overdueRes.json();
+              if (overdueData.overdueCount > 0) {
+                setOverdueInfo({ count: overdueData.overdueCount, taskTitles: overdueData.overdueTasks });
+                // Перезагружаем задачи, так как их статусы изменились
+                await fetchTasks();
+              } else {
+                setOverdueInfo({ count: 0, taskTitles: [] });
+              }
+            }
+          } catch {
+            // Не критично — просто не показываем баннер
+          }
+        }
+      }
+
       return data.project;
     } catch (error) {
       console.error('Error fetching project:', error);
@@ -701,10 +764,19 @@ export default function ProjectDetailsPage() {
         confirmMessage = 'Вы уверены, что хотите активировать проект? После этого он будет в процессе выполнения.';
         statusText = 'Активный';
         break;
-      case 'completed':
-        confirmMessage = 'Вы уверены, что хотите завершить проект? Убедитесь, что все задачи выполнены.';
+      case 'completed': {
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const ed = project ? new Date(project.endDate) : new Date(); ed.setHours(0, 0, 0, 0);
+        const isExpired = ed < today;
+        const pendingCount = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress').length;
+        if (isExpired && pendingCount > 0) {
+          confirmMessage = `Срок проекта истёк. ${pendingCount} незавершённых задач будут автоматически помечены как просроченные. Завершить проект?`;
+        } else {
+          confirmMessage = 'Вы уверены, что хотите завершить проект? Убедитесь, что все задачи выполнены.';
+        }
         statusText = 'Завершенный';
         break;
+      }
       case 'cancelled':
         confirmMessage = 'Вы уверены, что хотите отменить проект? Все назначения задач будут отменены.';
         statusText = 'Отмененный';
@@ -833,6 +905,12 @@ export default function ProjectDetailsPage() {
     return texts[status] || 'Неизвестно';
   };
 
+  const getTaskWord = (n: number) => {
+    if (n % 10 === 1 && n % 100 !== 11) return 'задача';
+    if ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100)) return 'задачи';
+    return 'задач';
+  };
+
   const filteredTasks = tasks.filter(task => {
     const matchesSearch = task.title.toLowerCase().includes(taskSearch.toLowerCase()) ||
                          task.description.toLowerCase().includes(taskSearch.toLowerCase());
@@ -893,6 +971,82 @@ export default function ProjectDetailsPage() {
             <span className="text-gray-900 font-medium">{project.title}</span>
           </nav>
         </div>
+
+        {/* ── Баннер: дата начала наступила, но есть незаполненные задачи ── */}
+        {project.status === 'upcoming' && activationBlock && activationBlock.unassignedCount > 0 && (() => {
+          const today = new Date(); today.setHours(0, 0, 0, 0);
+          const sd = new Date(project.startDate); sd.setHours(0, 0, 0, 0);
+          return sd <= today;
+        })() && (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 flex gap-3">
+            <div className="shrink-0 w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-700">Дата начала наступила, но проект не активирован</p>
+              <p className="text-sm text-amber-600 mt-0.5">
+                {activationBlock.unassignedCount} {getTaskWord(activationBlock.unassignedCount)} без назначенных волонтёров.
+                Назначьте волонтёров на все задачи — проект активируется автоматически.
+              </p>
+              {activationBlock.unassignedTasks.length > 0 && (
+                <ul className="mt-1.5 space-y-0.5">
+                  {activationBlock.unassignedTasks.map((title, i) => (
+                    <li key={i} className="text-xs text-amber-500 flex items-center gap-1.5">
+                      <span className="w-1 h-1 bg-amber-400 rounded-full shrink-0" />
+                      {title}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Баннер просрочки ─────────────────────────────────────── */}
+        {project.status === 'active' && (() => {
+          const today = new Date(); today.setHours(0, 0, 0, 0);
+          const ed = new Date(project.endDate); ed.setHours(0, 0, 0, 0);
+          return ed < today;
+        })() && (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 flex gap-3">
+            {/* Иконка */}
+            <div className="shrink-0 w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-red-700">Срок проекта истёк</p>
+              {overdueInfo && overdueInfo.count > 0 ? (
+                <>
+                  <p className="text-sm text-red-600 mt-0.5">
+                    {overdueInfo.count} {getTaskWord(overdueInfo.count)} автоматически помечено как просроченные.
+                  </p>
+                  {overdueInfo.taskTitles.length > 0 && (
+                    <ul className="mt-1.5 space-y-0.5">
+                      {overdueInfo.taskTitles.map((title, i) => (
+                        <li key={i} className="text-xs text-red-500 flex items-center gap-1.5">
+                          <span className="w-1 h-1 bg-red-400 rounded-full shrink-0" />
+                          {title}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-red-600 mt-0.5">
+                  Все задачи завершены или просрочены. Вы можете завершить проект.
+                </p>
+              )}
+              <p className="text-xs text-red-400 mt-2">
+                Нажмите «Завершить проект» — просроченные задачи будут учтены автоматически.
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Project Info */}

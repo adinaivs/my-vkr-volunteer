@@ -16,8 +16,8 @@ interface User {
   avatarUrl?: string;
   volunteerProfile?: {
     bio?: string;
-    skills: Array<{ id: string; name: string }>;
   };
+  skills?: Array<{ skill: { id: string; name: string } }>;
 }
 
 interface Category {
@@ -90,9 +90,9 @@ export default function ApplyToProject() {
         setEmail(data.user.email || '');
         setPhone(data.user.phone || '');
         
-        // Заполняем навыки из профиля
-        if (data.user.volunteerProfile?.skills) {
-          setSelectedSkills(data.user.volunteerProfile.skills.map((s: Skill) => s.id));
+        // Автоматически выбираем навыки из профиля пользователя
+        if (data.user.skills?.length) {
+          setSelectedSkills(data.user.skills.map((us: { skill: { id: string } }) => us.skill.id));
         }
         
         // Загружаем проект и навыки
@@ -345,7 +345,17 @@ export default function ApplyToProject() {
 
           {/* Skills */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">{t.apply?.skills || 'Ваши навыки'}</h2>
+            <div className="flex items-start justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-900">{t.apply?.skills || 'Ваши навыки'}</h2>
+              {user?.skills && user.skills.length > 0 && (
+                <span className="flex items-center gap-1 text-xs text-[#00CC00] bg-green-50 px-2 py-1 rounded-full">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Заполнено из профиля
+                </span>
+              )}
+            </div>
             <p className="text-sm text-gray-600 mb-4">
               {t.apply?.skillsHint || 'Выберите навыки, которыми вы обладаете и которые могут быть полезны в проекте'}
             </p>

@@ -113,10 +113,14 @@ export default function ProjectDetail() {
   const [replySubmitting, setReplySubmitting] = useState(false);
   const [replyError, setReplyError] = useState('');
 
-  // Канонический URL проекта (работает и на localhost, и на продакшене)
+  // Закладки
+  const [isSaved, setIsSaved] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+
+  // Публичная ссылка — доступна всем без регистрации
   const getShareUrl = () => {
     const base = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-    return `${base}/volunteer/projects/${projectId}`;
+    return `${base}/p/${projectId}`;
   };
 
   useEffect(() => {
@@ -135,6 +139,18 @@ export default function ProjectDetail() {
       } catch {}
       // Загружаем проект (доступно всем), передаём флаг авторизации
       await loadProject(locale, !!loggedInUser);
+
+      // Статус закладки — только для авторизованных
+      if (loggedInUser) {
+        try {
+          const savedRes = await fetch(`/api/volunteer/saved-projects/${projectId}`);
+          if (savedRes.ok) {
+            const savedData = await savedRes.json();
+            setIsSaved(savedData.saved);
+          }
+        } catch {}
+      }
+
       setLoading(false);
       setInitialized(true);
     };
@@ -289,6 +305,24 @@ export default function ProjectDetail() {
     }
   };
 
+  const handleToggleSave = async () => {
+    if (!user) { router.push('/login'); return; }
+    if (saveLoading) return;
+    setSaveLoading(true);
+    try {
+      const method = isSaved ? 'DELETE' : 'POST';
+      const res = await fetch(`/api/volunteer/saved-projects/${projectId}`, { method });
+      if (res.ok) {
+        const data = await res.json();
+        setIsSaved(data.saved);
+      }
+    } catch {
+      // игнорируем
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
   const handleApply = () => {
     if (!user) { router.push('/login'); return; }
     if (!project) return;
@@ -410,8 +444,22 @@ export default function ProjectDetail() {
                 {t.projects?.share || 'Поделиться'}
               </button>
 
-              <button className="w-10 h-10 flex items-center justify-center bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <button
+                onClick={handleToggleSave}
+                disabled={saveLoading}
+                title={isSaved ? 'Убрать из сохранённых' : 'Сохранить проект'}
+                className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors shadow-sm border ${
+                  isSaved
+                    ? 'bg-[#00CC00] border-[#00CC00] hover:bg-[#00b300]'
+                    : 'bg-white border-gray-300 hover:bg-gray-50'
+                } ${saveLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+              >
+                <svg
+                  className={`w-5 h-5 ${isSaved ? 'text-white' : 'text-gray-600'}`}
+                  fill={isSaved ? 'currentColor' : 'none'}
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                 </svg>
               </button>
@@ -578,7 +626,7 @@ export default function ProjectDetail() {
                   )}
                 </div>
 
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                   {/* Volunteers Count */}
                   <div className="text-center mb-4 pb-4 border-b border-gray-100">
                     <p className="text-xs text-gray-600">

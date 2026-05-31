@@ -50,9 +50,7 @@ export default function MapComponent({ onLocationSelect, initialCoords }: MapCom
     setLoading(true);
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?` +
-        `format=json&lat=${lat}&lon=${lon}&` +
-        `addressdetails=1&accept-language=ru`
+        `/api/geocode/reverse?lat=${lat}&lon=${lon}`
       );
 
       if (response.ok) {

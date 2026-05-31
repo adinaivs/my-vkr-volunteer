@@ -217,28 +217,28 @@ export default function OrganizerProfile() {
           {/* Profile Header */}
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-6">
             {/* Зелёная шапка: имя снизу слева, кнопки сверху справа */}
-            <div className="bg-gradient-to-r from-[#00CC00] to-emerald-500 px-8 pt-4 pb-4 relative flex flex-col justify-end" style={{ minHeight: '7rem' }}>
-              <div className="absolute top-4 right-8 flex gap-3">
+            <div className="bg-gradient-to-r from-[#00CC00] to-emerald-500 px-4 sm:px-8 pt-4 pb-4 relative flex flex-col justify-end" style={{ minHeight: '7rem' }}>
+              <div className="absolute top-4 right-4 sm:right-8 flex gap-3">
                 <button
                   onClick={handleLogout}
-                  className="px-5 py-2 bg-white/20 text-white rounded-full font-medium hover:bg-white/30 transition-colors text-sm"
+                  className="px-3 sm:px-5 py-2 bg-white/20 text-white rounded-full font-medium hover:bg-white/30 transition-colors text-xs sm:text-sm"
                 >
                   {t.profile?.logout || 'Выйти'}
                 </button>
               </div>
-              <div className="pl-40">
-                <h1 className="text-3xl font-bold text-white leading-tight">
+              <div className="pl-28 sm:pl-40">
+                <h1 className="text-xl sm:text-3xl font-bold text-white leading-tight">
                   {user.firstName} {user.lastName}
                 </h1>
               </div>
             </div>
 
             {/* Белая часть: аватар + данные */}
-            <div className="relative px-8 pb-8">
+            <div className="relative px-4 sm:px-8 pb-6 sm:pb-8">
               {/* Аватар на границе зелёного и белого */}
-              <div className="absolute -top-16 left-8">
-                <div className="relative w-32 h-32">
-                  <label className="relative group cursor-pointer block w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg">
+              <div className="absolute -top-14 sm:-top-16 left-4 sm:left-8">
+                <div className="relative w-24 h-24 sm:w-32 sm:h-32">
+                  <label className="relative group cursor-pointer block w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-white shadow-lg">
                     {user.avatarUrl ? (
                       <img src={user.avatarUrl} alt={user.firstName} className="w-full h-full object-cover" />
                     ) : (
@@ -283,7 +283,7 @@ export default function OrganizerProfile() {
               </div>
 
               {/* Данные справа от аватара */}
-              <div className="pt-5 pl-40">
+              <div className="pt-4 pl-28 sm:pt-5 sm:pl-40">
                 <div className="flex flex-wrap items-center gap-2 mb-3">
                   {getVerificationBadge()}
                   {profile?.organizationName && (
@@ -366,52 +366,52 @@ export default function OrganizerProfile() {
           )}
 
           {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center mb-3">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+            <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-sm border border-gray-100">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-xl flex items-center justify-center mb-2 sm:mb-3">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
               </div>
-              <div className="text-2xl font-bold text-gray-900">{stats?.totalProjects ?? 0}</div>
+              <div className="text-xl sm:text-2xl font-bold text-gray-900">{stats?.totalProjects ?? 0}</div>
               <div className="text-xs text-gray-500 mt-1">{t.profile?.totalProjects || 'Всего проектов'}</div>
             </div>
 
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-              <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center mb-3">
-                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-sm border border-gray-100">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 rounded-xl flex items-center justify-center mb-2 sm:mb-3">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               </div>
-              <div className="text-2xl font-bold text-gray-900">{stats?.activeProjects ?? 0}</div>
+              <div className="text-xl sm:text-2xl font-bold text-gray-900">{stats?.activeProjects ?? 0}</div>
               <div className="text-xs text-gray-500 mt-1">{t.profile?.activeProjects || 'Активных'}</div>
             </div>
 
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-              <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center mb-3">
-                <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-sm border border-gray-100">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-100 rounded-xl flex items-center justify-center mb-2 sm:mb-3">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
               </div>
-              <div className="text-2xl font-bold text-gray-900">{stats?.volunteersCount ?? 0}</div>
+              <div className="text-xl sm:text-2xl font-bold text-gray-900">{stats?.volunteersCount ?? 0}</div>
               <div className="text-xs text-gray-500 mt-1">{t.profile?.totalVolunteers || 'Волонтёров'}</div>
             </div>
 
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-              <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center mb-3">
-                <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-sm border border-gray-100">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-orange-100 rounded-xl flex items-center justify-center mb-2 sm:mb-3">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <div className="text-2xl font-bold text-gray-900">{profile?.freePostsRemaining ?? 0}</div>
+              <div className="text-xl sm:text-2xl font-bold text-gray-900">{profile?.freePostsRemaining ?? 0}</div>
               <div className="text-xs text-gray-500 mt-1">{t.projects?.freePostsLeft || 'Бесплатных публикаций'}</div>
             </div>
           </div>
 
           {/* Organization Information */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Информация об организации</h2>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-8">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Информация об организации</h2>
               {profile?.isApprovedByAdmin && profile.approvedAt && (
                 <span className="text-xs text-gray-400">
                   Верифицировано: {new Date(profile.approvedAt).toLocaleDateString('ru-RU')}

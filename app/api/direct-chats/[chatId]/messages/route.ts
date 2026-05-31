@@ -39,6 +39,7 @@ export async function GET(
       select: {
         id: true,
         content: true,
+        audioUrl: true,
         createdAt: true,
         senderId: true,
         deliveredTo: true,
@@ -119,9 +120,9 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { content } = body;
+    const { content, audioUrl } = body;
 
-    if (!content?.trim()) {
+    if (!content?.trim() && !audioUrl) {
       return NextResponse.json({ error: 'Сообщение не может быть пустым' }, { status: 400 });
     }
 
@@ -129,11 +130,13 @@ export async function POST(
       data: {
         chatId,
         senderId: session.userId,
-        content: content.trim(),
+        content: content?.trim() || '',
+        ...(audioUrl ? { audioUrl } : {}),
       },
       select: {
         id: true,
         content: true,
+        audioUrl: true,
         createdAt: true,
         senderId: true,
         deliveredTo: true,

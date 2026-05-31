@@ -206,26 +206,37 @@ export default function ProjectsCatalog() {
         {/* Main Content */}
         <DynamicContent>
         {/* Page Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">{t.projects?.title || 'Каталог проектов'}</h1>
-          <p className="text-sm text-gray-600">{t.projects?.subtitle || 'Найдите проект, который вам по душе'}</p>
+        <div className="mb-4 sm:mb-6 flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">{t.projects?.title || 'Каталог проектов'}</h1>
+            <p className="text-sm text-gray-600">{t.projects?.subtitle || 'Найдите проект, который вам по душе'}</p>
+          </div>
+          <Link
+            href="/volunteer/saved-projects"
+            className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-700 hover:border-[#00CC00] hover:text-[#00CC00] transition-colors shadow-sm"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+            </svg>
+            Сохранённые
+          </Link>
         </div>
 
         {/* Единый контейнер для поиска и фильтров */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-300 mb-6 p-6">
+        <div className="bg-white rounded-xl shadow-xl border border-gray-300 mb-3 sm:mb-4 md:mb-6 p-2.5 sm:p-3 md:p-4">
           {/* Верхняя панель: Поиск + Кнопки отображения + Сброс */}
-          <div className="flex flex-col md:flex-row gap-4 mb-4">
+          <div className="flex gap-1.5 sm:gap-2 mb-2.5 sm:mb-3">
             {/* Поисковая строка */}
             <div className="flex-1 relative">
               <input
                 type="text"
-                placeholder={t.projects?.searchPlaceholder || 'Поиск по названию и описанию...'}
+                placeholder={t.projects?.searchPlaceholder || 'Поиск проектов...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                className="w-full pl-8 sm:pl-9 pr-2 sm:pr-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-transparent"
               />
               <svg 
-                className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" 
+                className="absolute left-2.5 sm:left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" 
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
@@ -234,63 +245,60 @@ export default function ProjectsCatalog() {
               </svg>
             </div>
 
-            {/* Кнопка переключения вида (одна кнопка-тогл) */}
-            <div className="flex gap-2">
-              <Tooltip text={viewMode === 'grid' ? (t.projects?.viewList || 'Переключить на список') : (t.projects?.viewGrid || 'Переключить на блоки')}>
+            {/* Кнопка переключения вида */}
+            <Tooltip text={viewMode === 'grid' ? (t.projects?.viewList || 'Список') : (t.projects?.viewGrid || 'Блоки')}>
+              <button
+                onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                className="p-1.5 sm:p-2 rounded-lg border bg-[#00CC00] text-white border-[#00CC00] transition-colors hover:bg-[#00b300] flex-shrink-0"
+              >
+                {viewMode === 'list' ? (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                  </svg>
+                )}
+              </button>
+            </Tooltip>
+
+            {/* Кнопка сброса фильтров */}
+            {(searchQuery || selectedCategory !== 'all' || selectedCity !== 'all' || sortBy !== 'date-desc') && (
+              <Tooltip text={t.projects?.resetFilters || 'Сбросить'}>
                 <button
-                  onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                  className="p-3 rounded-xl border bg-[#00CC00] text-white border-[#00CC00] transition-colors hover:bg-[#00b300]"
+                  onClick={() => {
+                    setSelectedCategory('all');
+                    setSelectedCity('all');
+                    setSearchQuery('');
+                    setSortBy('date-desc');
+                  }}
+                  className="p-1.5 sm:p-2 bg-gray-100 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-200 transition-colors flex-shrink-0"
                 >
-                  {viewMode === 'list' ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                    </svg>
-                  )}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
                 </button>
               </Tooltip>
-
-              {/* Кнопка сброса фильтров — только если активен хотя бы один фильтр */}
-              {(searchQuery || selectedCategory !== 'all' || selectedCity !== 'all' || sortBy !== 'date-desc') && (
-                <Tooltip text={t.projects?.resetFilters || 'Сбросить фильтры'}>
-                  <button
-                    onClick={() => {
-                      setSelectedCategory('all');
-                      setSelectedCity('all');
-                      setSearchQuery('');
-                      setSortBy('date-desc');
-                    }}
-                    className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl border border-gray-200 hover:bg-gray-200 transition-colors flex items-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    <span className="hidden sm:inline">{t.projects?.reset || 'Сбросить'}</span>
-                  </button>
-                </Tooltip>
-              )}
-            </div>
+            )}
           </div>
 
           {/* Разделитель */}
-          <div className="border-t border-gray-100 my-4"></div>
+          <div className="border-t border-gray-100 my-2 sm:my-2.5"></div>
 
           {/* Кнопка показать/скрыть фильтры */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="w-full px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-between text-sm font-medium rounded-lg"
+            className="w-full px-2.5 sm:px-3 py-1.5 text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-between text-xs sm:text-sm font-medium rounded-lg"
           >
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
               <span>{showFilters ? (t.projects?.hideFilters || 'Скрыть фильтры') : (t.projects?.showFilters || 'Показать фильтры')}</span>
             </div>
             <svg 
-              className={`w-5 h-5 transition-transform ${showFilters ? 'rotate-180' : ''}`} 
+              className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} 
               fill="none" 
               stroke="currentColor" 
               viewBox="0 0 24 24"
@@ -301,11 +309,11 @@ export default function ProjectsCatalog() {
 
           {/* Панель фильтров */}
           {showFilters && (
-            <div className="pt-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="pt-2.5 sm:pt-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 sm:gap-3">
                 {/* Фильтр по категории */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs font-medium text-gray-700 mb-1 sm:mb-1.5">
                     {t.common?.category || 'Категория'}
                   </label>
                   <CustomSelect
@@ -371,25 +379,25 @@ export default function ProjectsCatalog() {
             {viewMode === 'list' && (
               <div className="space-y-3">
                 {projects.map((project) => (
-                  <div 
-                    key={project.id} 
+                  <div
+                    key={project.id}
                     onClick={() => router.push(`/volunteer/projects/${project.id}`)}
-                    className="bg-white border border-gray-300 rounded-lg p-4 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer"
+                    className="bg-white border border-gray-300 rounded-lg p-3 sm:p-4 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer"
                   >
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 sm:gap-4">
                       {/* Изображение проекта */}
                       {project.imageUrl && (
-                        <img 
-                          src={project.imageUrl} 
+                        <img
+                          src={project.imageUrl}
                           alt={project.title}
-                          className="w-20 h-20 object-cover rounded-lg flex-shrink-0 border border-gray-200"
+                          className="w-14 h-14 sm:w-20 sm:h-20 object-cover rounded-lg flex-shrink-0 border border-gray-200"
                         />
                       )}
-                      
+
                       {/* Информация о проекте */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="text-lg font-semibold text-gray-900 truncate">{project.title}</h3>
+                          <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">{project.title}</h3>
                         </div>
                         <p className="text-sm text-gray-600 mb-2 line-clamp-1">{project.description}</p>
                         <div className="flex flex-wrap gap-3 text-xs text-gray-600">
@@ -428,7 +436,7 @@ export default function ProjectsCatalog() {
 
             {/* Режим блоков */}
             {viewMode === 'grid' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {projects.map((project) => (
                   <div 
                     key={project.id} 
@@ -451,14 +459,14 @@ export default function ProjectsCatalog() {
                     )}
 
                     {/* Контент */}
-                    <div className="p-5">
+                    <div className="p-4 sm:p-5">
                       {/* Заголовок и статус */}
-                      <div className="flex items-start justify-between gap-3 mb-4">
-                        <h3 className="text-lg font-bold text-gray-900 flex-1">{project.title}</h3>
+                      <div className="flex items-start justify-between gap-3 mb-3 sm:mb-4">
+                        <h3 className="text-base sm:text-lg font-bold text-gray-900 flex-1">{project.title}</h3>
                       </div>
 
                       {/* Локация и дата */}
-                      <div className="space-y-2 text-sm text-gray-600 mb-4">
+                      <div className="space-y-1.5 sm:space-y-2 text-sm text-gray-600 mb-3 sm:mb-4">
                         <div className="flex items-center gap-2">
                           <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />

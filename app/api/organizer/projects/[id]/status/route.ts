@@ -70,6 +70,7 @@ export async function PATCH(
           select: {
             id: true,
             status: true,
+            currentVolunteers: true,
           },
         },
         participants: {
@@ -122,10 +123,24 @@ export async function PATCH(
     if (project.status === 'upcoming' && newStatus === 'active') {
       const currentDate = new Date();
       const startDate = new Date(project.startDate);
-      
+
       if (startDate > currentDate) {
         return NextResponse.json(
           { error: 'Нельзя перейти в статус "Активный" до даты начала проекта' },
+          { status: 400 }
+        );
+      }
+
+      // Все задачи (кроме отменённых) должны иметь хотя бы одного назначенного волонтёра
+      const unassignedTasks = project.tasks.filter(
+        t => t.status !== 'cancelled' && t.currentVolunteers < 1
+      );
+      if (unassignedTasks.length > 0) {
+        return NextResponse.json(
+          {
+            error: `Нельзя активировать проект: ${unassignedTasks.length} задач без назначенных волонтёров`,
+            unassignedCount: unassignedTasks.length,
+          },
           { status: 400 }
         );
       }
@@ -133,15 +148,42 @@ export async function PATCH(
 
     // Валидация для перехода active -> completed
     if (project.status === 'active' && newStatus === 'completed') {
-      const hasIncompleteTasks = project.tasks.some(
-        (task) => task.status !== 'completed' && task.status !== 'cancelled'
-      );
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const endDate = new Date(project.endDate);
+      endDate.setHours(0, 0, 0, 0);
+      const isExpired = endDate < today;
 
-      if (hasIncompleteTasks) {
-        return NextResponse.json(
-          { error: 'Нельзя завершить проект, пока не завершены все задачи' },
-          { status: 400 }
+      if (isExpired) {
+        // Срок истёк — автоматически помечаем незавершённые задачи как overdue
+        const pendingTaskIds = project.tasks
+          .filter(t => t.status === 'pending' || t.status === 'in_progress')
+          .map(t => t.id);
+
+        if (pendingTaskIds.length > 0) {
+          await prisma.task.updateMany({
+            where: { id: { in: pendingTaskIds } },
+            data: { status: 'overdue' },
+          });
+          await prisma.taskAssignment.updateMany({
+            where: { taskId: { in: pendingTaskIds }, status: 'assigned' },
+            data: { status: 'cancelled' },
+          });
+        }
+      } else {
+        // Срок ещё не истёк — требуем чтобы все задачи были завершены/отменены
+        const hasIncompleteTasks = project.tasks.some(
+          (task) =>
+            task.status !== 'completed' &&
+            task.status !== 'cancelled' &&
+            task.status !== 'overdue'
         );
+        if (hasIncompleteTasks) {
+          return NextResponse.json(
+            { error: 'Нельзя завершить проект, пока не завершены все задачи' },
+            { status: 400 }
+          );
+        }
       }
     }
 

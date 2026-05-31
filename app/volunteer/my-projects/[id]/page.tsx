@@ -517,7 +517,7 @@ export default function MyProjectDetail() {
           )}
 
           {/* My Tasks */}
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 mb-6 p-6">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 mb-4 sm:mb-6 p-4 sm:p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-5 flex items-center gap-2">
               <svg className="w-5 h-5 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -544,7 +544,7 @@ export default function MyProjectDetail() {
                   return (
                     <div
                       key={task.id}
-                      className={`border-2 rounded-xl p-5 transition-all ${
+                      className={`border-2 rounded-xl p-3 sm:p-5 transition-all ${
                         task.assignmentStatus === 'confirmed'
                           ? 'bg-green-50 border-green-200'
                           : task.assignmentStatus === 'completed'
@@ -696,11 +696,11 @@ export default function MyProjectDetail() {
                 </button>
               </div>
 
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 {reportSuccess ? (
                   <div className="text-center py-8">
-                    <div className="text-green-500 text-6xl mb-4">✓</div>
-                    <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                    <div className="text-green-500 text-5xl sm:text-6xl mb-4">✓</div>
+                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
                       {t.myProjects?.reportSent || 'Отчёт отправлен!'}
                     </h3>
                     <p className="text-gray-600">
@@ -749,7 +749,7 @@ export default function MyProjectDetail() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         {t.myProjects?.reportPhotos || 'Фотографии'} <span className="text-red-500">*</span>
                       </label>
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 text-center">
                         <input
                           type="file"
                           accept="image/*"

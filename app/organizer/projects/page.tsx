@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import OrganizerNav from '../components/OrganizerNav';
 import OrganizerSidebar from '../components/OrganizerSidebar';
 import AiSupportButton from '@/app/components/AiSupportButton';
@@ -31,14 +32,16 @@ interface Task {
   deadline: string;
 }
 
-export default function OrganizerProjects() {
+function OrganizerProjectsInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const toast = useToast();
   const { t } = useTranslation('organizer');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createStep, setCreateStep] = useState(1); // 1: Project Info, 2: Tasks, 3: Payment/Success
+  const [showTaskForm, setShowTaskForm] = useState(false);
   const [projectData, setProjectData] = useState({
     title: '',
     category: '',
@@ -70,6 +73,9 @@ export default function OrganizerProjects() {
   const [editingProject, setEditingProject] = useState<any>(null);
   const [editStep, setEditStep] = useState(1); // Шаги редактирования: 1 - Информация, 2 - Задачи, 3 - Отправка
   const [isSubmitting, setIsSubmitting] = useState(false); // Состояние отправки проекта
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false); // Состояние загрузки платежа
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null); // URL загруженного фото
+  const [isImageUploading, setIsImageUploading] = useState(false); // Состояние загрузки фото
   
   // Новые состояния для фильтрации и отображения
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid'); // Режим отображения
@@ -78,6 +84,55 @@ export default function OrganizerProjects() {
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'volunteers-desc' | 'volunteers-asc'>('date-desc'); // Сортировка
   const [filterCategory, setFilterCategory] = useState<string>('all'); // Фильтр по категории
   const [showFilters, setShowFilters] = useState(false); // Показать/скрыть расширенные фильтры
+
+  // Обработка возврата после оплаты Finik
+  useEffect(() => {
+    const payment = searchParams.get('payment');
+    const rawProjectId = searchParams.get('projectId');
+    const finikStatus = searchParams.get('status');
+
+    // Finik добавляет ?paymentId=...&status=... к RedirectUrl через ?,
+    // поэтому projectId может содержать мусор — берём только UUID до первого ?
+    const projectId = rawProjectId ? rawProjectId.split('?')[0] : null;
+
+    // Извлекаем finikPaymentId из хвоста rawProjectId (если Finik добавил ?paymentId=xxx)
+    let finikPaymentId: string | null = null;
+    if (rawProjectId?.includes('?')) {
+      const subParams = new URLSearchParams(rawProjectId.split('?')[1]);
+      finikPaymentId = subParams.get('paymentId');
+    }
+
+    if (payment === 'success' && projectId && (finikStatus === 'succeeded' || finikStatus === null)) {
+      const publishProject = async () => {
+        try {
+          const res = await fetch(`/api/projects/${projectId}/publish`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ finikPaymentId }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            toast.success('Оплата прошла успешно! Проект отправлен на модерацию.');
+          } else {
+            if (data.error === 'Можно публиковать только черновики') {
+              toast.success('Проект уже отправлен на модерацию.');
+            } else {
+              toast.error(data.error || 'Не удалось отправить проект на модерацию');
+            }
+          }
+        } catch {
+          toast.error('Ошибка при обработке результата оплаты');
+        } finally {
+          fetchProjects();
+          router.replace('/organizer/projects');
+        }
+      };
+
+      if (user) {
+        publishProject();
+      }
+    }
+  }, [searchParams, user]);
 
   // Блокировка скролла при открытии модальных окон
   useEffect(() => {
@@ -234,6 +289,31 @@ export default function OrganizerProjects() {
         const data = await response.json();
         console.log('Received projects:', data.projects);
         setProjects(data.projects || []);
+
+        // Авто-активация: запускаем для всех upcoming проектов у которых наступила дата начала
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const upcomingReady = (data.projects || []).filter((p: any) => {
+          if (p.status !== 'upcoming') return false;
+          const sd = new Date(p.startDate);
+          sd.setHours(0, 0, 0, 0);
+          return sd <= today;
+        });
+        if (upcomingReady.length > 0) {
+          Promise.all(
+            upcomingReady.map((p: any) =>
+              fetch(`/api/organizer/projects/${p.id}/auto-activate`, {
+                method: 'POST',
+                credentials: 'include',
+              }).then(r => r.json()).catch(() => null)
+            )
+          ).then(results => {
+            if (results.some((r: any) => r?.activated)) {
+              // Перезагружаем список если хоть один проект активирован
+              fetchProjects();
+            }
+          });
+        }
       } else {
         console.error('Error fetching projects, status:', response.status);
         setProjects([]);
@@ -246,9 +326,28 @@ export default function OrganizerProjects() {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setProjectData({ ...projectData, image: e.target.files[0] });
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setProjectData({ ...projectData, image: file });
+    setUploadedImageUrl(null);
+    setIsImageUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const res = await fetch('/api/upload/image', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (res.ok) {
+        setUploadedImageUrl(data.imageUrl);
+      } else {
+        toast.error(data.error || 'Ошибка загрузки фото');
+        setProjectData(prev => ({ ...prev, image: null }));
+      }
+    } catch {
+      toast.error('Ошибка загрузки фото');
+      setProjectData(prev => ({ ...prev, image: null }));
+    } finally {
+      setIsImageUploading(false);
     }
   };
 
@@ -287,8 +386,10 @@ export default function OrganizerProjects() {
       formData.append('maxVolunteers', projectData.maxVolunteers);
       formData.append('isPaid', 'false');
 
-      // Добавляем изображение, если оно есть
-      if (projectData.image) {
+      // Фото: если уже загружено в S3 — передаём URL, иначе файл
+      if (uploadedImageUrl) {
+        formData.append('imageUrl', uploadedImageUrl);
+      } else if (projectData.image) {
         formData.append('image', projectData.image);
       }
 
@@ -393,6 +494,7 @@ export default function OrganizerProjects() {
       requiredVolunteers: '',
       deadline: '',
     });
+    setShowTaskForm(false);
   };
 
   const handleRemoveTask = (taskId: string) => {
@@ -435,8 +537,10 @@ export default function OrganizerProjects() {
       formData.append('maxVolunteers', projectData.maxVolunteers);
       formData.append('isPaid', 'false');
 
-      // Добавляем изображение, если оно есть
-      if (projectData.image) {
+      // Фото: если уже загружено в S3 — передаём URL, иначе файл
+      if (uploadedImageUrl) {
+        formData.append('imageUrl', uploadedImageUrl);
+      } else if (projectData.image) {
         formData.append('image', projectData.image);
       }
 
@@ -448,13 +552,12 @@ export default function OrganizerProjects() {
       // Создаем проект
       const projectResponse = await fetch('/api/projects', {
         method: 'POST',
-        body: formData, // Отправляем FormData вместо JSON
+        body: formData,
       });
 
       const projectResult = await projectResponse.json();
 
       if (!projectResponse.ok) {
-        // Проверяем, если организатор не подтвержден
         if (projectResult.code === 'ORGANIZER_NOT_APPROVED') {
           toast.warning(projectResult.message || 'Ваш аккаунт еще не подтвержден администратором');
           setShowCreateModal(false);
@@ -468,7 +571,7 @@ export default function OrganizerProjects() {
 
       const projectId = projectResult.project.id;
 
-      // Затем отправляем проект на модерацию
+      // Отправляем проект на модерацию (бесплатные публикации)
       const publishResponse = await fetch(`/api/projects/${projectId}/publish`, {
         method: 'POST',
       });
@@ -498,6 +601,9 @@ export default function OrganizerProjects() {
 
   const resetForm = () => {
     setCreateStep(1);
+    setShowTaskForm(false);
+    setUploadedImageUrl(null);
+    setIsImageUploading(false);
     setProjectData({
       title: '',
       category: '',
@@ -519,6 +625,87 @@ export default function OrganizerProjects() {
       requiredVolunteers: '',
       deadline: '',
     });
+  };
+
+  const handlePayment = async () => {
+    if (!user) return;
+    try {
+      setIsPaymentLoading(true);
+
+      const formData = new FormData();
+      formData.append('title', projectData.title);
+      formData.append('description', projectData.description);
+      formData.append('categoryId', projectData.category);
+      formData.append('startDate', projectData.startDate);
+      formData.append('endDate', projectData.endDate);
+      formData.append('location', projectData.location);
+      if (projectData.latitude !== null) {
+        formData.append('latitude', projectData.latitude.toString());
+      }
+      if (projectData.longitude !== null) {
+        formData.append('longitude', projectData.longitude.toString());
+      }
+      formData.append('maxVolunteers', projectData.maxVolunteers);
+      formData.append('isPaid', 'false');
+
+      if (uploadedImageUrl) {
+        formData.append('imageUrl', uploadedImageUrl);
+      } else if (projectData.image) {
+        formData.append('image', projectData.image);
+      }
+
+      if (tasks.length > 0) {
+        formData.append('tasks', JSON.stringify(tasks));
+      }
+
+      const projectResponse = await fetch('/api/projects', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const projectResult = await projectResponse.json();
+
+      if (!projectResponse.ok) {
+        if (projectResult.code === 'ORGANIZER_NOT_APPROVED') {
+          toast.warning(projectResult.message || 'Ваш аккаунт еще не подтвержден администратором');
+          setShowCreateModal(false);
+          resetForm();
+          return;
+        }
+        toast.error(projectResult.error || 'Ошибка при создании проекта');
+        return;
+      }
+
+      const projectId = projectResult.project.id;
+
+      const paymentResponse = await fetch('/api/finik/create-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workId: projectId,
+          workTopic: projectData.title,
+          userId: user.id,
+        }),
+      });
+
+      const paymentData = await paymentResponse.json();
+
+      if (!paymentResponse.ok) {
+        toast.error(paymentData.error || 'Ошибка при создании платежа');
+        return;
+      }
+
+      if (paymentData.paymentUrl) {
+        window.location.href = paymentData.paymentUrl;
+      } else {
+        toast.error('Не удалось получить ссылку на оплату');
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      toast.error('Произошла ошибка при создании платежа');
+    } finally {
+      setIsPaymentLoading(false);
+    }
   };
 
   const handleDeleteProject = async (projectId: string) => {
@@ -678,8 +865,10 @@ export default function OrganizerProjects() {
       }
       formData.append('maxVolunteers', projectData.maxVolunteers);
 
-      // Добавляем изображение, если оно есть
-      if (projectData.image) {
+      // Фото: если уже загружено в S3 — передаём URL, иначе файл
+      if (uploadedImageUrl) {
+        formData.append('imageUrl', uploadedImageUrl);
+      } else if (projectData.image) {
         formData.append('image', projectData.image);
       }
 
@@ -750,107 +939,114 @@ export default function OrganizerProjects() {
         {/* Main Content */}
         <DynamicContent>
         {/* Page Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{t.projects?.title || 'Мои проекты'}</h1>
-            <p className="text-gray-600">Управляйте своими волонтёрскими проектами</p>
+        <div className="flex items-center justify-between mb-4 sm:mb-8 gap-2">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-3xl font-bold text-gray-900 sm:mb-2 leading-tight">{t.projects?.title || 'Мои проекты'}</h1>
+            <p className="text-gray-600 text-xs sm:text-sm hidden sm:block">Управляйте своими волонтёрскими проектами</p>
           </div>
-          <button
-            onClick={() => {
-              // Проверяем, подтвержден ли организатор
-              if (!isApproved) {
-                toast.warning('Ваш аккаунт еще не подтвержден администратором. Для создания проектов необходимо дождаться подтверждения вашего аккаунта. Обычно это занимает 1-2 рабочих дня.');
-                return;
-              }
-              setShowCreateModal(true);
-            }}
-            className="px-6 py-3 bg-[#00CC00] text-white rounded-full font-medium hover:bg-[#00b300] transition-colors flex items-center gap-2 shadow-lg"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            {t.projects?.createNew || 'Создать проект'}
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Link
+              href="/organizer/payments"
+              className="px-3 sm:px-5 py-2 sm:py-3 border border-gray-300 text-gray-700 rounded-full text-xs sm:text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+            >
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+              Платежи
+            </Link>
+            <button
+              onClick={() => {
+                if (!isApproved) {
+                  toast.warning('Ваш аккаунт еще не подтвержден администратором. Для создания проектов необходимо дождаться подтверждения вашего аккаунта. Обычно это занимает 1-2 рабочих дня.');
+                  return;
+                }
+                setShowCreateModal(true);
+              }}
+              className="px-3 sm:px-6 py-2 sm:py-3 bg-[#00CC00] text-white rounded-full text-xs sm:text-sm font-medium hover:bg-[#00b300] transition-colors flex items-center gap-1.5 shadow-lg"
+            >
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span className="hidden sm:inline">{t.projects?.createNew || 'Создать проект'}</span>
+              <span className="sm:hidden">Создать</span>
+            </button>
+          </div>
         </div>
 
         {/* Единый контейнер для поиска и фильтров */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-300 mb-6 p-6">
+        <div className="bg-white rounded-xl shadow-xl border border-gray-300 mb-3 sm:mb-4 md:mb-6 p-2.5 sm:p-3 md:p-4">
           {/* Верхняя панель: Поиск + Кнопки отображения + Сброс */}
-          <div className="flex flex-col md:flex-row gap-4 mb-4">
+          <div className="flex gap-1.5 sm:gap-2 mb-2.5 sm:mb-3">
             {/* Поисковая строка */}
             <div className="flex-1 relative">
               <input
                 type="text"
-                placeholder={t.projects?.searchPlaceholder || 'Поиск по названию и описанию...'}
+                placeholder={t.projects?.searchPlaceholder || 'Поиск по названию...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent"
+                className="w-full pl-8 sm:pl-9 pr-2 sm:pr-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-transparent"
               />
-              <svg 
-                className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" 
-                fill="none" 
-                stroke="currentColor" 
+              <svg
+                className="absolute left-2.5 sm:left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400"
+                fill="none"
+                stroke="currentColor"
                 viewBox="0 0 24 24"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
 
-            {/* Кнопки переключения вида + сброс */}
-            <div className="flex gap-2">
-              {/* Одна кнопка-тогл список/сетка */}
-              <Tooltip text={viewMode === 'grid' ? 'Переключить на список' : 'Переключить на блоки'}>
+            {/* Кнопка-тогл список/сетка */}
+            <Tooltip text={viewMode === 'grid' ? 'Переключить на список' : 'Переключить на блоки'}>
+              <button
+                onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                className="p-1.5 sm:p-2 rounded-lg border bg-[#00CC00] text-white border-[#00CC00] transition-colors hover:bg-[#00b300] flex-shrink-0"
+              >
+                {viewMode === 'list' ? (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                  </svg>
+                )}
+              </button>
+            </Tooltip>
+
+            {/* Кнопка сброса — только если активен хотя бы один фильтр */}
+            {(searchQuery || filterStatus !== 'all' || filterCategory !== 'all' || sortBy !== 'date-desc') && (
+              <Tooltip text="Сбросить фильтры">
                 <button
-                  onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                  className="p-3 rounded-xl border bg-[#00CC00] text-white border-[#00CC00] transition-colors hover:bg-[#00b300]"
+                  onClick={resetFilters}
+                  className="p-1.5 sm:p-2 bg-gray-100 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-200 transition-colors flex-shrink-0"
                 >
-                  {viewMode === 'list' ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                    </svg>
-                  )}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
                 </button>
               </Tooltip>
-
-              {/* Кнопка сброса — только если активен хотя бы один фильтр */}
-              {(searchQuery || filterStatus !== 'all' || filterCategory !== 'all' || sortBy !== 'date-desc') && (
-                <Tooltip text="Сбросить фильтры">
-                  <button
-                    onClick={resetFilters}
-                    className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl border border-gray-200 hover:bg-gray-200 transition-colors flex items-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    <span className="hidden sm:inline">Сбросить</span>
-                  </button>
-                </Tooltip>
-              )}
-            </div>
+            )}
           </div>
 
           {/* Разделитель */}
-          <div className="border-t border-gray-100 my-4"></div>
+          <div className="border-t border-gray-100 my-2 sm:my-2.5"></div>
 
           {/* Кнопка показать/скрыть фильтры */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="w-full px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-between text-sm font-medium rounded-lg"
+            className="w-full px-2.5 sm:px-3 py-1.5 text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-between text-xs sm:text-sm font-medium rounded-lg"
           >
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#00CC00]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
               <span>{showFilters ? 'Скрыть фильтры' : 'Показать фильтры'}</span>
             </div>
-            <svg 
-              className={`w-5 h-5 transition-transform ${showFilters ? 'rotate-180' : ''}`} 
-              fill="none" 
-              stroke="currentColor" 
+            <svg
+              className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
               viewBox="0 0 24 24"
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -859,11 +1055,11 @@ export default function OrganizerProjects() {
 
           {/* Панель фильтров */}
           {showFilters && (
-            <div className="pt-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="pt-2.5 sm:pt-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 sm:gap-3">
                 {/* Фильтр по статусу */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  <label className="block text-xs font-medium text-gray-700 mb-1 sm:mb-1.5">
                     {t.projects?.filterStatus || 'Статус'}
                   </label>
                   <CustomSelect
@@ -887,7 +1083,7 @@ export default function OrganizerProjects() {
 
                 {/* Сортировка */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  <label className="block text-xs font-medium text-gray-700 mb-1 sm:mb-1.5">
                     Сортировка
                   </label>
                   <CustomSelect
@@ -907,7 +1103,7 @@ export default function OrganizerProjects() {
 
                 {/* Фильтр по категории */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  <label className="block text-xs font-medium text-gray-700 mb-1 sm:mb-1.5">
                     Категория
                   </label>
                   <CustomSelect
@@ -973,37 +1169,37 @@ export default function OrganizerProjects() {
           <div>
             {/* Режим списка */}
             {viewMode === 'list' && (
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {getFilteredAndSortedProjects().map((project) => (
-                  <div 
-                    key={project.id} 
-                    className="bg-white border border-gray-300 rounded-lg p-4 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer"
+                  <div
+                    key={project.id}
+                    className="bg-white border border-gray-300 rounded-lg p-3 sm:p-4 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer"
                     onClick={() => router.push(`/organizer/projects/${project.id}`)}
                   >
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                       {/* Изображение проекта с бейджем статуса */}
                       {project.imageUrl ? (
                         <div className="relative flex-shrink-0">
                           <img
                             src={project.imageUrl}
                             alt={project.title}
-                            className="w-20 h-20 object-cover rounded-lg"
+                            className="w-14 h-14 sm:w-20 sm:h-20 object-cover rounded-lg"
                           />
                           {(() => { const b = getStatusBadge(project.status); return (
-                            <span className={`absolute top-1 right-1 px-1.5 py-0.5 ${b.bg} ${b.text} text-xs font-medium rounded-full whitespace-nowrap`}>
+                            <span className={`absolute top-1 right-1 px-1 py-0.5 ${b.bg} ${b.text} text-[9px] sm:text-xs font-medium rounded-full whitespace-nowrap leading-tight`}>
                               {b.label}
                             </span>
                           ); })()}
                         </div>
                       ) : (
                         <div className="relative flex-shrink-0">
-                          <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center">
-                            <svg className="w-10 h-10 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <div className="w-14 h-14 sm:w-20 sm:h-20 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center">
+                            <svg className="w-7 h-7 sm:w-10 sm:h-10 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
                           </div>
                           {(() => { const b = getStatusBadge(project.status); return (
-                            <span className={`absolute top-1 right-1 px-1.5 py-0.5 ${b.bg} ${b.text} text-xs font-medium rounded-full whitespace-nowrap`}>
+                            <span className={`absolute top-1 right-1 px-1 py-0.5 ${b.bg} ${b.text} text-[9px] sm:text-xs font-medium rounded-full whitespace-nowrap leading-tight`}>
                               {b.label}
                             </span>
                           ); })()}
@@ -1012,25 +1208,23 @@ export default function OrganizerProjects() {
 
                       {/* Информация о проекте */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="text-lg font-semibold text-gray-900 truncate">{project.title}</h3>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-2 line-clamp-1">{project.description}</p>
-                        <div className="flex flex-wrap gap-3 text-xs text-gray-600">
+                        <h3 className="text-sm sm:text-lg font-semibold text-gray-900 truncate mb-0.5">{project.title}</h3>
+                        <p className="text-xs text-gray-500 mb-1.5 line-clamp-1 hidden sm:block">{project.description}</p>
+                        <div className="flex flex-wrap gap-2 text-xs text-gray-500">
                           <div className="flex items-center gap-1">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                             </svg>
-                            {project.location}
+                            <span className="truncate max-w-[80px] sm:max-w-none">{project.location}</span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                             </svg>
                             {project.currentVolunteers}/{project.maxVolunteers}
                           </div>
                           <div className="flex items-center gap-1">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
                             {new Date(project.startDate).toLocaleDateString('ru-RU')}
@@ -1040,7 +1234,7 @@ export default function OrganizerProjects() {
 
                       {/* Стрелка */}
                       <div className="flex-shrink-0">
-                        <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 sm:w-6 sm:h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                       </div>
@@ -1052,10 +1246,10 @@ export default function OrganizerProjects() {
 
             {/* Режим блоков */}
             {viewMode === 'grid' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
                 {getFilteredAndSortedProjects().map((project) => (
-                  <div 
-                    key={project.id} 
+                  <div
+                    key={project.id}
                     className="bg-white border border-gray-300 rounded-xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer"
                     onClick={() => router.push(`/organizer/projects/${project.id}`)}
                   >
@@ -1065,39 +1259,39 @@ export default function OrganizerProjects() {
                         <img
                           src={project.imageUrl}
                           alt={project.title}
-                          className="w-full h-40 object-cover"
+                          className="w-full h-24 sm:h-40 object-cover"
                         />
                       ) : (
-                        <div className="w-full h-40 bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
-                          <svg className="w-16 h-16 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="w-full h-24 sm:h-40 bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
+                          <svg className="w-8 h-8 sm:w-16 sm:h-16 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
                         </div>
                       )}
                       {(() => { const b = getStatusBadge(project.status); return (
-                        <span className={`absolute top-2 right-2 px-2.5 py-1 ${b.bg} ${b.text} text-xs font-semibold rounded-full whitespace-nowrap shadow`}>
+                        <span className={`absolute top-1.5 right-1.5 sm:top-2 sm:right-2 px-1.5 sm:px-2.5 py-0.5 sm:py-1 ${b.bg} ${b.text} text-[10px] sm:text-xs font-semibold rounded-full whitespace-nowrap shadow`}>
                           {b.label}
                         </span>
                       ); })()}
                     </div>
 
                     {/* Контент */}
-                    <div className="p-5">
+                    <div className="p-2.5 sm:p-5">
                       {/* Заголовок */}
-                      <div className="mb-4">
-                        <h3 className="text-lg font-bold text-gray-900">{project.title}</h3>
+                      <div className="mb-2 sm:mb-4">
+                        <h3 className="text-xs sm:text-lg font-bold text-gray-900 line-clamp-2">{project.title}</h3>
                       </div>
 
                       {/* Локация и дата */}
-                      <div className="space-y-2 text-sm text-gray-600 mb-4">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm text-gray-600 mb-2 sm:mb-4">
+                        <div className="flex items-center gap-1.5">
+                          <svg className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                           </svg>
                           <span className="truncate">{project.location}</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="flex items-center gap-1.5">
+                          <svg className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
                           <span>{new Date(project.startDate).toLocaleDateString('ru-RU')}</span>
@@ -1106,7 +1300,7 @@ export default function OrganizerProjects() {
 
                       {/* Стрелка */}
                       <div className="flex items-center justify-end">
-                        <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 sm:w-6 sm:h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                         </svg>
                       </div>
@@ -1237,24 +1431,43 @@ export default function OrganizerProjects() {
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Фотография проекта
                     </label>
-                    <div className="flex items-center gap-4">
-                      <label className="flex-1 cursor-pointer">
-                        <div className="w-full px-3 py-2 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg hover:border-[#00CC00] transition-colors flex items-center justify-center gap-2">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          <span className="text-sm text-gray-600">
-                            {projectData.image ? projectData.image.name : 'Выберите изображение'}
-                          </span>
-                        </div>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
+                    <label className="block cursor-pointer">
+                      <div className={`w-full px-3 py-2 bg-gray-50 border-2 border-dashed rounded-lg transition-colors flex items-center gap-3 ${
+                        uploadedImageUrl ? 'border-[#00CC00] bg-green-50' : isImageUploading ? 'border-blue-300 bg-blue-50' : 'border-gray-300 hover:border-[#00CC00]'
+                      }`}>
+                        {isImageUploading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 flex-shrink-0" />
+                            <span className="text-sm text-blue-600">Загрузка в облако...</span>
+                          </>
+                        ) : uploadedImageUrl ? (
+                          <>
+                            <img src={uploadedImageUrl} alt="preview" className="w-10 h-10 rounded object-cover flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-green-700 truncate">{projectData.image?.name}</p>
+                              <p className="text-xs text-green-600">Загружено в облако ✓</p>
+                            </div>
+                            <svg className="w-5 h-5 text-[#00CC00] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span className="text-sm text-gray-600">Выберите изображение</span>
+                          </>
+                        )}
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        disabled={isImageUploading}
+                        className="hidden"
+                      />
+                    </label>
                   </div>
 
                   {/* Dates */}
@@ -1453,113 +1666,140 @@ export default function OrganizerProjects() {
                   </div>
                 )}
 
-                {/* Add Task Form */}
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-6">
-                  <h4 className="font-bold text-gray-900 mb-4">Добавить задачу</h4>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Название задачи *
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Например: Уборка территории"
-                        value={currentTask.title}
-                        onChange={(e) => setCurrentTask({ ...currentTask, title: e.target.value })}
-                        className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Описание задачи *
-                      </label>
-                      <textarea
-                        rows={3}
-                        placeholder="Опишите, что нужно сделать..."
-                        value={currentTask.description}
-                        onChange={(e) => setCurrentTask({ ...currentTask, description: e.target.value })}
-                        className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00] resize-none"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Add Task Form — показывается только по кнопке */}
+                {showTaskForm && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-4">
+                    <h4 className="font-bold text-gray-900 mb-4">Новая задача</h4>
+                    <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                          Требуемый навык
-                        </label>
-                        <CustomSelect
-                          options={[
-                            { value: '', label: 'Не требуется' },
-                            ...projectData.requiredSkills.map((skill) => ({
-                              value: skill,
-                              label: skill
-                            }))
-                          ]}
-                          value={currentTask.requiredSkill}
-                          onChange={(value) => setCurrentTask({ ...currentTask, requiredSkill: value })}
-                          placeholder="Не требуется"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                          Количество волонтёров *
+                          Название задачи *
                         </label>
                         <input
-                          type="number"
-                          min="1"
-                          placeholder="1"
-                          value={currentTask.requiredVolunteers}
-                          onChange={(e) => setCurrentTask({ ...currentTask, requiredVolunteers: e.target.value })}
+                          type="text"
+                          placeholder="Например: Уборка территории"
+                          value={currentTask.title}
+                          onChange={(e) => setCurrentTask({ ...currentTask, title: e.target.value })}
                           className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
                         />
                       </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                          Дедлайн
+                          Описание задачи *
                         </label>
-                        <CustomDatePicker
-                          value={currentTask.deadline}
-                          onChange={(value) => {
-                            // Проверяем, что дата находится в диапазоне проекта
-                            if (projectData.startDate && projectData.endDate) {
-                              if (value < projectData.startDate || value > projectData.endDate) {
-                                toast.error(`Дедлайн задачи должен быть между ${new Date(projectData.startDate).toLocaleDateString('ru-RU')} и ${new Date(projectData.endDate).toLocaleDateString('ru-RU')}`);
-                                return;
-                              }
-                            }
-                            setCurrentTask({ ...currentTask, deadline: value });
-                          }}
-                          placeholder="Выберите дедлайн"
-                          minDate={projectData.startDate}
-                          maxDate={projectData.endDate}
+                        <textarea
+                          rows={3}
+                          placeholder="Опишите, что нужно сделать..."
+                          value={currentTask.description}
+                          onChange={(e) => setCurrentTask({ ...currentTask, description: e.target.value })}
+                          className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00] resize-none"
                         />
-                        {projectData.startDate && projectData.endDate && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Период проекта: {new Date(projectData.startDate).toLocaleDateString('ru-RU')} - {new Date(projectData.endDate).toLocaleDateString('ru-RU')}
-                          </p>
-                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                            Требуемый навык
+                          </label>
+                          <CustomSelect
+                            options={[
+                              { value: '', label: 'Не требуется' },
+                              ...projectData.requiredSkills.map((skill) => ({
+                                value: skill,
+                                label: skill
+                              }))
+                            ]}
+                            value={currentTask.requiredSkill}
+                            onChange={(value) => setCurrentTask({ ...currentTask, requiredSkill: value })}
+                            placeholder="Не требуется"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                            Количество волонтёров *
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder="1"
+                            value={currentTask.requiredVolunteers}
+                            onChange={(e) => setCurrentTask({ ...currentTask, requiredVolunteers: e.target.value })}
+                            className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                            Дедлайн
+                          </label>
+                          <CustomDatePicker
+                            value={currentTask.deadline}
+                            onChange={(value) => {
+                              if (projectData.startDate && projectData.endDate) {
+                                if (value < projectData.startDate || value > projectData.endDate) {
+                                  toast.error(`Дедлайн задачи должен быть между ${new Date(projectData.startDate).toLocaleDateString('ru-RU')} и ${new Date(projectData.endDate).toLocaleDateString('ru-RU')}`);
+                                  return;
+                                }
+                              }
+                              setCurrentTask({ ...currentTask, deadline: value });
+                            }}
+                            placeholder="Выберите дедлайн"
+                            minDate={projectData.startDate}
+                            maxDate={projectData.endDate}
+                          />
+                          {projectData.startDate && projectData.endDate && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              Период: {new Date(projectData.startDate).toLocaleDateString('ru-RU')} — {new Date(projectData.endDate).toLocaleDateString('ru-RU')}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowTaskForm(false);
+                            setCurrentTask({ title: '', description: '', requiredSkill: '', requiredVolunteers: '', deadline: '' });
+                          }}
+                          className="px-4 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                        >
+                          Отмена
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleAddTask}
+                          className="px-4 py-2 bg-[#00CC00] text-white rounded-lg text-sm font-medium hover:bg-[#00b300] transition-colors flex items-center gap-1.5"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Сохранить задачу
+                        </button>
                       </div>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={handleAddTask}
-                      className="w-full px-4 py-3 bg-[#00CC00] text-white rounded-xl font-medium hover:bg-[#00b300] transition-colors flex items-center justify-center gap-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      Добавить задачу
-                    </button>
                   </div>
-                </div>
+                )}
 
-                {tasks.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {/* Кнопка добавить задачу */}
+                {!showTaskForm && (
+                  <button
+                    type="button"
+                    onClick={() => setShowTaskForm(true)}
+                    className="flex items-center gap-2 w-full justify-center px-4 py-3 border-2 border-dashed border-[#00CC00]/40 text-[#00CC00] rounded-xl text-sm font-medium hover:border-[#00CC00] hover:bg-[#00CC00]/5 transition-colors mb-4"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Добавить задачу
+                  </button>
+                )}
+
+                {tasks.length === 0 && !showTaskForm && (
+                  <div className="text-center py-6 text-gray-400">
+                    <svg className="w-10 h-10 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                     <p className="text-sm">Добавьте хотя бы одну задачу для проекта</p>
@@ -1614,7 +1854,7 @@ export default function OrganizerProjects() {
                   <div className="bg-white border-2 border-[#00CC00] rounded-2xl p-6 mb-5">
                     <div className="flex items-center justify-between mb-4">
                       <span className="text-sm text-gray-500">Публикация проекта</span>
-                      <span className="text-2xl font-bold text-gray-900">500 сом</span>
+                      <span className="text-2xl font-bold text-gray-900">5 сом</span>
                     </div>
                     <div className="h-px bg-gray-100 mb-4" />
                     <div className="space-y-2">
@@ -1646,42 +1886,26 @@ export default function OrganizerProjects() {
                     </div>
                   )}
 
-                  {/* Заглушка оплаты */}
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-start gap-3">
-                    <svg className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <p className="text-sm text-amber-800">
-                      Онлайн-оплата находится в разработке. Скоро вы сможете оплачивать публикации прямо на сайте.
-                    </p>
-                  </div>
-
                   {/* Кнопки */}
                   <div className="flex flex-col gap-3">
                     <button
                       type="button"
-                      onClick={() => toast.info('Функция оплаты находится в разработке. Скоро будет доступна.')}
-                      className="w-full py-3 bg-[#00CC00] text-white rounded-xl font-bold hover:bg-[#00b300] transition-colors shadow-md flex items-center justify-center gap-2"
+                      onClick={freePostsRemaining > 0 ? handleSubmitProject : handlePayment}
+                      disabled={isSubmitting || isPaymentLoading}
+                      className="w-full py-3 bg-[#00CC00] text-white rounded-xl font-bold hover:bg-[#00b300] transition-colors shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                      </svg>
-                      Оплатить
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleSubmitProject}
-                      disabled={isSubmitting}
-                      className="w-full py-3 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      {isSubmitting ? (
+                      {(isSubmitting || isPaymentLoading) ? (
                         <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500" />
-                          <span>Отправка...</span>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                          <span>{isPaymentLoading ? 'Создание платежа...' : 'Отправка...'}</span>
                         </>
                       ) : (
-                        'Отправить на модерацию'
+                        <>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                          </svg>
+                          {freePostsRemaining > 0 ? 'Опубликовать' : 'Оплатить и опубликовать (5 сом)'}
+                        </>
                       )}
                     </button>
 
@@ -2287,6 +2511,10 @@ export default function OrganizerProjects() {
   );
 }
 
-
-
-
+export default function OrganizerProjects() {
+  return (
+    <Suspense fallback={null}>
+      <OrganizerProjectsInner />
+    </Suspense>
+  );
+}
