@@ -21,6 +21,8 @@ interface GoogleUserInfo {
 }
 
 export async function GET(request: NextRequest) {
+  const origin = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get('code');
@@ -28,13 +30,13 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_APP_URL}/login?error=google_auth_failed`
+        `${origin}/login?error=google_auth_failed`
       );
     }
 
     if (!code) {
       return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_APP_URL}/login?error=no_code`
+        `${origin}/login?error=no_code`
       );
     }
 
@@ -48,7 +50,7 @@ export async function GET(request: NextRequest) {
         code,
         client_id: process.env.GOOGLE_CLIENT_ID!,
         client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-        redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/google/callback`,
+        redirect_uri: `${origin}/api/auth/google/callback`,
         grant_type: 'authorization_code',
       }),
     });
@@ -113,11 +115,11 @@ export async function GET(request: NextRequest) {
       role: user.role,
     });
 
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard`);
+    return NextResponse.redirect(`${origin}/dashboard`);
   } catch (error) {
     console.error('Google callback error:', error);
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/login?error=auth_failed`
+      `${origin}/login?error=auth_failed`
     );
   }
 }
