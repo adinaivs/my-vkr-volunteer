@@ -26,7 +26,8 @@ const FINIK_ACCOUNT_ID = process.env.FINIK_ACCOUNT_ID;
 
 const FINIK_PRIVATE_KEY = (() => {
   if (process.env.FINIK_PRIVATE_KEY) {
-    const key = process.env.FINIK_PRIVATE_KEY.trim();
+    // В Docker env-файлах переносы строк хранятся как литерал \n — восстанавливаем их
+    const key = process.env.FINIK_PRIVATE_KEY.trim().replace(/\\n/g, '\n');
     if (!isInitialized) {
       if (process.env.NODE_ENV === 'development') {
         console.log('✓ Using FINIK_PRIVATE_KEY from environment');

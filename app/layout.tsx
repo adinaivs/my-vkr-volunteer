@@ -4,6 +4,7 @@ import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import { ToastProvider } from "./components/ToastContainer";
 import AnnouncementBanner from "./components/AnnouncementBanner";
+import { AnnouncementProvider } from "./contexts/AnnouncementContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,10 +32,11 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <ToastProvider>
-          <AnnouncementBanner />
-          {children}
-        </ToastProvider>
+        <AnnouncementProvider>
+          <ToastProvider>
+            {children}
+          </ToastProvider>
+        </AnnouncementProvider>
       </body>
     </html>
   );

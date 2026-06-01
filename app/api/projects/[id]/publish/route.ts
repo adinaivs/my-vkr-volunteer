@@ -79,6 +79,18 @@ export async function POST(
       isPaidByFinik = !!finikPaymentId;
     } catch { /* тело может быть пустым */ }
 
+    // Проверяем наличие бесплатных публикаций или подтверждённой оплаты
+    const freePostsRemaining = user.organizerProfile?.freePostsRemaining ?? 0;
+    if (freePostsRemaining <= 0 && !isPaidByFinik) {
+      return NextResponse.json(
+        {
+          error: 'У вас закончились бесплатные публикации. Для публикации проекта необходима оплата.',
+          code: 'PAYMENT_REQUIRED',
+        },
+        { status: 402 }
+      );
+    }
+
     // Если оплата через Finik — создаём запись Payment
     let paymentRecordId: string | undefined;
     if (isPaidByFinik && finikPaymentId) {

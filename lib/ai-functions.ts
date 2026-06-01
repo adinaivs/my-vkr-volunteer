@@ -767,7 +767,6 @@ async function getCategories(): Promise<string> {
 
   const formatted = categories.map((c) => ({
     название: c.translations[0]?.name || c.slug,
-    иконка: c.icon,
     активных_проектов: c._count.projects,
   }));
 

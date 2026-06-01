@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { openai, AI_CONFIG, SYSTEM_PROMPT } from '@/lib/openai';
 import { getSession } from '@/lib/auth';
 import { AI_FUNCTIONS, executeFunction } from '@/lib/ai-functions';
+import { prisma } from '@/lib/prisma';
 
 // Конвертируем функции в формат tools для нового API OpenAI
 const AI_TOOLS = AI_FUNCTIONS.map(func => ({
@@ -164,7 +165,7 @@ export async function POST(request: NextRequest) {
       messages: messages,
       temperature: AI_CONFIG.temperature,
       max_tokens: AI_CONFIG.max_tokens,
-      stream: true, // Включаем streaming
+      stream: true,
     });
 
     // Создаем ReadableStream для отправки данных клиенту
@@ -172,18 +173,44 @@ export async function POST(request: NextRequest) {
     const stream = new ReadableStream({
       async start(controller) {
         try {
+          let fullReply = '';
           for await (const chunk of streamCompletion) {
             const content = chunk.choices[0]?.delta?.content || '';
             if (content) {
-              // Отправляем каждый кусочек текста
+              fullReply += content;
               const data = JSON.stringify({ content, done: false });
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
             }
           }
-          
-          // Отправляем сигнал завершения
-          const doneData = JSON.stringify({ 
-            content: '', 
+
+          // Сохраняем диалог в БД
+          if (userId) {
+            try {
+              const userMessage = conversationHistory.length > 0
+                ? message
+                : message;
+              let chat = await prisma.aiChat.findFirst({
+                where: { userId },
+                orderBy: { createdAt: 'desc' },
+              });
+              if (!chat) {
+                chat = await prisma.aiChat.create({
+                  data: { name: 'Чат поддержки', userId },
+                });
+              }
+              await prisma.aiMessage.createMany({
+                data: [
+                  { chatId: chat.id, sender: 'user', message: userMessage },
+                  { chatId: chat.id, sender: 'ai', message: fullReply },
+                ],
+              });
+            } catch (dbErr) {
+              console.error('DB save error:', dbErr);
+            }
+          }
+
+          const doneData = JSON.stringify({
+            content: '',
             done: true,
             functionsUsed: functionCallsExecuted,
             iterations: iterationCount,

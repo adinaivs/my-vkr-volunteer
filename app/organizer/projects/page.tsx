@@ -191,11 +191,12 @@ function OrganizerProjectsInner() {
     checkAuth();
   }, [router]);
 
-  // Загрузка проектов при изменении activeTab
+  // Загрузка проектов при изменении user
   useEffect(() => {
-    if (user) {
-      fetchProjects();
-    }
+    if (!user) return;
+    const controller = new AbortController();
+    fetchProjects(controller.signal);
+    return () => controller.abort();
   }, [user]);
 
   // Обработка параметра edit из URL
@@ -273,17 +274,17 @@ function OrganizerProjectsInner() {
     setFilterCategory('all');
   };
 
-  const fetchProjects = async () => {
+  const fetchProjects = async (signal?: AbortSignal) => {
     if (!user) return;
 
     try {
       setLoadingProjects(true);
-      
+
       // Загружаем все проекты организатора без фильтрации по статусу
       const url = `/api/projects?organizerId=${user.id}`;
       console.log('Fetching projects from:', url);
 
-      const response = await fetch(url);
+      const response = await fetch(url, { signal });
       
       if (response.ok) {
         const data = await response.json();
@@ -318,7 +319,8 @@ function OrganizerProjectsInner() {
         console.error('Error fetching projects, status:', response.status);
         setProjects([]);
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'AbortError') return; // Нормальная отмена при размонтировании
       console.error('Error fetching projects:', error);
       setProjects([]);
     } finally {
@@ -761,6 +763,43 @@ function OrganizerProjectsInner() {
   };
 
   const handlePublishDraft = async (projectId: string) => {
+    // Если бесплатных публикаций нет — сначала оплата
+    if (freePostsRemaining <= 0) {
+      toast.confirm(
+        'У вас закончились бесплатные публикации. Стоимость публикации — 5 сом. Перейти к оплате?',
+        async () => {
+          try {
+            const draftProject = projects.find((p: any) => p.id === projectId);
+            const paymentResponse = await fetch('/api/finik/create-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                workId: projectId,
+                workTopic: draftProject?.title || 'Проект',
+                userId: user?.id,
+              }),
+            });
+            const paymentData = await paymentResponse.json();
+            if (!paymentResponse.ok) {
+              toast.error(paymentData.error || 'Ошибка при создании платежа');
+              return;
+            }
+            if (paymentData.paymentUrl) {
+              window.location.href = paymentData.paymentUrl;
+            } else {
+              toast.error('Не удалось получить ссылку на оплату');
+            }
+          } catch (error) {
+            console.error('Payment error:', error);
+            toast.error('Произошла ошибка при создании платежа');
+          }
+        },
+        'warning'
+      );
+      return;
+    }
+
+    // Бесплатная публикация
     toast.confirm(
       'Отправить черновик на модерацию? Убедитесь, что все данные заполнены корректно.',
       async () => {
