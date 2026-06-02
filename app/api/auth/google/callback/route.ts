@@ -21,7 +21,7 @@ interface GoogleUserInfo {
 }
 
 export async function GET(request: NextRequest) {
-  const origin = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
+  const origin = (process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin).replace(/\/+$/, '');
 
   try {
     const searchParams = request.nextUrl.searchParams;
