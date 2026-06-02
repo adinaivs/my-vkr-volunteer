@@ -45,7 +45,7 @@ async function sendViaResend(opts: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@volonterkr.kg',
+        from: process.env.RESEND_FROM || 'onboarding@resend.dev',
         to: [opts.to],
         subject: opts.subject,
         html: opts.html,
