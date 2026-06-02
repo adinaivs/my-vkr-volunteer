@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { prisma } from '@/lib/prisma';
+import { prisma, withDbRetry } from '@/lib/prisma';
 import { generateVerificationCode, sendVerificationCode } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
@@ -31,11 +31,9 @@ export async function POST(request: NextRequest) {
 
     console.log('Checking for existing user...');
     // Проверка существующего пользователя
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [{ email }, { phone }],
-      },
-    });
+    const existingUser = await withDbRetry(() =>
+      prisma.user.findFirst({ where: { OR: [{ email }, { phone }] } })
+    );
 
     if (existingUser) {
       console.log('User already exists');
@@ -46,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Hashing password...');
-    // Хеширование пароля
+    // Хеширование пароля (CPU-работа, соединение не нужно)
     const passwordHash = await bcrypt.hash(password, 10);
 
     // Генерация кода верификации
@@ -54,34 +52,23 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 минут
 
     console.log('Saving verification token...');
-    // Сохранение токена верификации
-    await prisma.emailVerificationToken.upsert({
-      where: { email },
-      create: {
-        email,
-        code,
-        firstName,
-        lastName,
-        phone,
-        passwordHash,
-        city,
-        role: role as 'volunteer' | 'organizer',
-        expiresAt,
-      },
-      update: {
-        code,
-        firstName,
-        lastName,
-        phone,
-        passwordHash,
-        city,
-        role: role as 'volunteer' | 'organizer',
-        expiresAt,
-      },
-    });
+    // Сохранение токена верификации (retry при обрыве Neon)
+    await withDbRetry(() =>
+      prisma.emailVerificationToken.upsert({
+        where: { email },
+        create: {
+          email, code, firstName, lastName, phone,
+          passwordHash, city, role: role as 'volunteer' | 'organizer', expiresAt,
+        },
+        update: {
+          code, firstName, lastName, phone,
+          passwordHash, city, role: role as 'volunteer' | 'organizer', expiresAt,
+        },
+      })
+    );
 
     console.log('Sending verification email...');
-    // Отправка email с кодом
+    // Отправка email (SMTP, не держит DB-соединение)
     const emailSent = await sendVerificationCode(email, code, 'registration');
 
     if (!emailSent) {

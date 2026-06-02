@@ -1,6 +1,6 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
-import { prisma } from '@/lib/prisma';
+import { prisma, withDbRetry } from '@/lib/prisma';
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'your-secret-key-change-in-production'
@@ -63,10 +63,12 @@ export async function getAuthenticatedUser(): Promise<SessionPayload | null> {
   const session = await getSession();
   if (!session) return null;
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.userId },
-    select: { status: true },
-  });
+  const user = await withDbRetry(() =>
+    prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { status: true },
+    })
+  );
 
   if (!user || user.status !== 'active') return null;
 

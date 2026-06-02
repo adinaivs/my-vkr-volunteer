@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { prisma } from '@/lib/prisma';
+import { prisma, withDbRetry } from '@/lib/prisma';
 import { createSession } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
@@ -15,10 +15,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Поиск пользователя
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
+    // Поиск пользователя (retry при обрыве Neon)
+    const user = await withDbRetry(() =>
+      prisma.user.findUnique({ where: { email } })
+    );
 
     if (!user) {
       return NextResponse.json(

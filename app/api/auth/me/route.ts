@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession, deleteSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { prisma, withDbRetry } from '@/lib/prisma';
 
 export async function GET() {
   try {
@@ -13,7 +13,7 @@ export async function GET() {
       );
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await withDbRetry(() => prisma.user.findUnique({
       where: { id: session.userId },
       select: {
         id: true,
@@ -61,7 +61,7 @@ export async function GET() {
           },
         },
       },
-    });
+    }));
 
     if (!user) {
       await deleteSession();
