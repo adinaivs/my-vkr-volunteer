@@ -67,7 +67,53 @@ async function sendViaResend(opts: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Основная функция отправки: Resend → порт 465 → порт 587
+// Brevo (Sendinblue) API — 300 писем/день, любые получатели, не нужен домен
+// Требует BREVO_API_KEY + верифицированный BREVO_FROM в аккаунте Brevo
+// ─────────────────────────────────────────────────────────────────────────────
+async function sendViaBrevo(opts: {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+}): Promise<boolean> {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) return false;
+
+  const fromEmail = process.env.BREVO_FROM || process.env.SMTP_FROM || process.env.SMTP_USER;
+  if (!fromEmail) return false;
+
+  try {
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': apiKey,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        sender: { name: 'ВолонтёрКР', email: fromEmail },
+        to: [{ email: opts.to }],
+        subject: opts.subject,
+        htmlContent: opts.html,
+        textContent: opts.text,
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      console.error('[email] Brevo error:', res.status, body);
+      return false;
+    }
+    console.log('[email] Sent via Brevo to:', opts.to);
+    return true;
+  } catch (err) {
+    console.error('[email] Brevo fetch error:', err);
+    return false;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Основная функция отправки: Brevo → Resend → порт 465 → порт 587
 // ─────────────────────────────────────────────────────────────────────────────
 async function sendMail(opts: {
   to: string;
@@ -75,7 +121,13 @@ async function sendMail(opts: {
   html: string;
   text: string;
 }): Promise<boolean> {
-  // 1. Попытка через Resend (HTTPS, всегда работает)
+  // 1. Brevo — лучший вариант (300/день, любые получатели, без домена)
+  if (process.env.BREVO_API_KEY) {
+    const ok = await sendViaBrevo(opts);
+    if (ok) return true;
+  }
+
+  // 2. Resend — работает только если получатель = ваш email или есть домен
   if (process.env.RESEND_API_KEY) {
     const ok = await sendViaResend(opts);
     if (ok) return true;
