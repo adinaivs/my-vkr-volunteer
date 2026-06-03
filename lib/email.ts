@@ -67,6 +67,55 @@ async function sendViaResend(opts: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Mailjet API — 200 писем/день БЕСПЛАТНО, любые получатели, не нужен домен
+// Требует MAILJET_API_KEY + MAILJET_SECRET_KEY + верифицированный MAILJET_FROM
+// ─────────────────────────────────────────────────────────────────────────────
+async function sendViaMailjet(opts: {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+}): Promise<boolean> {
+  const apiKey = process.env.MAILJET_API_KEY;
+  const secretKey = process.env.MAILJET_SECRET_KEY;
+  if (!apiKey || !secretKey) return false;
+
+  const fromEmail = process.env.MAILJET_FROM || process.env.SMTP_FROM || process.env.SMTP_USER;
+  if (!fromEmail) return false;
+
+  try {
+    const credentials = Buffer.from(`${apiKey}:${secretKey}`).toString('base64');
+    const res = await fetch('https://api.mailjet.com/v3.1/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        Messages: [{
+          From: { Email: fromEmail, Name: 'ВолонтёрКР' },
+          To: [{ Email: opts.to }],
+          Subject: opts.subject,
+          TextPart: opts.text,
+          HTMLPart: opts.html,
+        }],
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      console.error('[email] Mailjet error:', res.status, body);
+      return false;
+    }
+    console.log('[email] Sent via Mailjet to:', opts.to);
+    return true;
+  } catch (err) {
+    console.error('[email] Mailjet fetch error:', err);
+    return false;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Brevo (Sendinblue) API — 300 писем/день, любые получатели, не нужен домен
 // Требует BREVO_API_KEY + верифицированный BREVO_FROM в аккаунте Brevo
 // ─────────────────────────────────────────────────────────────────────────────
@@ -121,13 +170,19 @@ async function sendMail(opts: {
   html: string;
   text: string;
 }): Promise<boolean> {
-  // 1. Brevo — лучший вариант (300/день, любые получатели, без домена)
+  // 1. Mailjet — бесплатно 200/день, любые получатели, без домена
+  if (process.env.MAILJET_API_KEY) {
+    const ok = await sendViaMailjet(opts);
+    if (ok) return true;
+  }
+
+  // 2. Brevo — бесплатно 300/день, любые получатели, без домена
   if (process.env.BREVO_API_KEY) {
     const ok = await sendViaBrevo(opts);
     if (ok) return true;
   }
 
-  // 2. Resend — работает только если получатель = ваш email или есть домен
+  // 3. Resend — работает только если получатель = ваш email или есть домен
   if (process.env.RESEND_API_KEY) {
     const ok = await sendViaResend(opts);
     if (ok) return true;
