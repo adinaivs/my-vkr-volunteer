@@ -818,8 +818,8 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
               <p className="text-xs sm:text-sm text-gray-400">{t.footer?.copyright || '© 2026 ВолонтёрКР. Все права защищены.'}</p>
               <div className="flex gap-4 sm:gap-6">
-                <a href="#" className="text-xs sm:text-sm text-gray-400 hover:text-[#00CC00] transition-colors">{t.footer?.privacyPolicy || 'Политика конфиденциальности'}</a>
-                <a href="#" className="text-xs sm:text-sm text-gray-400 hover:text-[#00CC00] transition-colors">{t.footer?.termsOfUse || 'Условия использования'}</a>
+                <a href="/privacy" className="text-xs sm:text-sm text-gray-400 hover:text-[#00CC00] transition-colors">{t.footer?.privacyPolicy || 'Политика конфиденциальности'}</a>
+                <a href="/terms" className="text-xs sm:text-sm text-gray-400 hover:text-[#00CC00] transition-colors">{t.footer?.termsOfUse || 'Условия использования'}</a>
               </div>
             </div>
           </div>
