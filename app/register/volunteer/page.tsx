@@ -6,6 +6,7 @@ import Link from 'next/link';
 import AiSupportButton from '@/app/components/AiSupportButton';
 import Image from 'next/image';
 import { useTranslation } from '@/app/i18n';
+import { formatKgPhone, isValidKgPhone, PHONE_PREFIX } from '@/lib/phone';
 
 export default function VolunteerRegisterPage() {
   const router = useRouter();
@@ -14,7 +15,7 @@ export default function VolunteerRegisterPage() {
     firstName: '',
     lastName: '',
     email: '',
-    phone: '',
+    phone: PHONE_PREFIX + ' ',
     password: '',
     confirmPassword: '',
   });
@@ -60,6 +61,11 @@ export default function VolunteerRegisterPage() {
 
     if (formData.password.length < 6) {
       setError(t.volunteerRegister?.errors?.passwordTooShort || 'Пароль должен содержать минимум 6 символов');
+      return;
+    }
+
+    if (!isValidKgPhone(formData.phone)) {
+      setError(t.volunteerRegister?.errors?.invalidPhone || 'Введите корректный номер телефона в формате +996 XXX XXX XXX');
       return;
     }
 
@@ -219,10 +225,12 @@ export default function VolunteerRegisterPage() {
                 <input
                   type="tel"
                   required
+                  inputMode="tel"
+                  maxLength={17}
                   placeholder={t.volunteerRegister?.phonePlaceholder || '+996 XXX XXX XXX'}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-sm"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, phone: formatKgPhone(e.target.value) })}
                 />
               </div>
 

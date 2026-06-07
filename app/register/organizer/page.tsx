@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AiSupportButton from '@/app/components/AiSupportButton';
 import { useTranslation } from '@/app/i18n';
+import { formatKgPhone, isValidKgPhone, PHONE_PREFIX } from '@/lib/phone';
 
 export default function OrganizerRegisterPage() {
   const router = useRouter();
@@ -16,7 +17,7 @@ export default function OrganizerRegisterPage() {
     inn: '',
     okpo: '',
     organizationEmail: '',
-    organizationPhone: '',
+    organizationPhone: PHONE_PREFIX + ' ',
     verificationDoc: null as File | null,
     password: '',
     confirmPassword: '',
@@ -72,6 +73,11 @@ export default function OrganizerRegisterPage() {
 
     if (formData.okpo.length !== 8) {
       setError(t.organizerRegister?.errors?.okpoLength || 'ОКПО должен содержать 8 цифр');
+      return;
+    }
+
+    if (!isValidKgPhone(formData.organizationPhone)) {
+      setError(t.organizerRegister?.errors?.invalidPhone || 'Введите корректный номер телефона в формате +996 XXX XXX XXX');
       return;
     }
 
@@ -331,10 +337,12 @@ export default function OrganizerRegisterPage() {
                 <input
                   type="tel"
                   required
+                  inputMode="tel"
+                  maxLength={17}
                   placeholder={t.organizerRegister?.organizationPhonePlaceholder || '+996 XXX XXX XXX'}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00CC00] focus:border-transparent transition-all text-sm"
                   value={formData.organizationPhone}
-                  onChange={(e) => setFormData({ ...formData, organizationPhone: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, organizationPhone: formatKgPhone(e.target.value) })}
                 />
               </div>
 

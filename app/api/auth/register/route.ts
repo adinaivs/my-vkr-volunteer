@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma, withDbRetry } from '@/lib/prisma';
 import { generateVerificationCode, sendVerificationCode } from '@/lib/email';
+import { isValidKgPhone, normalizeKgPhone } from '@/lib/phone';
 
 export async function POST(request: NextRequest) {
   console.log('=== Register API called ===');
@@ -29,10 +30,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Формат email
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      console.log('Validation failed: invalid email');
+      return NextResponse.json(
+        { error: 'Некорректный email' },
+        { status: 400 }
+      );
+    }
+
+    // Формат телефона (+996 и 9 цифр)
+    if (!isValidKgPhone(phone)) {
+      console.log('Validation failed: invalid phone');
+      return NextResponse.json(
+        { error: 'Некорректный номер телефона. Формат: +996 XXX XXX XXX' },
+        { status: 400 }
+      );
+    }
+
+    // Минимальная длина пароля
+    if (typeof password !== 'string' || password.length < 6) {
+      console.log('Validation failed: weak password');
+      return NextResponse.json(
+        { error: 'Пароль должен содержать минимум 6 символов' },
+        { status: 400 }
+      );
+    }
+
+    // Приводим телефон к единому виду для хранения и проверки дублей
+    const normalizedPhone = normalizeKgPhone(phone);
+
     console.log('Checking for existing user...');
     // Проверка существующего пользователя
     const existingUser = await withDbRetry(() =>
-      prisma.user.findFirst({ where: { OR: [{ email }, { phone }] } })
+      prisma.user.findFirst({ where: { OR: [{ email }, { phone: normalizedPhone }] } })
     );
 
     if (existingUser) {
@@ -57,11 +88,11 @@ export async function POST(request: NextRequest) {
       prisma.emailVerificationToken.upsert({
         where: { email },
         create: {
-          email, code, firstName, lastName, phone,
+          email, code, firstName, lastName, phone: normalizedPhone,
           passwordHash, city, role: role as 'volunteer' | 'organizer', expiresAt,
         },
         update: {
-          code, firstName, lastName, phone,
+          code, firstName, lastName, phone: normalizedPhone,
           passwordHash, city, role: role as 'volunteer' | 'organizer', expiresAt,
         },
       })
