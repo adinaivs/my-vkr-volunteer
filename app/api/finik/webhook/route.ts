@@ -6,6 +6,7 @@ import {
   FinikWebhookData
 } from '@/lib/finik';
 import { prisma } from '@/lib/prisma';
+import { DISPLAY_PRICE } from '@/lib/pricing';
 
 export async function POST(request: NextRequest) {
   try {
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
           userId,
           projectId: workId,
           finikPaymentId: body.transactionId || body.id || 'unknown',
-          amount: 5,
+          amount: DISPLAY_PRICE,
           status: 'succeeded',
           paymentMethod: 'FINIK_QR',
           callbackData: body as any,

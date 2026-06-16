@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, getAuthenticatedUser } from '@/lib/auth';
 import { getCategoryInclude, formatCategoryWithTranslation } from '@/lib/category-helpers';
+import { DISPLAY_PRICE } from '@/lib/pricing';
 
 // POST - Опубликовать проект (отправить на модерацию)
 export async function POST(
@@ -99,7 +100,7 @@ export async function POST(
           userId: user.id,
           projectId: id,
           finikPaymentId,
-          amount: 5,
+          amount: DISPLAY_PRICE,
           status: 'succeeded',
           paymentMethod: 'FINIK_QR',
           paidAt: new Date(),

@@ -1,8 +1,10 @@
 // app/api/finik/create-payment/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createFinikPayment, CreatePaymentData } from '@/lib/finik';
+import { REAL_CHARGE } from '@/lib/pricing';
 
-const FIXED_AMOUNT = 5;
+// Реально списываемая сумма (заглушка цены показывается в UI отдельно)
+const FIXED_AMOUNT = REAL_CHARGE;
 
 export async function POST(request: NextRequest) {
   try {
