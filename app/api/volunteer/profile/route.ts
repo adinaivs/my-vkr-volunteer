@@ -28,6 +28,7 @@ export async function GET() {
             ratingCount: true,
             completedTasks: true,
             completedProjects: true,
+            totalHoursWorked: true,
           },
         },
         skills: {

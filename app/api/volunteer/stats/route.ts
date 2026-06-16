@@ -14,7 +14,7 @@ export async function GET() {
     const [profile, achievements, activeParticipants, pendingApplications] = await Promise.all([
       prisma.volunteerProfile.findUnique({
         where: { userId },
-        select: { completedProjects: true, completedTasks: true, trustScore: true, ratingCount: true },
+        select: { completedProjects: true, completedTasks: true, trustScore: true, ratingCount: true, totalHoursWorked: true },
       }),
       prisma.userAchievement.count({ where: { userId } }),
       prisma.projectParticipant.findMany({
@@ -82,6 +82,7 @@ export async function GET() {
       trustScore: Number(profile?.trustScore ?? 0),
       ratingCount: profile?.ratingCount ?? 0,
       pendingApplications,
+      totalHoursWorked: profile?.totalHoursWorked ?? 0,
       currentProjects,
     });
   } catch (error) {

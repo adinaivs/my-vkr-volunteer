@@ -22,6 +22,7 @@ interface VolunteerProfileData {
   ratingCount: number;
   completedTasks: number;
   completedProjects: number;
+  totalHoursWorked: number;
 }
 
 interface UserData {
@@ -207,6 +208,7 @@ export default function VolunteerProfilePage() {
 <div class="stats">
   <div class="stat-box"><div class="stat-num">${u.completedProjects}</div><div class="stat-lbl">Завершено проектов</div></div>
   <div class="stat-box"><div class="stat-num">${u.completedTasks}</div><div class="stat-lbl">Выполнено задач</div></div>
+  <div class="stat-box"><div class="stat-num">${u.totalHoursWorked ?? 0}</div><div class="stat-lbl">Отработано часов</div></div>
   <div class="stat-box"><div class="stat-num">${achievements.length}</div><div class="stat-lbl">Достижений</div></div>
 </div>
 
@@ -581,6 +583,20 @@ ${achievements.length > 0 ? `
                     {profile?.ratingCount ?? 0 > 0 ? Number(profile?.trustScore ?? 0).toFixed(1) : '—'}
                   </div>
                   <div className="text-sm text-gray-600">{t.profile?.reliabilityScore || 'Средний рейтинг'}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-gray-900">{profile?.totalHoursWorked ?? 0}</div>
+                  <div className="text-sm text-gray-600">Отработано часов</div>
                 </div>
               </div>
             </div>

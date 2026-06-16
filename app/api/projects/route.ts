@@ -200,6 +200,7 @@ export async function POST(request: NextRequest) {
               description: task.description,
               requiredSkillId: skillId,
               requiredVolunteers: parseInt(task.requiredVolunteers) || 1,
+              estimatedHours: parseInt(task.estimatedHours) || 0,
               deadline: new Date(task.deadline),
               status: 'pending',
             },

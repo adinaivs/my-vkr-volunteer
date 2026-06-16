@@ -39,7 +39,7 @@ export async function PATCH(
     const assignment = await prisma.taskAssignment.findUnique({
       where: { id: assignmentId },
       include: {
-        task: true,
+        task: { select: { id: true, title: true, projectId: true, estimatedHours: true } },
         report: true,
         volunteer: {
           select: {
@@ -104,6 +104,7 @@ export async function PATCH(
       });
 
       // Обновляем статистику волонтёра и пересчитываем рейтинг
+      const hoursToAdd = assignment.task.estimatedHours ?? 0;
       if (rating) {
         const currentProfile = await prisma.volunteerProfile.findUnique({
           where: { userId: assignment.volunteerId },
@@ -121,12 +122,16 @@ export async function PATCH(
             completedTasks: { increment: 1 },
             trustScore: newScore,
             ratingCount: newCount,
+            totalHoursWorked: { increment: hoursToAdd },
           },
         });
       } else {
         await prisma.volunteerProfile.update({
           where: { userId: assignment.volunteerId },
-          data: { completedTasks: { increment: 1 } },
+          data: {
+            completedTasks: { increment: 1 },
+            totalHoursWorked: { increment: hoursToAdd },
+          },
         });
       }
 

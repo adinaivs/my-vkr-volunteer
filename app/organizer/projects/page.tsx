@@ -30,6 +30,7 @@ interface Task {
   description: string;
   requiredSkill: string;
   requiredVolunteers: number;
+  estimatedHours: number;
   deadline: string;
 }
 
@@ -62,6 +63,7 @@ function OrganizerProjectsInner() {
     description: '',
     requiredSkill: '',
     requiredVolunteers: '',
+    estimatedHours: '',
     deadline: '',
   });
   const [freePostsRemaining, setFreePostsRemaining] = useState(3); // TODO: Load from API
@@ -486,6 +488,7 @@ function OrganizerProjectsInner() {
       description: currentTask.description,
       requiredSkill: currentTask.requiredSkill,
       requiredVolunteers: requiredVolunteersForTask,
+      estimatedHours: parseInt(currentTask.estimatedHours) || 0,
       deadline: currentTask.deadline,
     };
 
@@ -495,6 +498,7 @@ function OrganizerProjectsInner() {
       description: '',
       requiredSkill: '',
       requiredVolunteers: '',
+      estimatedHours: '',
       deadline: '',
     });
     setShowTaskForm(false);
@@ -512,6 +516,7 @@ function OrganizerProjectsInner() {
         description: taskToEdit.description,
         requiredSkill: taskToEdit.requiredSkill,
         requiredVolunteers: taskToEdit.requiredVolunteers.toString(),
+        estimatedHours: taskToEdit.estimatedHours?.toString() || '',
         deadline: taskToEdit.deadline,
       });
       // Удаляем задачу из списка, чтобы после редактирования добавить заново
@@ -626,6 +631,7 @@ function OrganizerProjectsInner() {
       description: '',
       requiredSkill: '',
       requiredVolunteers: '',
+      estimatedHours: '',
       deadline: '',
     });
   };
@@ -1772,6 +1778,21 @@ function OrganizerProjectsInner() {
 
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                            Примерное время (часов)
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="999"
+                            placeholder="Например: 4"
+                            value={currentTask.estimatedHours}
+                            onChange={(e) => setCurrentTask({ ...currentTask, estimatedHours: e.target.value })}
+                            className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5">
                             Дедлайн
                           </label>
                           <CustomDatePicker
@@ -1802,7 +1823,7 @@ function OrganizerProjectsInner() {
                           type="button"
                           onClick={() => {
                             setShowTaskForm(false);
-                            setCurrentTask({ title: '', description: '', requiredSkill: '', requiredVolunteers: '', deadline: '' });
+                            setCurrentTask({ title: '', description: '', requiredSkill: '', requiredVolunteers: '', estimatedHours: '', deadline: '' });
                           }}
                           className="px-4 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
                         >
@@ -2387,6 +2408,21 @@ function OrganizerProjectsInner() {
                           placeholder="1"
                           value={currentTask.requiredVolunteers}
                           onChange={(e) => setCurrentTask({ ...currentTask, requiredVolunteers: e.target.value })}
+                          className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                          Примерное время (часов)
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="999"
+                          placeholder="Например: 4"
+                          value={currentTask.estimatedHours}
+                          onChange={(e) => setCurrentTask({ ...currentTask, estimatedHours: e.target.value })}
                           className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#00CC00] focus:border-[#00CC00]"
                         />
                       </div>

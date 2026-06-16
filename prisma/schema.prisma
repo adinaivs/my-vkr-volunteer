@@ -143,10 +143,11 @@ model VolunteerProfile {
   userId            String   @unique @map("user_id") @db.Uuid
   bio               String?
   availableTime     Json?    @map("available_time")
-  trustScore        Decimal  @default(0) @map("trust_score") @db.Decimal(5, 2)
-  ratingCount       Int      @default(0) @map("rating_count")
-  completedTasks    Int      @default(0) @map("completed_tasks")
-  completedProjects Int      @default(0) @map("completed_projects")
+  trustScore          Decimal  @default(0) @map("trust_score") @db.Decimal(5, 2)
+  ratingCount         Int      @default(0) @map("rating_count")
+  completedTasks      Int      @default(0) @map("completed_tasks")
+  completedProjects   Int      @default(0) @map("completed_projects")
+  totalHoursWorked    Int      @default(0) @map("total_hours_worked")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -294,6 +295,7 @@ model Task {
   requiredSkillId     String?    @map("required_skill_id") @db.Uuid
   requiredVolunteers  Int        @map("required_volunteers")
   currentVolunteers   Int        @default(0) @map("current_volunteers")
+  estimatedHours      Int        @default(0) @map("estimated_hours")
   deadline            DateTime   @db.Date
   status              TaskStatus @default(pending)
   createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
