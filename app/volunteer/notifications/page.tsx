@@ -15,7 +15,7 @@ interface User {
 
 interface Notification {
   id: string;
-  type: 'comment_reply' | 'new_project' | 'application_status';
+  type: 'comment_reply' | 'new_project' | 'application_status' | 'project_overdue';
   title: string;
   body: string;
   link?: string;
@@ -62,12 +62,18 @@ const typeIcon: Record<string, ReactElement> = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
+  project_overdue: (
+    <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
 };
 
 const typeBg: Record<string, string> = {
   comment_reply:      'bg-blue-50',
   new_project:        'bg-green-50',
   application_status: 'bg-orange-50',
+  project_overdue:    'bg-red-50',
 };
 
 export default function NotificationsPage() {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { penalizeOverdueAssignments } from '@/lib/overdue-penalty';
 
 // POST /api/organizer/projects/[id]/overdue
 // Помечает просроченные задачи проекта как overdue и уведомляет организатора.
@@ -58,7 +59,7 @@ export async function POST(
 
     const overdueTaskIds = overdueTasks.map(t => t.id);
 
-    // Помечаем задачи как просроченные и отменяем незакрытые назначения в транзакции
+    // Помечаем задачи как просроченные и штрафуем незакрытые назначения в транзакции
     await prisma.$transaction(async (tx) => {
       // Задачи → overdue
       await tx.task.updateMany({
@@ -66,14 +67,8 @@ export async function POST(
         data: { status: 'overdue' },
       });
 
-      // Назначения со статусом assigned → cancelled
-      await tx.taskAssignment.updateMany({
-        where: {
-          taskId: { in: overdueTaskIds },
-          status: 'assigned',
-        },
-        data: { status: 'cancelled' },
-      });
+      // Назначения assigned → cancelled, 0 звёзд, пересчёт рейтинга
+      await penalizeOverdueAssignments(tx, overdueTaskIds);
     });
 
     return NextResponse.json({

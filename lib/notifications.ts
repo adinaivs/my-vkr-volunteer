@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 
-type NotificationType = 'comment_reply' | 'new_project' | 'application_status';
+type NotificationType = 'comment_reply' | 'new_project' | 'application_status' | 'project_overdue';
 
 interface CreateNotificationParams {
   userId: string;

@@ -4,6 +4,7 @@ import { getSession, getAuthenticatedUser } from '@/lib/auth';
 import { getCategoryInclude, formatCategoryWithTranslation } from '@/lib/category-helpers';
 import { uploadToS3, validateFile } from '@/lib/s3';
 import { checkAchievementsOnProjectCreated } from '@/lib/achievements';
+import { expireProjectsThrottled } from '@/lib/expire-projects';
 
 // POST - Создать новый проект
 export async function POST(request: NextRequest) {
@@ -229,6 +230,10 @@ export async function POST(request: NextRequest) {
 // GET - Получить список проектов
 export async function GET(request: NextRequest) {
   try {
+    // Ленивая авто-проверка сроков: завершает просроченные проекты и шлёт уведомления.
+    // Не чаще раза в 5 минут, ошибки не влияют на выдачу списка.
+    await expireProjectsThrottled();
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const categoryId = searchParams.get('categoryId');
